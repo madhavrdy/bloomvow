@@ -69,3 +69,10 @@ test('only admins can import', async () => {
   await assert.rejects(imp([{ name: 'X', category: 'florists', city: 'Austin', state: 'TX' }], vendor), /forbidden/);
   await assert.rejects(db.anon(`select admin_import_vendors('[]'::jsonb)`), /permission denied/);
 });
+
+test('scheduled import job: a direct owner login may import; API roles still may not', async () => {
+  const r = (await db.sql(`select admin_import_vendors($1::jsonb, 'overture') as r`, [JSON.stringify([{ name: 'Open Data Florals', category: 'florists', city: 'Austin', state: 'TX', phone: '512-555-0199' }])]))[0].r;
+  assert.equal(r.inserted, 1);
+  await assert.rejects(db.anon(`select admin_import_vendors('[]'::jsonb)`), /forbidden|permission denied/);
+  await assert.rejects(db.as('service_role', null, `select admin_import_vendors('[]'::jsonb)`), /forbidden|permission denied/);
+});

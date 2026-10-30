@@ -63,6 +63,14 @@ US wedding vendor directory (venues, photographers, hair & makeup, caterers and
   * Organization and author markup;
   * hreflang for US/CA/UK/AU, IndexNow, and share images.
 
+## Real vendor data (Overture Maps)
+
+* Source: [Overture Maps](https://overturemaps.org) places, open data under CDLA-Permissive-2.0 (commercial use allowed). Google Maps, Yelp and The Knot are not used: their terms forbid copying listings.
+* Run it: GitHub > Actions > **Import vendors** > Run workflow. Keep **dry run** ticked first; download `vendors-csv` from the run to check the data. Then run again with dry run unticked.
+* Rules: open businesses only, confidence 0.6+, within 35 km of a launch city, mapped to our 15 categories (`scripts/vendors/categories.py`; broad types such as bakeries or salons need a wedding word in the name). Duplicates merge; nothing is overwritten. Imported rows have `source = 'overture'`, so a batch can be removed with `delete from vendors where source = 'overture' and status = 'unclaimed';`.
+* Needs the GitHub secret `SUPABASE_DB_URL`: Supabase > Connect > **Session pooler** connection string, with your database password filled in. GitHub's servers can't use the direct connection.
+* Footer credit to add: "Business data includes Overture Maps Foundation open data."
+
 ## Folder layout
 
 ```
@@ -125,7 +133,7 @@ Local dev logins (password `password123`): `admin@bloomvow.local` (admin), `dana
 ## Tests
 
 ```bash
-npm run test:db     # 35 database tests: permissions, routing, claims, import, stats, photos, onboarding
+npm run test:db     # 36 database tests: permissions, routing, claims, import, stats, photos, onboarding
 npm run test:unit   # front-end logic: filters, search, quote flow validation
 npm run test:e2e    # needs POSTGREST_BIN + AUTH_BIN: builds the whole site and drives a real browser
                     # through every public and vendor-dashboard flow (18 tests)
@@ -139,7 +147,7 @@ npm run test:e2e    # needs POSTGREST_BIN + AUTH_BIN: builds the whole site and 
 
 ## Live Supabase project (status Oct 30)
 
-* Applied: 001–006, 006b (editor role), 007 (blog tables and views), 007b (comment functions and image bucket), 008 (advisor hardening), 008b, 009 (countries + regions), 010 + 010b (per-country categories), 007c + 007d (blog category delete, editors can delete blog images).
+* Applied: 001–006, 006b (editor role), 007 (blog tables and views), 007b (comment functions and image bucket), 008 (advisor hardening), 008b, 009 (countries + regions), 010 + 010b (per-country categories), 011 (scheduled jobs may run admin imports), 007c + 007d (blog category delete, editors can delete blog images).
 * Nothing pending: all migrations are applied (Oct 30).
 * Known advisor items:
   * public_* views are SECURITY DEFINER by design: they expose safe columns only. Plan to convert them to invoker views with column grants on Nov 1.
