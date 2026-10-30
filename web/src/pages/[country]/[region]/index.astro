@@ -1,0 +1,35 @@
+---
+import Base from '../../../layouts/Base.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import { getData, type Region } from '../../../lib/data';
+import { breadcrumbJsonLd } from '../../../lib/seo';
+
+export async function getStaticPaths() {
+  const d = await getData();
+  return d.regions.filter((r) => d.activeCities.some((c) => c.region_id === r.id))
+    .map((r) => ({ params: { country: r.country_code, region: r.slug }, props: { region: r } }));
+}
+interface Props { region: Region }
+const { region } = Astro.props;
+const d = await getData();
+const cities = d.activeCities.filter((c) => c.region_id === region.id).sort((a, b) => d.cityVendorCount(b) - d.cityVendorCount(a));
+const total = cities.reduce((n, c) => n + d.cityVendorCount(c), 0);
+const country = d.countryByCode.get(region.country_code)!;
+const crumbs = [{ name: 'Home', url: '/' }, { name: country.name, url: d.urls.country(country) }, { name: region.name }];
+const cats = d.categories.filter((cat) => d.listings.some((l) => l.region.id === region.id && l.category.id === cat.id));
+---
+<Base title={`Wedding vendors in ${region.name}`} description={`Compare ${total} wedding venues, photographers, makeup artists and more across ${cities.length} cities in ${region.name}.`} jsonld={[breadcrumbJsonLd(Astro.site, crumbs)]}>
+  <main class="wrap" style="padding-top:24px">
+    <Breadcrumbs items={crumbs} />
+    <h1 class="serif" style="font-size:clamp(36px,5vw,52px);margin:16px 0 8px">Wedding vendors in {region.name}</h1>
+    <p class="muted" style="font-size:17px;margin:0">{total} vendors in {cities.length} {cities.length === 1 ? 'city' : 'cities'}.</p>
+    <section class="section"><h2>Cities</h2>
+      <div class="tile-grid">{cities.map((c) => <a class="tile" href={d.urls.city(c)}><b>{c.name}</b><span>{d.cityVendorCount(c)} vendors</span></a>)}</div>
+    </section>
+    <section class="section"><h2>By category</h2>
+      <div class="links-grid">
+        {cats.flatMap((cat) => cities.map((c) => d.listings.find((l) => l.city.id === c.id && l.category.id === cat.id && l.indexable)).filter(Boolean).slice(0, 1).map((l) => <a href={l!.url}>{cat.name} in {l!.city.name}</a>))}
+      </div>
+    </section>
+  </main>
+</Base>

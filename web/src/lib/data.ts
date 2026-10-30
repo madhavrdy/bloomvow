@@ -1,0 +1,156 @@
+// Build-time data: everything the static pages need, loaded once from the
+// Supabase REST API (public views only, using the public anon key).
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config';
+
+export type Country = { code: string; name: string; currency: string; active: boolean };
+export type Region = { id: number; country_code: string; code: string; name: string; slug: string };
+export type City = { id: number; region_id: number; name: string; slug: string; lat: number | null; lng: number | null; population: number | null };
+export type Category = { id: number; slug: string; name: string; singular: string; sort: number; uses_capacity: boolean };
+export type Vendor = {
+  id: string; slug: string; name: string; category_id: number; city_id: number; address: string | null; zip: string | null;
+  phone: string | null; website: string | null; description: string | null; price_from: number | null; capacity_max: number | null;
+  setting: string | null; amenities: string[]; status: 'unclaimed' | 'claimed'; featured: boolean; rating: number | null;
+  review_count: number; avg_reply_minutes: number | null; updated_at: string;
+};
+export type Pkg = { id: string; vendor_id: string; name: string; description: string | null; price: number | null; sort: number };
+export type Photo = { id: string; vendor_id: string; url: string; alt: string | null; sort: number };
+export type Review = { id: string; vendor_id: string; author_name: string; wedding_date: string | null; rating: number; body: string; created_at: string };
+
+export type ListingPage = {
+  country: Country; region: Region; city: City; category: Category;
+  vendors: Vendor[]; indexable: boolean; url: string;
+};
+
+async function rest<T>(table: string, query: string): Promise<T[]> {
+  if (!SUPABASE_URL) throw new Error('PUBLIC_SUPABASE_URL is not set. Copy web/.env.example to web/.env.');
+  const out: T[] = [];
+  const size = 1000;
+  for (let offset = 0; ; offset += size) {
+    const url = `${SUPABASE_URL}/rest/v1/${table}?${query}&limit=${size}&offset=${offset}`;
+    const res = await fetch(url, { headers: { apikey: SUPABASE_ANON_KEY, authorization: `Bearer ${SUPABASE_ANON_KEY}` } });
+    if (!res.ok) throw new Error(`Supabase ${table}: ${res.status} ${await res.text()}`);
+    const rows = (await res.json()) as T[];
+    out.push(...rows);
+    if (rows.length < size) return out;
+  }
+}
+
+// Same ordering the database uses for lead matching and vendor rank.
+export function rankVendors(list: Vendor[]): Vendor[] {
+  return [...list].sort((a, b) =>
+    Number(b.featured) - Number(a.featured) ||
+    Number(b.status === 'claimed') - Number(a.status === 'claimed') ||
+    (b.rating ?? 0) - (a.rating ?? 0) ||
+    b.review_count - a.review_count ||
+    a.slug.localeCompare(b.slug));
+}
+
+let cache: Promise<ReturnType<typeof build>> | null = null;
+export function getData() {
+  cache ??= load().then(build);
+  return cache;
+}
+
+async function load() {
+  const [countries, regions, cities, categories, settings, vendors, vendorCities, packages, photos, reviews, hidden] = await Promise.all([
+    rest<Country>('countries', 'select=*&active=eq.true&order=code'),
+    rest<Region>('regions', 'select=*&order=name'),
+    rest<City>('cities', 'select=*&order=name'),
+    rest<Category>('categories', 'select=id,slug,name,singular,sort,uses_capacity&active=eq.true&order=sort'),
+    rest<{ key: string; value: unknown }>('settings', 'select=key,value'),
+    rest<Vendor>('public_vendors', 'select=*&order=slug'),
+    rest<{ vendor_id: string; city_id: number }>('vendor_cities', 'select=vendor_id,city_id&order=vendor_id'),
+    rest<Pkg>('packages', 'select=*&order=vendor_id,sort'),
+    rest<Photo>('photos', 'select=*&order=vendor_id,sort'),
+    rest<Review>('public_reviews', 'select=*&order=created_at.desc'),
+    rest<{ country_code: string; category_id: number }>('country_hidden_categories', 'select=country_code,category_id&order=country_code'),
+  ]);
+  return { countries, regions, cities, categories, settings, vendors, vendorCities, packages, photos, reviews, hidden };
+}
+
+function group<T, K>(rows: T[], key: (r: T) => K): Map<K, T[]> {
+  const m = new Map<K, T[]>();
+  for (const r of rows) { const k = key(r); const a = m.get(k); if (a) a.push(r); else m.set(k, [r]); }
+  return m;
+}
+
+function build(d: Awaited<ReturnType<typeof load>>) {
+  const setting = (k: string) => d.settings.find((s) => s.key === k)?.value;
+  const minToIndex = Number(setting('min_vendors_to_index') ?? 5);
+  const budgetBands = (setting('budget_bands') as number[]) ?? [15000, 30000, 50000, 80000, 150000];
+
+  const countryByCode = new Map(d.countries.map((c) => [c.code, c]));
+  const regions = d.regions.filter((r) => countryByCode.has(r.country_code));
+  const regionById = new Map(regions.map((r) => [r.id, r]));
+  const cities = d.cities.filter((c) => regionById.has(c.region_id));
+  const cityById = new Map(cities.map((c) => [c.id, c]));
+  const categoryById = new Map(d.categories.map((c) => [c.id, c]));
+  // Categories switched off for a specific country (Admin > Cities & categories > Countries).
+  const hiddenIn = new Set(d.hidden.map((h) => `${h.country_code}:${h.category_id}`));
+  const countryOfCity = (cityId: number) => regionById.get(cityById.get(cityId)!.region_id)!.country_code;
+  const shownIn = (cityId: number, catId: number) => !hiddenIn.has(`${countryOfCity(cityId)}:${catId}`);
+  const vendors = d.vendors.filter((v) => cityById.has(v.city_id) && categoryById.has(v.category_id) && shownIn(v.city_id, v.category_id));
+  const vendorById = new Map(vendors.map((v) => [v.id, v]));
+  const vendorBySlug = new Map(vendors.map((v) => [v.slug, v]));
+
+  const urls = {
+    country: (c: Country) => `/${c.code}/`,
+    region: (r: Region) => `/${r.country_code}/${r.slug}/`,
+    city: (c: City) => { const r = regionById.get(c.region_id)!; return `/${r.country_code}/${r.slug}/${c.slug}/`; },
+    listing: (c: City, cat: Category) => `${urls.city(c)}${cat.slug}/`,
+    vendor: (v: Vendor) => `/vendor/${v.slug}/`,
+  };
+
+  // Every city x category combination with at least one vendor (primary or service area).
+  const byPage = new Map<string, Vendor[]>();
+  const add = (cityId: number, v: Vendor) => {
+    if (!shownIn(cityId, v.category_id)) return;
+    const k = `${cityId}:${v.category_id}`;
+    const a = byPage.get(k);
+    if (a) { if (!a.includes(v)) a.push(v); } else byPage.set(k, [v]);
+  };
+  for (const v of vendors) add(v.city_id, v);
+  for (const vc of d.vendorCities) { const v = vendorById.get(vc.vendor_id); if (v && cityById.has(vc.city_id)) add(vc.city_id, v); }
+
+  const listings: ListingPage[] = [];
+  for (const [k, list] of byPage) {
+    const [cityId, catId] = k.split(':').map(Number);
+    const city = cityById.get(cityId)!; const category = categoryById.get(catId)!;
+    const region = regionById.get(city.region_id)!; const country = countryByCode.get(region.country_code)!;
+    listings.push({ country, region, city, category, vendors: rankVendors(list), indexable: list.length >= minToIndex, url: urls.listing(city, category) });
+  }
+  listings.sort((a, b) => a.url.localeCompare(b.url));
+  const listingsByCity = group(listings, (l) => l.city.id);
+  const listingsByCategory = group(listings, (l) => l.category.id);
+
+  const packagesByVendor = group(d.packages, (p) => p.vendor_id);
+  const photosByVendor = group(d.photos, (p) => p.vendor_id);
+  const reviewsByVendor = group(d.reviews, (r) => r.vendor_id);
+
+  const activeCities = cities.filter((c) => listingsByCity.has(c.id));
+  const cityVendorCount = (c: City) => new Set((listingsByCity.get(c.id) ?? []).flatMap((l) => l.vendors.map((v) => v.id))).size;
+
+  return {
+    countries: d.countries, regions, cities, activeCities, categories: d.categories,
+    vendors, vendorById, vendorBySlug, listings, listingsByCity, listingsByCategory,
+    countryByCode, regionById, cityById, categoryById,
+    packagesByVendor, photosByVendor, reviewsByVendor,
+    minToIndex, budgetBands, urls, cityVendorCount,
+  };
+}
+
+export type SiteData = Awaited<ReturnType<typeof getData>>;
+
+// ---------------------------------------------------------------- helpers
+export const money = (n: number | null | undefined, currency = 'USD') =>
+  n == null ? null : new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(n);
+
+export function median(nums: number[]): number | null {
+  const a = nums.filter((n) => Number.isFinite(n)).sort((x, y) => x - y);
+  if (!a.length) return null;
+  const m = Math.floor(a.length / 2);
+  return a.length % 2 ? a[m] : Math.round((a[m - 1] + a[m]) / 2);
+}
+
+export const replyLabel = (mins: number | null) =>
+  mins == null ? null : mins < 60 ? `${Math.max(mins, 5)} min` : mins < 60 * 24 ? `${Math.round(mins / 60)} hrs` : `${Math.round(mins / 1440)} days`;

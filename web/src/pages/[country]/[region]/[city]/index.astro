@@ -1,0 +1,38 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import Breadcrumbs from '../../../../components/Breadcrumbs.astro';
+import VendorCard from '../../../../components/VendorCard.astro';
+import { getData, rankVendors, type City } from '../../../../lib/data';
+import { breadcrumbJsonLd } from '../../../../lib/seo';
+
+export async function getStaticPaths() {
+  const d = await getData();
+  return d.activeCities.map((c) => {
+    const r = d.regionById.get(c.region_id)!;
+    return { params: { country: r.country_code, region: r.slug, city: c.slug }, props: { city: c } };
+  });
+}
+interface Props { city: City }
+const { city } = Astro.props;
+const d = await getData();
+const region = d.regionById.get(city.region_id)!;
+const listings = d.listingsByCity.get(city.id) ?? [];
+const total = d.cityVendorCount(city);
+const top = rankVendors(listings.flatMap((l) => l.vendors).filter((v) => v.rating)).slice(0, 4);
+const crumbs = [{ name: 'Home', url: '/' }, { name: region.name, url: d.urls.region(region) }, { name: city.name }];
+const indexable = listings.some((l) => l.indexable);
+---
+<Base title={`Wedding vendors in ${city.name}, ${region.code.toUpperCase()}`} description={`Find ${total} wedding vendors in ${city.name}, ${region.name}: ${listings.slice(0, 4).map((l) => l.category.name.toLowerCase()).join(', ')} and more. Compare pricing and request quotes for free.`} noindex={!indexable} jsonld={[breadcrumbJsonLd(Astro.site, crumbs)]}>
+  <main class="wrap" style="padding-top:24px">
+    <Breadcrumbs items={crumbs} />
+    <h1 class="serif" style="font-size:clamp(36px,5vw,52px);margin:16px 0 8px">Wedding vendors in {city.name}, {region.code.toUpperCase()}</h1>
+    <p class="muted" style="font-size:17px;max-width:760px;margin:0">Browse {total} wedding professionals in {city.name} across {listings.length} categories, or tell us what you need and we'll match you.</p>
+    <section class="section">
+      <div class="tile-grid">
+        {listings.map((l) => <a class="tile" href={l.url}><b>{l.category.name}</b><span>{l.vendors.length} in {city.name}</span></a>)}
+      </div>
+      <p style="margin-top:24px"><a class="btn btn-primary btn-lg" href={`/get-matched/?city=${city.id}`}>Get matched with {city.name} vendors</a></p>
+    </section>
+    {top.length > 0 && <section class="section"><h2>Top-rated in {city.name}</h2><div class="card-grid">{top.map((v, i) => <VendorCard v={v} index={i} />)}</div></section>}
+  </main>
+</Base>

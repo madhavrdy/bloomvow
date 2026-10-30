@@ -1,0 +1,95 @@
+---
+import Base from '../layouts/Base.astro';
+import { getData } from '../lib/data';
+import { SITE_NAME } from '../config';
+const d = await getData();
+const bands = d.budgetBands;
+const fmt = (n: number) => `$${new Intl.NumberFormat('en-US').format(n)}`;
+const bandLabels = bands.map((b, i) => (i === 0 ? `Under ${fmt(b)}` : i === bands.length - 1 ? `${fmt(bands[i - 1])}+` : `${fmt(bands[i - 1])} – ${fmt(b)}`));
+const today = new Date().toISOString().slice(0, 10);
+---
+<Base title="Get matched with wedding vendors for free" description="Tell us your date, city, guest count and budget. We'll send your request to available vendors who fit, so you can compare quotes." bare>
+  <div class="page">
+    <header class="wrap top"><a href="/" class="logo">{SITE_NAME}</a><a href="/" style="font-weight:500">Exit</a></header>
+    <main class="flow">
+      <div class="progress" id="progress"><span id="step-label">Step 1 of 4</span><div class="bar"><div id="bar-fill" style="width:25%"></div></div></div>
+      <form id="quote" class="card" novalidate>
+        <fieldset data-step="1">
+          <legend class="serif">Which vendors do you still need?</legend>
+          <p class="muted">Pick all that apply. One request covers every category.</p>
+          <div class="chips">
+            {d.categories.map((c) => <label class="chip"><input type="checkbox" name="category" value={c.id} data-slug={c.slug} /><span>{c.singular.replace(/^Wedding /, '')}</span></label>)}
+          </div>
+        </fieldset>
+        <fieldset data-step="2" hidden>
+          <legend class="serif">When and where is the wedding?</legend>
+          <div class="two">
+            <label class="field">Wedding date<input type="date" name="wedding_date" min={today} /></label>
+            <label class="field">Estimated guests<input type="number" name="guests" min="1" max="3000" inputmode="numeric" placeholder="120" /></label>
+            <label class="field" style="grid-column:1/-1">City<input type="text" name="city_name" id="city-name" list="cities" placeholder="Start typing, e.g. Austin" autocomplete="off" required /><datalist id="cities"></datalist></label>
+          </div>
+          <label class="check"><input type="checkbox" name="date_flexible" /> We haven't picked a date yet</label>
+        </fieldset>
+        <fieldset data-step="3" hidden>
+          <legend class="serif">What's your total wedding budget?</legend>
+          <p class="muted">So we only send your request to vendors in range.</p>
+          <div class="bands">
+            {bandLabels.map((t, i) => <label class="band"><input type="radio" name="budget_band" value={i} /><span>{t}</span></label>)}
+            <label class="band"><input type="radio" name="budget_band" value="" checked /><span>Not sure yet</span></label>
+          </div>
+        </fieldset>
+        <fieldset data-step="4" hidden>
+          <legend class="serif">Where should vendors send quotes?</legend>
+          <label class="field">Full name<input name="couple_name" required autocomplete="name" maxlength="120" /></label>
+          <label class="field">Email<input type="email" name="email" required autocomplete="email" /></label>
+          <label class="field">Phone (optional)<input type="tel" name="phone" autocomplete="tel" /></label>
+          <label class="field">Anything vendors should know?<textarea name="message" rows="3" maxlength="4000"></textarea></label>
+          <label class="hp" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off" /></label>
+          <p class="muted" style="font-size:13px;margin:0">Your details are shared only with vendors matching your request. <a href="/privacy/">Privacy</a></p>
+        </fieldset>
+        <p class="form-error" role="alert" id="quote-error"></p>
+        <div class="nav-row">
+          <button type="button" class="btn btn-outline" id="back" hidden>← Back</button>
+          <span class="muted" id="free-note" style="font-size:14px">Free · no obligation</span>
+          <button type="submit" class="btn btn-primary btn-lg" id="next">Continue</button>
+        </div>
+      </form>
+      <div id="done" class="card" tabindex="-1" hidden>
+        <div class="tick" aria-hidden="true">✓</div>
+        <h1 class="serif" id="done-title" style="margin:0">Request sent</h1>
+        <p id="done-text" class="muted"></p>
+        <div style="display:flex;flex-wrap:wrap;gap:10px"><a id="done-link" class="btn btn-primary" href="/">Browse more vendors</a></div>
+      </div>
+    </main>
+  </div>
+</Base>
+
+<script>
+  import { initQuote } from '../scripts/quote';
+  initQuote();
+</script>
+
+<style>
+  .page { background: var(--rose-soft); min-height: 100vh; }
+  .top { display: flex; justify-content: space-between; align-items: center; padding-top: 18px; padding-bottom: 18px; }
+  .flow { max-width: 640px; margin: 0 auto; padding: 16px 16px 64px; display: flex; flex-direction: column; gap: 20px; }
+  .progress { display: flex; flex-direction: column; gap: 8px; font-size: 14px; font-weight: 600; color: var(--ink-3); }
+  .bar { height: 6px; background: #eadbe0; border-radius: 999px; overflow: hidden; }
+  .bar div { height: 6px; background: var(--rose); transition: width .2s; }
+  .card { background: #fff; border-radius: 24px; padding: 32px; box-shadow: 0 16px 40px rgba(31,26,46,.08); display: flex; flex-direction: column; gap: 18px; }
+  fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 16px; }
+  legend { font-size: clamp(30px, 5vw, 40px); line-height: 1.1; padding: 0; margin-bottom: 4px; }
+  fieldset p { margin: 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip input, .band input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .chip span { display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1.5px solid #d9cdd2; font-weight: 600; cursor: pointer; }
+  .chip input:checked + span { background: var(--rose); border-color: var(--rose); color: #fff; }
+  .chip input:focus-visible + span, .band input:focus-visible + span { outline: 3px solid var(--rose-tint); outline-offset: 2px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .bands { display: flex; flex-direction: column; gap: 10px; }
+  .band span { display: flex; align-items: center; min-height: 52px; padding: 0 20px; border-radius: 14px; border: 1.5px solid #d9cdd2; font-weight: 600; cursor: pointer; }
+  .band input:checked + span { border-color: var(--rose); background: var(--rose-soft); }
+  .nav-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-top: 1px solid var(--line); padding-top: 20px; }
+  .tick { width: 64px; height: 64px; border-radius: 999px; background: var(--green-soft); color: var(--green); font-size: 30px; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+  @media (max-width: 640px) { .card { padding: 22px; } .two { grid-template-columns: 1fr; } }
+</style>

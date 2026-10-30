@@ -1,0 +1,167 @@
+---
+import Base from '../../../../../layouts/Base.astro';
+import Breadcrumbs from '../../../../../components/Breadcrumbs.astro';
+import VendorRow from '../../../../../components/VendorRow.astro';
+import { getData, money, type ListingPage } from '../../../../../lib/data';
+import { listingFaqs, listingIntro, faqJsonLd, breadcrumbJsonLd, itemListJsonLd } from '../../../../../lib/seo';
+import { kmBetween, niceRound } from '../../../../../lib/geo';
+import { PAGE_SIZE } from '../../../../../lib/constants';
+
+export async function getStaticPaths() {
+  const d = await getData();
+  return d.listings.flatMap((l) => {
+    const pages = Math.max(1, Math.ceil(l.vendors.length / PAGE_SIZE));
+    return Array.from({ length: pages }, (_, i) => ({
+      params: { country: l.country.code, region: l.region.slug, city: l.city.slug, category: l.category.slug, page: i === 0 ? undefined : `page/${i + 1}` },
+      props: { listing: l, pageNo: i + 1, pages },
+    }));
+  });
+}
+
+interface Props { listing: ListingPage; pageNo: number; pages: number }
+const { listing: l, pageNo, pages } = Astro.props;
+const d = await getData();
+const { city, region, category: cat } = l;
+const vendors = l.vendors.slice((pageNo - 1) * PAGE_SIZE, pageNo * PAGE_SIZE);
+const st = region.code.toUpperCase();
+const title = `${cat.name} in ${city.name}, ${st}${pageNo > 1 ? ` (page ${pageNo})` : ''}`;
+const faqs = pageNo === 1 ? listingFaqs(l) : [];
+
+const crumbs = [
+  { name: 'Home', url: '/' },
+  { name: region.name, url: d.urls.region(region) },
+  { name: city.name, url: d.urls.city(city) },
+  { name: cat.name },
+];
+
+// Price filter bands from this page's own prices (quartiles, rounded).
+const prices = l.vendors.map((v) => v.price_from).filter((p): p is number => p != null).sort((a, b) => a - b);
+const q = (f: number) => niceRound(prices[Math.floor((prices.length - 1) * f)] ?? 0);
+const cuts = prices.length >= 8 ? [...new Set([q(0.25), q(0.5), q(0.75)])].filter((x) => x > 0) : [];
+const priceBands = cuts.length ? cuts.map((c, i) => ({ min: i ? cuts[i - 1] : 0, max: c })).concat([{ min: cuts[cuts.length - 1], max: 0 }]) : [];
+const settings = [...new Set(l.vendors.map((v) => v.setting).filter(Boolean))] as string[];
+
+const otherCats = (d.listingsByCity.get(city.id) ?? []).filter((x) => x.category.id !== cat.id).slice(0, 8);
+const nearby = (d.listingsByCategory.get(cat.id) ?? [])
+  .filter((x) => x.city.id !== city.id && x.country.code === l.country.code && city.lat != null && x.city.lat != null)
+  .map((x) => ({ x, km: kmBetween(city.lat!, city.lng!, x.city.lat!, x.city.lng!) }))
+  .filter((o) => o.km < 160).sort((a, b) => a.km - b.km).slice(0, 6).map((o) => o.x);
+
+const jsonld = [breadcrumbJsonLd(Astro.site, crumbs), itemListJsonLd(Astro.site, d, vendors), ...(faqs.length ? [faqJsonLd(faqs)] : [])];
+const pageUrl = (n: number) => (n === 1 ? l.url : `${l.url}page/${n}/`);
+---
+<Base title={title} description={listingIntro(l).slice(0, 158)} noindex={!l.indexable} jsonld={jsonld}>
+  <main class="wrap" style="padding-top:24px">
+    <Breadcrumbs items={crumbs} />
+    <h1 class="serif" style="font-size:clamp(36px,5vw,52px);margin:16px 0 8px">{cat.name} in {city.name}, {st}</h1>
+    <p class="muted" style="font-size:17px;max-width:760px;margin:0">{listingIntro(l)}</p>
+
+    <div class="layout">
+      <aside class="filters" aria-label="Filters">
+        <form id="filters">
+          <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:17px">Filters</b><button type="reset" class="linkish">Clear all</button></div>
+          {cat.uses_capacity && (
+            <fieldset><legend>Guest count</legend>
+              {[[0, 'Any'], [50, 'Up to 50'], [100, '51–100'], [200, '101–200'], [201, '200+']].map(([v, t], i) => (
+                <label class="check"><input type="radio" name="guests" value={v} checked={i === 0} /> {t}</label>
+              ))}
+            </fieldset>
+          )}
+          {priceBands.length > 0 && (
+            <fieldset><legend>Starting price</legend>
+              {priceBands.map((b) => <label class="check"><input type="checkbox" name="price" value={`${b.min}-${b.max}`} /> {b.max ? `${b.min ? money(b.min) + '–' : 'Under '}${money(b.max)}` : `${money(b.min)}+`}</label>)}
+            </fieldset>
+          )}
+          {settings.length > 1 && (
+            <fieldset><legend>Setting</legend>
+              {settings.map((s) => <label class="check"><input type="checkbox" name="setting" value={s} /> {s}</label>)}
+            </fieldset>
+          )}
+          <fieldset><legend>Rating</legend><label class="check"><input type="checkbox" name="rating" value="4.5" /> 4.5 stars and up</label></fieldset>
+        </form>
+        <div class="save-time">
+          <b>Save time</b>
+          <span>Send one request to the {cat.name.toLowerCase()} that fit your date and budget.</span>
+          <a href={`/get-matched/?city=${city.id}&cat=${cat.slug}&mode=bulk`} class="btn btn-primary btn-block">Request pricing from several</a>
+        </div>
+      </aside>
+
+      <section class="results" aria-label="Results">
+        <div class="results-head">
+          <span class="muted" aria-live="polite"><b style="color:var(--ink)" id="count">{l.vendors.length}</b> {cat.name.toLowerCase()}{pages > 1 && ` · page ${pageNo} of ${pages}`}</span>
+          <label style="display:flex;gap:8px;align-items:center;font-size:15px">Sort by
+            <select id="sort" class="sort"><option value="rec">Recommended</option><option value="rating">Highest rated</option><option value="price">Price: low to high</option><option value="reviews">Most reviewed</option></select>
+          </label>
+        </div>
+        <div id="list" class="list">
+          {vendors.map((v, i) => (
+            <div class="item" data-i={i} data-cap={v.capacity_max ?? ''} data-price={v.price_from ?? ''} data-setting={v.setting ?? ''} data-rating={v.rating ?? 0} data-reviews={v.review_count} hidden={i >= 20}>
+              <VendorRow v={v} index={i} />
+              {i === 2 && (
+                <div class="match-card">
+                  <div><span class="serif" style="font-size:30px">Too many options?</span>
+                  <p style="margin:6px 0 0;color:#d9d4e2">Answer 4 quick questions and we'll send your request to the {cat.name.toLowerCase()} that fit your date and budget.</p></div>
+                  <a href={`/get-matched/?city=${city.id}&cat=${cat.slug}`} class="btn btn-lg" style="background:var(--rose-tint);color:var(--ink)">Get matched free</a>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        <p id="empty" class="muted" hidden>No {cat.name.toLowerCase()} match these filters. <button type="button" class="linkish" id="clear2">Clear filters</button></p>
+        {vendors.length > 20 && <button type="button" id="more" class="btn btn-outline btn-block">Show more</button>}
+        {pages > 1 && (
+          <nav class="pager" aria-label="Pagination">
+            {Array.from({ length: pages }, (_, i) => i + 1).map((n) => <a href={pageUrl(n)} aria-current={n === pageNo ? 'page' : undefined}>{n}</a>)}
+          </nav>
+        )}
+      </section>
+    </div>
+  </main>
+
+  <section class="bg2">
+    <div class="wrap faqwrap">
+      {faqs.length > 0 && (
+        <div style="flex:2 1 520px">
+          <h2 class="serif" style="font-size:36px;margin:0 0 8px">{city.name} {cat.name.toLowerCase()}: FAQs</h2>
+          {faqs.map((f, i) => <details class="faq" open={i === 0}><summary>{f.q}</summary><p>{f.a}</p></details>)}
+        </div>
+      )}
+      <div style="flex:1 1 260px;display:flex;flex-direction:column;gap:28px;font-size:15px">
+        {otherCats.length > 0 && <div class="rel"><b>More {city.name} vendors</b>{otherCats.map((x) => <a href={x.url}>{city.name} {x.category.name.toLowerCase()}</a>)}</div>}
+        {nearby.length > 0 && <div class="rel"><b>{cat.name} near {city.name}</b>{nearby.map((x) => <a href={x.url}>{cat.name} in {x.city.name}</a>)}</div>}
+      </div>
+    </div>
+  </section>
+</Base>
+
+<script>
+  import { initListing } from '../../../../../scripts/listing';
+  import { initShortlist } from '../../../../../scripts/shortlist';
+  initListing();
+  initShortlist();
+</script>
+
+<style>
+  .layout { display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-start; padding: 32px 0 48px; }
+  .filters { flex: 1 1 240px; max-width: 280px; display: flex; flex-direction: column; gap: 24px; font-size: 15px; }
+  .filters form { display: flex; flex-direction: column; gap: 24px; }
+  fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+  legend { font-weight: 700; margin-bottom: 10px; }
+  .linkish { background: none; border: 0; padding: 0; font: inherit; font-size: 14px; text-decoration: underline; cursor: pointer; color: var(--ink); }
+  .save-time { background: var(--rose-soft); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 10px; font-size: 14px; color: var(--ink-2); }
+  .save-time b { color: var(--ink); font-size: 16px; }
+  .results { flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+  .results-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+  .sort { font: inherit; border: 1px solid var(--line-2); border-radius: 10px; padding: 0 12px; min-height: 44px; background: #fff; }
+  .list { display: flex; flex-direction: column; gap: 20px; }
+  .item { display: flex; flex-direction: column; gap: 20px; }
+  .match-card { background: var(--ink); color: #fff; border-radius: 20px; padding: 28px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: space-between; }
+  .match-card > div { flex: 1 1 320px; }
+  .pager { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .pager a { min-width: 44px; min-height: 44px; border-radius: 12px; border: 1px solid var(--line-2); display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+  .pager a[aria-current] { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .bg2 { background: var(--bg-2); }
+  .faqwrap { display: flex; flex-wrap: wrap; gap: 48px; padding-top: 56px; padding-bottom: 56px; }
+  .rel { display: flex; flex-direction: column; gap: 10px; } .rel b { font-size: 17px; }
+  @media (max-width: 640px) { .filters { max-width: none; } }
+</style>

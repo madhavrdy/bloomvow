@@ -1,0 +1,20 @@
+---
+import type { Vendor } from '../lib/data';
+import { getData, money } from '../lib/data';
+interface Props { v: Vendor; index: number }
+const { v, index } = Astro.props;
+const d = await getData();
+const city = d.cityById.get(v.city_id)!;
+const region = d.regionById.get(city.region_id)!;
+const cat = d.categoryById.get(v.category_id)!;
+const photo = d.photosByVendor.get(v.id)?.[0];
+---
+<a href={d.urls.vendor(v)} class="vcard">
+  {photo ? <img src={photo.url} alt={photo.alt ?? v.name} loading="lazy" decoding="async" width="400" height="180" /> : <div class={`ph ph-${index % 5}`} />}
+  <div class="vcard-body">
+    <b>{v.name}</b>
+    <span class="muted">{city.name}, {region.code.toUpperCase()}</span>
+    {v.rating && <span><b style="font-size:14px">★ {Number(v.rating).toFixed(1)}</b> <span class="muted">({v.review_count} reviews)</span></span>}
+    {v.price_from != null && <span style="color:var(--green);font-weight:600">From {money(v.price_from)}{cat.uses_capacity && v.capacity_max ? ` · up to ${v.capacity_max} guests` : ''}</span>}
+  </div>
+</a>

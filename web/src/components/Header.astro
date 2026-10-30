@@ -1,0 +1,36 @@
+---
+import { SITE_NAME } from '../config';
+import { getData } from '../lib/data';
+const d = await getData();
+const top = d.categories.slice(0, 6);
+---
+<header class="site-header">
+  <div class="wrap">
+    <a href="/" class="logo">{SITE_NAME}</a>
+    <nav class="nav" aria-label="Categories">
+      {top.map((c) => <a href={`/categories/${c.slug}/`}>{c.name.replace(/^Wedding /, '').replace(/^./, (s) => s.toUpperCase())}</a>)}
+      <a href="/categories/">More</a>
+    </nav>
+    <details class="mobile-menu">
+      <summary class="btn btn-outline" aria-label="Open menu">Menu</summary>
+      <div class="mobile-panel">
+        {d.categories.map((c) => <a href={`/categories/${c.slug}/`}>{c.name}</a>)}
+        <a href="/for-vendors/">For vendors</a>
+      </div>
+    </details>
+    <a href="/for-vendors/" class="hide-sm" style="font-size:15px;font-weight:500;text-decoration:none">For vendors</a>
+    <a href="/get-matched/" class="btn btn-primary">Get free quotes</a>
+  </div>
+</header>
+<style>
+  .mobile-menu { display: none; position: relative; }
+  .mobile-menu summary { list-style: none; }
+  .mobile-menu summary::-webkit-details-marker { display: none; }
+  .mobile-panel { position: absolute; z-index: 20; top: 52px; right: 0; background: #fff; border: 1px solid var(--line); border-radius: 14px;
+    padding: 12px; width: 260px; display: flex; flex-direction: column; box-shadow: 0 16px 40px rgba(31, 26, 46, .12); }
+  .mobile-panel a { padding: 10px 8px; text-decoration: none; }
+  @media (max-width: 640px) {
+    .mobile-menu { display: block; }
+    .hide-sm { display: none; }
+  }
+</style>

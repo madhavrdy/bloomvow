@@ -1,0 +1,39 @@
+---
+import type { Vendor } from '../lib/data';
+import { getData, money, replyLabel } from '../lib/data';
+interface Props { v: Vendor; index: number }
+const { v, index } = Astro.props;
+const d = await getData();
+const city = d.cityById.get(v.city_id)!;
+const region = d.regionById.get(city.region_id)!;
+const cat = d.categoryById.get(v.category_id)!;
+const photo = d.photosByVendor.get(v.id)?.[0];
+const reply = replyLabel(v.avg_reply_minutes);
+const url = d.urls.vendor(v);
+---
+<article class="vrow" data-vendor={v.id}>
+  <a href={url} class:list={['vrow-media', !photo && `ph ph-${index % 5}`]} aria-label={`${v.name} photos`}>
+    {photo && <img src={photo.url} alt={photo.alt ?? v.name} loading={index < 2 ? 'eager' : 'lazy'} decoding="async" width="480" height="320" />}
+    {v.featured && <span class="badge badge-white">Featured</span>}
+  </a>
+  <div class="vrow-body">
+    <div class="vrow-top">
+      <h3 style="margin:0"><a href={url} class="vrow-name">{v.name}</a></h3>
+      {v.rating && <span style="font-size:14px"><b>★ {Number(v.rating).toFixed(1)}</b> <span class="muted">({v.review_count})</span></span>}
+    </div>
+    <span class="muted" style="font-size:14px">{city.name}, {region.code.toUpperCase()}{v.setting && ` · ${v.setting}`}</span>
+    <div class="vrow-facts">
+      {cat.uses_capacity && v.capacity_max && <span>Up to <b>{v.capacity_max}</b> guests</span>}
+      {v.price_from != null && <span>From <b>{money(v.price_from)}</b></span>}
+      {reply && <span class="reply-fast">Replies in ~{reply}</span>}
+    </div>
+    {v.description && <p>{v.description.length > 170 ? v.description.slice(0, 167).trimEnd() + '…' : v.description}</p>}
+    <div class="vrow-actions">
+      <a href={`${url}#lead`} class="btn btn-primary">Request pricing</a>
+      <a href={url} class="btn btn-outline">View profile</a>
+      <button type="button" class="icon-btn" data-shortlist={v.id} data-name={v.name} data-url={url} aria-pressed="false" aria-label={`Save ${v.name} to shortlist`}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-7-4.4-9.3-9C1 8.6 3.2 5 6.6 5c2 0 3.3 1.1 4.1 2.4C11.6 6.1 13 5 15 5c3.4 0 5.6 3.6 3.9 7-2.3 4.6-6.9 9-6.9 9z"/></svg>
+      </button>
+    </div>
+  </div>
+</article>

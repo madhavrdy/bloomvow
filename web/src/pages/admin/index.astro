@@ -1,0 +1,14 @@
+---
+import Base from '../../layouts/Base.astro';
+import '../../dash/dash.css';
+import { AdminApp } from '../../dash/admin/AdminApp';
+import { SITE_NAME } from '../../config';
+---
+<Base title="Admin" description="Site administration." noindex bare>
+  <AdminApp client:only="preact" siteName={SITE_NAME} />
+  <noscript><p style="padding:24px">The admin dashboard needs JavaScript turned on.</p></noscript>
+</Base>
+<style is:global>
+  .prose h2 { font-size: 24px; margin: 24px 0 8px; } .prose h3 { font-size: 19px; margin: 20px 0 6px; }
+  .prose img { border-radius: 12px; } .prose a { color: var(--rose-dark); }
+</style>

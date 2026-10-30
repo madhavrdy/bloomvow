@@ -1,0 +1,37 @@
+---
+import Base from '../../layouts/Base.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import VendorCard from '../../components/VendorCard.astro';
+import { getData, rankVendors, type Category } from '../../lib/data';
+
+export async function getStaticPaths() {
+  const d = await getData();
+  return d.categories.map((c) => ({ params: { slug: c.slug }, props: { cat: c } }));
+}
+interface Props { cat: Category }
+const { cat } = Astro.props;
+const d = await getData();
+const listings = [...(d.listingsByCategory.get(cat.id) ?? [])].sort((a, b) => b.vendors.length - a.vendors.length);
+const top = rankVendors(listings.flatMap((l) => l.vendors).filter((v) => v.rating && v.review_count >= 3)).slice(0, 8);
+const byRegion = d.regions.map((r) => ({ r, ls: listings.filter((l) => l.region.id === r.id) })).filter((x) => x.ls.length);
+const total = new Set(listings.flatMap((l) => l.vendors.map((v) => v.id))).size;
+---
+<Base title={`${cat.name} near you`} description={`Compare ${total} ${cat.name.toLowerCase()} in ${listings.length} US cities. See pricing, reviews and availability, then request quotes for free.`}>
+  <main class="wrap" style="padding-top:24px">
+    <Breadcrumbs items={[{ name: 'Home', url: '/' }, { name: 'Categories', url: '/categories/' }, { name: cat.name }]} />
+    <h1 class="serif" style="font-size:clamp(36px,5vw,52px);margin:16px 0 8px">{cat.name} near you</h1>
+    <p class="muted" style="font-size:17px;margin:0">{total} {cat.name.toLowerCase()} in {listings.length} cities. Pick a city to compare.</p>
+    <section class="section">
+      <h2>Popular cities</h2>
+      <div class="tile-grid">{listings.slice(0, 12).map((l) => <a class="tile" href={l.url}><b>{l.city.name}, {l.region.code.toUpperCase()}</b><span>{l.vendors.length} {cat.name.toLowerCase()}</span></a>)}</div>
+    </section>
+    {top.length > 0 && <section class="section"><h2>Highly rated</h2><div class="card-grid">{top.map((v, i) => <VendorCard v={v} index={i} />)}</div></section>}
+    <section class="section">
+      <h2>All cities by state</h2>
+      {byRegion.map(({ r, ls }) => (
+        <div style="margin-bottom:20px"><b>{r.name}</b>
+          <div class="links-grid" style="margin-top:8px">{ls.map((l) => <a href={l.url}>{l.city.name}</a>)}</div></div>
+      ))}
+    </section>
+  </main>
+</Base>

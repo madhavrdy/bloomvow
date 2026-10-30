@@ -1,0 +1,24 @@
+---
+import Base from '../layouts/Base.astro';
+---
+<Base title="My shortlist" description="Vendors you saved." noindex>
+  <main class="wrap" style="padding-top:32px;min-height:50vh">
+    <h1 class="serif" style="font-size:48px;margin:0 0 8px">My shortlist</h1>
+    <p class="muted">Saved on this device. Request pricing from any of them, or from all at once with Get matched.</p>
+    <ul id="saved" style="list-style:none;padding:0;display:flex;flex-direction:column;gap:10px;max-width:640px"></ul>
+    <p id="none" class="muted" hidden>Nothing saved yet. Tap the heart on any vendor to save it here.</p>
+  </main>
+</Base>
+<script>
+  import { readShortlist } from '../scripts/shortlist';
+  const list = readShortlist();
+  const ul = document.getElementById('saved')!;
+  document.getElementById('none')!.hidden = list.length > 0;
+  for (const s of list) {
+    const li = document.createElement('li');
+    li.style.cssText = 'border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;justify-content:space-between;gap:12px;align-items:center';
+    const a = document.createElement('a'); a.href = s.url; a.textContent = s.name; a.style.fontWeight = '700';
+    const r = document.createElement('a'); r.href = s.url + '#lead'; r.className = 'btn btn-primary'; r.textContent = 'Request pricing';
+    li.append(a, r); ul.appendChild(li);
+  }
+</script>

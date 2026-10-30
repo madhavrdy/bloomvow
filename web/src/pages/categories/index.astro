@@ -1,0 +1,13 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getData } from '../../lib/data';
+const d = await getData();
+---
+<Base title="All wedding vendor categories" description="Browse every type of wedding vendor: venues, photographers, hair & makeup, caterers, cakes, florists, DJs, planners and more.">
+  <main class="wrap" style="padding-top:32px">
+    <h1 class="serif" style="font-size:clamp(36px,5vw,52px);margin:0 0 24px">Wedding vendor categories</h1>
+    <div class="tile-grid">
+      {d.categories.map((c) => <a class="tile" href={`/categories/${c.slug}/`}><b>{c.name}</b><span>{(d.listingsByCategory.get(c.id) ?? []).length} cities</span></a>)}
+    </div>
+  </main>
+</Base>

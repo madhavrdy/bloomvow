@@ -1,0 +1,51 @@
+---
+import Base from '../layouts/Base.astro';
+import { getData } from '../lib/data';
+import { SITE_NAME } from '../config';
+const d = await getData();
+const fmt = new Intl.NumberFormat('en-US');
+---
+<Base title={`List your wedding business on ${SITE_NAME}`} description="Claim your free listing, add photos and pricing, and get inquiries from couples planning weddings in your city.">
+  <main>
+    <section style="background:var(--green-soft)">
+      <div class="wrap" style="padding:64px 24px;display:flex;flex-direction:column;gap:18px;max-width:820px">
+        <span style="font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--green)">For wedding professionals</span>
+        <h1 class="serif" style="font-size:clamp(40px,6vw,60px);margin:0;line-height:1.02">Get booked by couples already searching in your city.</h1>
+        <p style="font-size:18px;color:#3e4a45;margin:0">Couples use {SITE_NAME} to compare {fmt.format(d.vendors.length)} vendors and send requests. Claim your listing to receive those requests and reply.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:12px">
+          <a class="btn btn-green btn-lg" href="/vendor-dashboard/?claim=" id="claim-cta">Claim or add your business</a>
+          <a class="btn btn-outline btn-lg" href="/vendor-dashboard/">Vendor login</a>
+        </div>
+      </div>
+    </section>
+    <section class="wrap section">
+      <h2>How it works</h2>
+      <div class="steps">
+        <div><b>1. Find your listing</b><p>Search for your business. If it's not listed yet, add it in a couple of minutes.</p></div>
+        <div><b>2. Verify it's yours</b><p>We confirm ownership by your business email domain or a quick phone check.</p></div>
+        <div><b>3. Get inquiries</b><p>Requests from couples arrive in your inbox and dashboard. Reply, book tours and track bookings.</p></div>
+      </div>
+    </section>
+    <section class="wrap section">
+      <h2>Plans</h2>
+      <div class="plans">
+        <div class="plan"><b>Free listing</b><span class="serif price">$0</span>
+          <ul><li>Profile with photos, pricing and packages</li><li>Leads by email</li><li>Appear on your city's page</li><li>Performance stats</li></ul></div>
+        <div class="plan feat"><b>Featured</b><span class="serif price">[PRICE]/mo</span>
+          <ul><li>Top placement on your city pages</li><li>Appear on up to 5 city pages</li><li>Matched first in "Get matched" requests</li><li>SMS lead alerts and a Featured badge</li></ul></div>
+      </div>
+    </section>
+  </main>
+</Base>
+<script>
+  const id = new URLSearchParams(location.search).get('claim');
+  if (id) (document.getElementById('claim-cta') as HTMLAnchorElement).href = `/vendor-dashboard/?claim=${encodeURIComponent(id)}`;
+</script>
+<style>
+  .steps, .plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .steps div, .plan { border: 1px solid var(--line); border-radius: 18px; padding: 22px; }
+  .steps p { color: var(--ink-2); margin: 8px 0 0; }
+  .plan { display: flex; flex-direction: column; gap: 8px; } .plan .price { font-size: 40px; }
+  .plan ul { margin: 0; padding-left: 18px; color: var(--ink-2); line-height: 1.8; }
+  .plan.feat { border: 2px solid var(--rose); background: var(--rose-soft); }
+</style>

@@ -1,0 +1,21 @@
+---
+import Base from '../../layouts/Base.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import { getData, type Country } from '../../lib/data';
+
+export async function getStaticPaths() {
+  const d = await getData();
+  return d.countries.map((c) => ({ params: { country: c.code }, props: { country: c } }));
+}
+interface Props { country: Country }
+const { country } = Astro.props;
+const d = await getData();
+const regions = d.regions.filter((r) => r.country_code === country.code && d.activeCities.some((c) => c.region_id === r.id));
+---
+<Base title={`Wedding vendors in the ${country.name}`} description={`Find wedding venues, photographers and vendors in every ${country.name} state we cover.`}>
+  <main class="wrap" style="padding-top:24px">
+    <Breadcrumbs items={[{ name: 'Home', url: '/' }, { name: country.name }]} />
+    <h1 class="serif" style="font-size:clamp(36px,5vw,52px);margin:16px 0 24px">Wedding vendors in the {country.name}</h1>
+    <div class="tile-grid">{regions.map((r) => <a class="tile" href={d.urls.region(r)}><b>{r.name}</b><span>{d.activeCities.filter((c) => c.region_id === r.id).length} cities</span></a>)}</div>
+  </main>
+</Base>

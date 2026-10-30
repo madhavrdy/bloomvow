@@ -1,0 +1,10 @@
+---
+import Base from '../../layouts/Base.astro';
+import '../../dash/dash.css';
+import { VendorApp } from '../../dash/vendor/VendorApp';
+import { SITE_NAME } from '../../config';
+---
+<Base title="Vendor dashboard" description="Manage your listing and reply to couples." noindex bare>
+  <VendorApp client:only="preact" siteName={SITE_NAME} />
+  <noscript><p style="padding:24px">The vendor dashboard needs JavaScript turned on.</p></noscript>
+</Base>

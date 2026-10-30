@@ -1,0 +1,152 @@
+---
+import Base from '../layouts/Base.astro';
+import VendorCard from '../components/VendorCard.astro';
+import { getData, rankVendors } from '../lib/data';
+import { SITE_NAME } from '../config';
+
+const d = await getData();
+const total = d.vendors.length;
+const venuesCat = d.categories.find((c) => c.slug === 'wedding-venues');
+const topVenues = rankVendors(d.vendors.filter((v) => v.category_id === venuesCat?.id && v.rating)).slice(0, 4);
+const popularCities = [...d.activeCities].sort((a, b) => d.cityVendorCount(b) - d.cityVendorCount(a)).slice(0, 12);
+const popular = [...d.listings].filter((l) => l.indexable).sort((a, b) => b.vendors.length - a.vendors.length).slice(0, 3);
+const statesWithVendors = d.regions.filter((r) => d.activeCities.some((c) => c.region_id === r.id));
+const fmt = new Intl.NumberFormat('en-US');
+const jsonld = [{
+  '@context': 'https://schema.org', '@type': 'WebSite', name: SITE_NAME, url: Astro.site?.href,
+}];
+---
+<Base title={`${SITE_NAME}: Wedding venues, photographers & vendors near you`} description={`Compare ${fmt.format(total)} wedding vendors across the US: venues, photographers, hair & makeup, caterers, cakes and more. Check pricing and availability in one free request.`} jsonld={jsonld}>
+  <main>
+    <section style="background:var(--rose-soft)">
+      <div class="wrap hero">
+        <div class="hero-copy">
+          <h1 class="serif">Every wedding vendor you need, <em style="color:var(--rose-dark)">in one place.</em></h1>
+          <p class="lede">Compare venues, photographers, makeup artists, caterers and more across the US. See pricing and check availability in one request.</p>
+          <form class="search" id="search" action="/categories/" method="get">
+            <label class="search-field"><span>Looking for</span>
+              <select name="category" id="search-cat">
+                {d.categories.map((c) => <option value={c.slug}>{c.name}</option>)}
+              </select>
+            </label>
+            <label class="search-field search-where"><span>Where</span>
+              <input name="where" id="search-where" type="text" placeholder="City or state" autocomplete="off" list="city-list" required />
+              <datalist id="city-list"></datalist>
+            </label>
+            <button class="btn btn-primary btn-lg" type="submit">Search</button>
+          </form>
+          <p class="form-error" id="search-error" role="alert"></p>
+          {popular.length > 0 && (
+            <div class="chips"><span class="muted">Popular:</span>
+              {popular.map((l) => <a class="pill" href={l.url}>{l.category.name} in {l.city.name}</a>)}
+            </div>
+          )}
+          <a href="/get-matched/" style="font-weight:600;color:var(--rose-dark)">Not sure where to start? Get matched with vendors for free →</a>
+        </div>
+        <div class="hero-art" aria-hidden="true">
+          <div class="ph ph-1 tall"></div><div class="ph ph-0"></div><div class="ph ph-2"></div>
+        </div>
+      </div>
+      <div class="wrap trust">
+        <span>✓ {fmt.format(total)} vendors in {fmt.format(d.activeCities.length)} cities</span>
+        <span>✓ Free for couples, always</span>
+        <span>✓ One request reaches several vendors</span>
+      </div>
+    </section>
+
+    <section class="section wrap">
+      <div class="section-head"><h2>Browse by category</h2><a href="/categories/" style="font-weight:600">All {d.categories.length} categories →</a></div>
+      <div class="cat-grid">
+        {d.categories.slice(0, 10).map((c, i) => (
+          <a href={`/categories/${c.slug}/`} class="cat"><div class={`ph ph-${i % 5}`}></div><b>{c.name}</b></a>
+        ))}
+      </div>
+    </section>
+
+    <section class="section wrap">
+      <div class="how">
+        <div class="how-copy">
+          <h2 style="color:#fff;margin:0 0 12px">One form. Quotes from the right vendors.</h2>
+          <p>Tell us your date, city, guest count and budget. We send it to available vendors who fit, and you compare their replies.</p>
+        </div>
+        <ol class="how-steps">
+          <li><span class="serif">1</span><b>Share your details</b><small>About 60 seconds</small></li>
+          <li><span class="serif">2</span><b>Vendors reply</b><small>Pricing and availability</small></li>
+          <li><span class="serif">3</span><b>You choose</b><small>No obligation</small></li>
+        </ol>
+        <a href="/get-matched/" class="btn btn-lg how-cta">Get matched free</a>
+      </div>
+    </section>
+
+    {topVenues.length > 0 && (
+      <section class="section wrap">
+        <h2>Top-rated wedding venues</h2>
+        <div class="card-grid">{topVenues.map((v, i) => <VendorCard v={v} index={i} />)}</div>
+      </section>
+    )}
+
+    <section class="section wrap">
+      <h2>Popular wedding cities</h2>
+      <div class="tile-grid">
+        {popularCities.map((c) => <a class="tile" href={d.urls.city(c)}><b>{c.name}</b><span>{d.regionById.get(c.region_id)!.name}</span></a>)}
+      </div>
+    </section>
+
+    <section class="section wrap">
+      <div class="vendor-cta">
+        <div>
+          <span class="eyebrow">For wedding professionals</span>
+          <h2 style="margin:8px 0">Get booked by couples already searching in your city.</h2>
+          <p style="margin:0;color:#3e4a45">Claim your free listing, add photos and pricing, and get inquiries straight to your inbox.</p>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:12px"><a href="/for-vendors/" class="btn btn-green btn-lg">Claim your listing</a></div>
+      </div>
+    </section>
+
+    <section class="section wrap">
+      <h2 style="font-size:32px">Find wedding vendors by state</h2>
+      <div class="links-grid">{statesWithVendors.map((r) => <a href={d.urls.region(r)}>{r.name}</a>)}</div>
+    </section>
+  </main>
+</Base>
+
+<script>
+  import { initSearch } from '../scripts/search';
+  initSearch();
+</script>
+
+<style>
+  .hero { display: flex; flex-wrap: wrap; gap: 48px; align-items: center; padding-top: 64px; padding-bottom: 40px; }
+  .hero-copy { flex: 1 1 520px; display: flex; flex-direction: column; gap: 20px; }
+  .hero h1 { margin: 0; font-size: clamp(42px, 6vw, 64px); line-height: 1.02; }
+  .lede { margin: 0; font-size: 19px; color: var(--ink-2); max-width: 520px; }
+  .search { background: #fff; border-radius: 16px; padding: 8px; display: flex; flex-wrap: wrap; gap: 8px; box-shadow: 0 10px 30px rgba(31,26,46,.10); }
+  .search-field { flex: 1 1 200px; display: flex; flex-direction: column; gap: 2px; padding: 8px 14px; }
+  .search-field span { font-size: 12px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .6px; }
+  .search-field select, .search-field input { border: 0; font: inherit; font-size: 16px; font-weight: 600; color: var(--ink); background: transparent; padding: 4px 0; outline: none; min-height: 32px; }
+  .search-where { border-left: 1px solid var(--line); }
+  .search .btn { flex: 0 0 auto; border-radius: 12px; min-height: 56px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 14px; }
+  .hero-art { flex: 1 1 360px; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 200px 200px; gap: 12px; }
+  .hero-art .ph { border-radius: 20px; } .hero-art .tall { grid-row: span 2; }
+  .trust { display: flex; flex-wrap: wrap; gap: 12px 32px; padding-bottom: 36px; font-size: 15px; color: var(--ink-2); }
+  .cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px; }
+  .cat { text-decoration: none; display: flex; flex-direction: column; gap: 10px; }
+  .cat .ph { height: 140px; border-radius: 16px; }
+  .how { background: var(--ink); color: #fff; border-radius: 28px; padding: 48px; display: flex; flex-wrap: wrap; gap: 32px; align-items: center; }
+  .how-copy { flex: 1 1 400px; } .how-copy p { color: #d9d4e2; font-size: 17px; margin: 0; }
+  .how-steps { flex: 1 1 400px; list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .how-steps li { display: flex; flex-direction: column; gap: 4px; } .how-steps .serif { font-size: 40px; color: var(--rose-tint); }
+  .how-steps small { color: #d9d4e2; font-size: 14px; }
+  .how-cta { background: var(--rose-tint); color: var(--ink); flex: 1 1 100%; }
+  .vendor-cta { background: var(--green-soft); border-radius: 28px; padding: 48px; display: flex; flex-wrap: wrap; gap: 24px; align-items: center; justify-content: space-between; }
+  .vendor-cta > div:first-child { flex: 1 1 480px; }
+  .eyebrow { font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--green); }
+  @media (max-width: 640px) {
+    .search-where { border-left: 0; border-top: 1px solid var(--line); }
+    .search .btn { width: 100%; }
+    .how, .vendor-cta { padding: 28px; }
+    .how-steps { grid-template-columns: 1fr; }
+    .hero-art { display: none; }
+  }
+</style>
