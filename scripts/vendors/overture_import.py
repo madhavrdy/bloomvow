@@ -15,7 +15,7 @@ Steps:
 
 Needs env DATABASE_URL (the Supabase connection string, a GitHub secret).
 """
-import argparse, csv, json, math, os, subprocess, sys
+import argparse, csv, json, math, os, re, subprocess, sys
 import duckdb, psycopg
 sys.path.insert(0, os.path.dirname(__file__))
 from categories import map_category, OVERTURE_TERMS
@@ -24,6 +24,17 @@ BUCKET = 's3://overturemaps-us-west-2/release'
 
 
 def latest_release():
+    """Newest Overture release, from its public STAC catalog (falls back to the AWS CLI)."""
+    import urllib.request
+    try:
+        with urllib.request.urlopen('https://stac.overturemaps.org/catalog.json', timeout=30) as r:
+            cat = json.load(r)
+        rels = sorted(l['href'].strip('./').split('/')[0] for l in cat.get('links', [])
+                      if l.get('rel') == 'child' and re.match(r'\./?\d{4}-\d{2}-\d{2}', l.get('href', '')))
+        if rels:
+            return rels[-1]
+    except Exception as e:  # noqa: BLE001
+        print(f'STAC catalog unavailable ({e}); trying the AWS CLI', flush=True)
     out = subprocess.run(['aws', 's3', 'ls', '--no-sign-request', BUCKET + '/'],
                          capture_output=True, text=True, check=True).stdout
     rels = sorted(l.split()[-1].strip('/') for l in out.splitlines() if l.strip().startswith('PRE'))
@@ -163,4 +174,11 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except SystemExit:
+        raise
+    except Exception as e:  # show the reason on the GitHub run page
+        if os.environ.get('GITHUB_ACTIONS'):
+            print(f'::error::{type(e).__name__}: {str(e)[:1500]}'.replace('\n', ' '))
+        raise
