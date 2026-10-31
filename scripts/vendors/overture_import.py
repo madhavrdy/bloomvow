@@ -70,7 +70,7 @@ def km(a_lat, a_lng, b_lat, b_lng):
     return 12742 * math.asin(math.sqrt(h))
 
 
-def query_places(source, cities, radius_km, min_conf):
+def query_places(source, cities, radius_km, min_conf, discover=False):
     con = duckdb.connect()
     if source.startswith('s3://'):
         con.execute("install httpfs; load httpfs; set s3_region='us-west-2';")
@@ -80,27 +80,40 @@ def query_places(source, cities, radius_km, min_conf):
     if os.environ.get('GITHUB_ACTIONS'):
         print('::notice::schema ' + ' | '.join(f'{r[0]}: {r[1]}' for r in desc)[:3800])
     # Overture has renamed fields between releases; adapt to what is there.
+    # 2025+: taxonomy {primary, hierarchy[], alternates[]} + basic_category; older: categories {primary, alternate[]}.
     status = "coalesce(operating_status, 'open') = 'open'" if 'operating_status' in cols else 'true'
     basic = 'basic_category' if 'basic_category' in cols else 'null'
+    if 'taxonomy' in cols:
+        prim, alts = "taxonomy['primary']", "list_concat(coalesce(taxonomy['alternates'], []), coalesce(taxonomy['hierarchy'], []))"
+    else:
+        prim, alts = "categories['primary']", "coalesce(categories['alternate'], [])"
+    email = "emails[1]" if 'emails' in cols else 'null'
     terms = ', '.join(f"'{t}'" for t in sorted(OVERTURE_TERMS))
     boxes = []
     for c in cities:
         dlat = radius_km / 111.0
         dlng = radius_km / (111.0 * max(0.2, math.cos(math.radians(c['lat']))))
-        boxes.append(f"(bbox.xmin between {c['lng'] - dlng} and {c['lng'] + dlng} and "
-                     f"bbox.ymin between {c['lat'] - dlat} and {c['lat'] + dlat})")
+        boxes.append(f"(bbox['xmin'] between {c['lng'] - dlng} and {c['lng'] + dlng} and "
+                     f"bbox['ymin'] between {c['lat'] - dlat} and {c['lat'] + dlat})")
+    where = f"({' or '.join(boxes)}) and confidence >= {min_conf} and {status}"
+    if discover:
+        # Which Overture categories exist near these cities, to tune categories.py.
+        rows = con.execute(f"""select {prim} as cat, {basic} as basic, count(*) n from {rel} where {where}
+          and regexp_matches(concat_ws(' ', {prim}, {basic}, array_to_string({alts}, ' ')),
+            'wedding|bridal|event|venue|banquet|photo|video|florist|flower|cater|bak|cake|dj|music|band|planner|planning|officiant|limo|chauffeur|rental|makeup|beauty|hair|invitation|stationer|print|tux|formal')
+          group by all order by n desc limit 160""").fetchall()
+        for k in range(0, len(rows), 40):
+            print('::notice::categories ' + ' | '.join(f'{r[0]}/{r[1]}={r[2]}' for r in rows[k:k + 40]))
+        sys.exit(0)
     sql = f"""
-      select id, names.primary as name, categories.primary as cat,
-             coalesce(categories.alternate, []) as alt, {basic} as basic,
-             websites[1] as website, phones[1] as phone,
-             addresses[1].freeform as address, addresses[1].locality as locality,
-             addresses[1].region as region, addresses[1].postcode as zip,
-             confidence, (bbox.xmin + bbox.xmax) / 2 as lng, (bbox.ymin + bbox.ymax) / 2 as lat
+      select id, names['primary'] as name, {prim} as cat, {alts} as alt, {basic} as basic,
+             websites[1] as website, phones[1] as phone, {email} as email,
+             addresses[1]['freeform'] as address, addresses[1]['locality'] as locality,
+             addresses[1]['region'] as region, addresses[1]['postcode'] as zip,
+             confidence, (bbox['xmin'] + bbox['xmax']) / 2 as lng, (bbox['ymin'] + bbox['ymax']) / 2 as lat
       from {rel}
-      where ({' or '.join(boxes)})
-        and confidence >= {min_conf} and {status}
-        and (categories.primary in ({terms}) or list_has_any(coalesce(categories.alternate, []), [{terms}])
-             or {basic} in ({terms}))"""
+      where {where}
+        and ({prim} in ({terms}) or list_has_any({alts}, [{terms}]) or {basic} in ({terms}))"""
     return con.execute(sql).fetchall(), [d[0] for d in con.description]
 
 
@@ -121,6 +134,7 @@ def main():
     ap.add_argument('--release', default='latest')
     ap.add_argument('--source', help='override the parquet path (used by tests)')
     ap.add_argument('--dry-run', action='store_true')
+    ap.add_argument('--discover', action='store_true', help='list nearby Overture categories and stop')
     ap.add_argument('--out', default='vendors.csv')
     ap.add_argument('--from-csv', help='skip Overture and import this CSV (e.g. after the website enricher)')
     a = ap.parse_args()
@@ -140,7 +154,7 @@ def main():
     source = a.source or f"{BUCKET}/{latest_release() if a.release == 'latest' else a.release}/theme=places/type=place/*"
     print(f'{len(cities)} cities, source {source}', flush=True)
 
-    rows, names = query_places(source, cities, a.radius_km, a.min_confidence)
+    rows, names = query_places(source, cities, a.radius_km, a.min_confidence, a.discover)
     out, skipped = [], {}
     for r in rows:
         p = dict(zip(names, r))
@@ -155,6 +169,7 @@ def main():
         out.append({'name': (p['name'] or '').strip()[:120], 'category': cat, 'city': near['name'],
                     'state': near['state'], 'country': 'us', 'address': p['address'] or '',
                     'zip': (p['zip'] or '')[:10], 'phone': p['phone'] or '', 'website': p['website'] or '',
+                    'email': (p.get('email') or '').strip().lower()[:254],
                     'lat': p['lat'], 'lng': p['lng'], 'overture_id': p['id']})
     out = [o for o in out if len(o['name']) >= 2]
 
