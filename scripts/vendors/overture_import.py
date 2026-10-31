@@ -187,6 +187,10 @@ def main():
     if not a.dry_run and out:
         summary['import'] = import_rows(conn, [{k: v for k, v in o.items() if k != 'overture_id'} for o in out])
     print(json.dumps(summary, indent=2))
+    if os.environ.get('GITHUB_ACTIONS'):
+        print(f"::notice::found {summary['found']}, kept {summary['kept']}, skipped {summary['skipped']}")
+        print('::notice::by category ' + json.dumps(summary['by_category']))
+        print('::notice::by city ' + json.dumps(summary['by_city'])[:3800])
     with open(os.environ.get('GITHUB_STEP_SUMMARY', os.devnull), 'a') as f:
         f.write('## Vendor import\n```json\n' + json.dumps(summary, indent=2) + '\n```\n')
 
