@@ -37,7 +37,6 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
-          test -n "$DATABASE_URL" || { echo "::error::Add the SUPABASE_DB_URL secret first (Settings > Secrets and variables > Actions)"; exit 1; }
           python scripts/vendors/overture_import.py --cities "${{ inputs.cities }}" --radius-km "${{ inputs.radius_km }}" --dry-run --out vendors.csv
       - name: Visit vendor websites
         if: inputs.enrich
@@ -46,7 +45,9 @@ jobs:
         if: ${{ !inputs.dry_run }}
         env:
           DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
-        run: python scripts/vendors/overture_import.py --from-csv vendors.csv
+        run: |
+          test -n "$DATABASE_URL" || { echo "::error::Add the SUPABASE_DB_URL secret first (Settings > Secrets and variables > Actions)"; exit 1; }
+          python scripts/vendors/overture_import.py --from-csv vendors.csv
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: vendors-csv, path: vendors.csv, if-no-files-found: ignore, retention-days: 30 }

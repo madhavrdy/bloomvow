@@ -33,6 +33,13 @@ def latest_release():
 
 
 def load_cities(conn, wanted):
+    if conn is None:   # dry run without database access: use the committed city list
+        with open(os.path.join(os.path.dirname(__file__), 'cities.json')) as f:
+            cities = json.load(f)
+        if wanted != 'all':
+            keep = {w.strip().lower() for w in wanted.split(',') if w.strip()}
+            cities = [c for c in cities if c['slug'] in keep or c['name'].lower() in keep]
+        return cities
     rows = conn.execute("""
       select c.id, c.name, c.slug, r.code as state, r.country_code, c.lat, c.lng
       from cities c join regions r on r.id = c.region_id
@@ -104,7 +111,9 @@ def main():
     ap.add_argument('--from-csv', help='skip Overture and import this CSV (e.g. after the website enricher)')
     a = ap.parse_args()
 
-    conn = psycopg.connect(os.environ['DATABASE_URL'], autocommit=True)
+    if not os.environ.get('DATABASE_URL') and not a.dry_run:
+        sys.exit('DATABASE_URL is needed to import (a dry run works without it)')
+    conn = psycopg.connect(os.environ['DATABASE_URL'], autocommit=True) if os.environ.get('DATABASE_URL') else None
     if a.from_csv:
         with open(a.from_csv, newline='') as f:
             rows = [{k: v for k, v in r.items() if v not in (None, '') and k not in ('overture_id', 'enrich_status', 'pages', 'site_summary', 'lat', 'lng')}

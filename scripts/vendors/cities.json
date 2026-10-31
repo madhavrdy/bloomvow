@@ -1,0 +1,362 @@
+[
+{
+"id": 12,
+"name": "New York City",
+"slug": "new-york-city",
+"state": "ny",
+"lat": 40.7128,
+"lng": -74.006,
+"country": "us"
+},
+{
+"id": 15,
+"name": "Los Angeles",
+"slug": "los-angeles",
+"state": "ca",
+"lat": 34.0522,
+"lng": -118.2437,
+"country": "us"
+},
+{
+"id": 19,
+"name": "Chicago",
+"slug": "chicago",
+"state": "il",
+"lat": 41.8781,
+"lng": -87.6298,
+"country": "us"
+},
+{
+"id": 13,
+"name": "Brooklyn",
+"slug": "brooklyn",
+"state": "ny",
+"lat": 40.6782,
+"lng": -73.9442,
+"country": "us"
+},
+{
+"id": 9,
+"name": "Houston",
+"slug": "houston",
+"state": "tx",
+"lat": 29.7604,
+"lng": -95.3698,
+"country": "us"
+},
+{
+"id": 28,
+"name": "Phoenix",
+"slug": "phoenix",
+"state": "az",
+"lat": 33.4484,
+"lng": -112.074,
+"country": "us"
+},
+{
+"id": 31,
+"name": "Philadelphia",
+"slug": "philadelphia",
+"state": "pa",
+"lat": 39.9526,
+"lng": -75.1652,
+"country": "us"
+},
+{
+"id": 6,
+"name": "San Antonio",
+"slug": "san-antonio",
+"state": "tx",
+"lat": 29.4241,
+"lng": -98.4936,
+"country": "us"
+},
+{
+"id": 16,
+"name": "San Diego",
+"slug": "san-diego",
+"state": "ca",
+"lat": 32.7157,
+"lng": -117.1611,
+"country": "us"
+},
+{
+"id": 7,
+"name": "Dallas",
+"slug": "dallas",
+"state": "tx",
+"lat": 32.7767,
+"lng": -96.797,
+"country": "us"
+},
+{
+"id": 1,
+"name": "Austin",
+"slug": "austin",
+"state": "tx",
+"lat": 30.2672,
+"lng": -97.7431,
+"country": "us"
+},
+{
+"id": 8,
+"name": "Fort Worth",
+"slug": "fort-worth",
+"state": "tx",
+"lat": 32.7555,
+"lng": -97.3308,
+"country": "us"
+},
+{
+"id": 32,
+"name": "Charlotte",
+"slug": "charlotte",
+"state": "nc",
+"lat": 35.2271,
+"lng": -80.8431,
+"country": "us"
+},
+{
+"id": 17,
+"name": "San Francisco",
+"slug": "san-francisco",
+"state": "ca",
+"lat": 37.7749,
+"lng": -122.4194,
+"country": "us"
+},
+{
+"id": 27,
+"name": "Seattle",
+"slug": "seattle",
+"state": "wa",
+"lat": 47.6062,
+"lng": -122.3321,
+"country": "us"
+},
+{
+"id": 24,
+"name": "Denver",
+"slug": "denver",
+"state": "co",
+"lat": 39.7392,
+"lng": -104.9903,
+"country": "us"
+},
+{
+"id": 40,
+"name": "Washington",
+"slug": "washington",
+"state": "dc",
+"lat": 38.9072,
+"lng": -77.0369,
+"country": "us"
+},
+{
+"id": 10,
+"name": "Nashville",
+"slug": "nashville",
+"state": "tn",
+"lat": 36.1627,
+"lng": -86.7816,
+"country": "us"
+},
+{
+"id": 30,
+"name": "Boston",
+"slug": "boston",
+"state": "ma",
+"lat": 42.3601,
+"lng": -71.0589,
+"country": "us"
+},
+{
+"id": 35,
+"name": "Las Vegas",
+"slug": "las-vegas",
+"state": "nv",
+"lat": 36.1699,
+"lng": -115.1398,
+"country": "us"
+},
+{
+"id": 36,
+"name": "Portland",
+"slug": "portland",
+"state": "or",
+"lat": 45.5152,
+"lng": -122.6784,
+"country": "us"
+},
+{
+"id": 38,
+"name": "Kansas City",
+"slug": "kansas-city",
+"state": "mo",
+"lat": 39.0997,
+"lng": -94.5786,
+"country": "us"
+},
+{
+"id": 23,
+"name": "Atlanta",
+"slug": "atlanta",
+"state": "ga",
+"lat": 33.749,
+"lng": -84.388,
+"country": "us"
+},
+{
+"id": 20,
+"name": "Miami",
+"slug": "miami",
+"state": "fl",
+"lat": 25.7617,
+"lng": -80.1918,
+"country": "us"
+},
+{
+"id": 37,
+"name": "Minneapolis",
+"slug": "minneapolis",
+"state": "mn",
+"lat": 44.9778,
+"lng": -93.265,
+"country": "us"
+},
+{
+"id": 22,
+"name": "Tampa",
+"slug": "tampa",
+"state": "fl",
+"lat": 27.9506,
+"lng": -82.4572,
+"country": "us"
+},
+{
+"id": 34,
+"name": "New Orleans",
+"slug": "new-orleans",
+"state": "la",
+"lat": 29.9511,
+"lng": -90.0715,
+"country": "us"
+},
+{
+"id": 21,
+"name": "Orlando",
+"slug": "orlando",
+"state": "fl",
+"lat": 28.5384,
+"lng": -81.3789,
+"country": "us"
+},
+{
+"id": 14,
+"name": "Jersey City",
+"slug": "jersey-city",
+"state": "nj",
+"lat": 40.7178,
+"lng": -74.0431,
+"country": "us"
+},
+{
+"id": 29,
+"name": "Scottsdale",
+"slug": "scottsdale",
+"state": "az",
+"lat": 33.4942,
+"lng": -111.9261,
+"country": "us"
+},
+{
+"id": 39,
+"name": "Salt Lake City",
+"slug": "salt-lake-city",
+"state": "ut",
+"lat": 40.7608,
+"lng": -111.891,
+"country": "us"
+},
+{
+"id": 26,
+"name": "Charleston",
+"slug": "charleston",
+"state": "sc",
+"lat": 32.7765,
+"lng": -79.9311,
+"country": "us"
+},
+{
+"id": 5,
+"name": "Round Rock",
+"slug": "round-rock",
+"state": "tx",
+"lat": 30.5083,
+"lng": -97.6789,
+"country": "us"
+},
+{
+"id": 25,
+"name": "Boulder",
+"slug": "boulder",
+"state": "co",
+"lat": 40.015,
+"lng": -105.2705,
+"country": "us"
+},
+{
+"id": 33,
+"name": "Asheville",
+"slug": "asheville",
+"state": "nc",
+"lat": 35.5951,
+"lng": -82.5515,
+"country": "us"
+},
+{
+"id": 11,
+"name": "Franklin",
+"slug": "franklin",
+"state": "tn",
+"lat": 35.9251,
+"lng": -86.8689,
+"country": "us"
+},
+{
+"id": 18,
+"name": "Napa",
+"slug": "napa",
+"state": "ca",
+"lat": 38.2975,
+"lng": -122.2869,
+"country": "us"
+},
+{
+"id": 4,
+"name": "San Marcos",
+"slug": "san-marcos",
+"state": "tx",
+"lat": 29.8833,
+"lng": -97.9414,
+"country": "us"
+},
+{
+"id": 2,
+"name": "Dripping Springs",
+"slug": "dripping-springs",
+"state": "tx",
+"lat": 30.1902,
+"lng": -98.0867,
+"country": "us"
+},
+{
+"id": 3,
+"name": "Wimberley",
+"slug": "wimberley",
+"state": "tx",
+"lat": 29.9974,
+"lng": -98.0986,
+"country": "us"
+}
+]
