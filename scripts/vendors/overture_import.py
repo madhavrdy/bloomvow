@@ -75,7 +75,10 @@ def query_places(source, cities, radius_km, min_conf):
     if source.startswith('s3://'):
         con.execute("install httpfs; load httpfs; set s3_region='us-west-2';")
     rel = f"read_parquet('{source}', hive_partitioning=1)"
-    cols = {r[0] for r in con.execute(f"describe select * from {rel}").fetchall()}
+    desc = con.execute(f"describe select * from {rel}").fetchall()
+    cols = {r[0] for r in desc}
+    if os.environ.get('GITHUB_ACTIONS'):
+        print('::notice::schema ' + ' | '.join(f'{r[0]}: {r[1]}' for r in desc)[:3800])
     # Overture has renamed fields between releases; adapt to what is there.
     status = "coalesce(operating_status, 'open') = 'open'" if 'operating_status' in cols else 'true'
     basic = 'basic_category' if 'basic_category' in cols else 'null'
