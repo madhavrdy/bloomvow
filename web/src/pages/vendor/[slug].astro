@@ -7,7 +7,7 @@ import { vendorJsonLd, breadcrumbJsonLd } from '../../lib/seo';
 
 export async function getStaticPaths() {
   const d = await getData();
-  return d.vendors.map((v) => ({ params: { slug: v.slug }, props: { v } }));
+  return d.richVendors.map((v) => ({ params: { slug: v.slug }, props: { v } }));
 }
 
 interface Props { v: Vendor }

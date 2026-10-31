@@ -168,6 +168,17 @@ insert into comments (post_id, author_name, author_email, body, status, created_
   ('00000000-0000-0000-0000-0000000b1001', 'Priya', 'priya@example.com', 'This was so helpful, we are looking at Fridays now!', 'approved', now() - interval '2 days'),
   ('00000000-0000-0000-0000-0000000b1001', 'Sam', 'sam@example.com', 'Do these prices include catering?', 'pending', now() - interval '5 hours'),
   ('00000000-0000-0000-0000-0000000b1001', 'Cheap Pills', 'bot@spam.example', 'Buy now http://spam.example', 'pending', now() - interval '1 hour');
+insert into comments (post_id, parent_id, author_name, author_email, body, status, is_staff, created_at)
+  select post_id, id, 'Wren Writer', 'writer@bloomvow.local', 'Fridays can save 20-30%. Great choice!', 'approved', true, created_at + interval '1 hour'
+  from comments where author_name = 'Priya';
+
+-- Basic listings like the Overture open-data import produces: no description,
+-- photos, packages or reviews. They share the /vendor/?v= page instead of a built page.
+insert into vendors (slug, name, category_id, city_id, address, phone, website, status, source) values
+  ('open-data-florals-austin', 'Open Data Florals', (select id from categories where slug = 'florists'), (select id from cities where name = 'Austin'),
+   '200 Congress Ave', '+1 512-555-0142', 'https://opendataflorals.example', 'unclaimed', 'overture'),
+  ('lone-star-limo-austin', 'Lone Star Limo', (select id from categories where slug = 'transportation'), (select id from cities where name = 'Austin'),
+   null, '+1 512-555-0143', null, 'unclaimed', 'overture');
 
 -- With the real auth server installed: give the dev logins a password
 -- (local only: "password123") so the dashboards can be signed into.

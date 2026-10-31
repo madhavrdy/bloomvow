@@ -1,0 +1,139 @@
+---
+import Base from '../../layouts/Base.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import PostCard from '../../components/PostCard.astro';
+import { getData, type Post } from '../../lib/data';
+import { renderMarkdown, plainText, readingMinutes } from '../../lib/markdown';
+import { breadcrumbJsonLd } from '../../lib/seo';
+import { SITE_NAME } from '../../config';
+
+export async function getStaticPaths() {
+  const d = await getData();
+  return d.posts.map((p) => ({ params: { slug: p.slug }, props: { p } }));
+}
+interface Props { p: Post }
+const { p } = Astro.props;
+const d = await getData();
+const cat = d.blogCategoryById.get(p.category_id)!;
+const { html, headings } = renderMarkdown(p.body, Astro.site?.host);
+const comments = d.commentsByPost.get(p.id) ?? [];
+const top = comments.filter((c) => !c.parent_id);
+const replies = (id: string) => comments.filter((c) => c.parent_id === id);
+const related = d.relatedPosts(p);
+const city = p.city_id ? d.cityById.get(p.city_id) : undefined;
+const vcat = p.vendor_category_id ? d.categoryById.get(p.vendor_category_id) : undefined;
+const listing = city && vcat ? d.listings.find((l) => l.city.id === city.id && l.category.id === vcat.id) : undefined;
+const cta = listing ? { url: listing.url, text: `Browse ${listing.vendors.length} ${vcat!.name.toLowerCase()} in ${city!.name}` }
+  : city ? { url: d.urls.city(city), text: `Browse wedding vendors in ${city.name}` }
+  : vcat ? { url: `/categories/${vcat.slug}/`, text: `Browse ${vcat.name.toLowerCase()}` } : null;
+const url = new URL(d.urls.post(p), Astro.site).href;
+const desc = p.seo_description || p.excerpt || plainText(p.body, 155);
+const fmt = (s: string) => new Date(s).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+const updated = p.updated_at.slice(0, 10) > p.published_at.slice(0, 10);
+const crumbs = [{ name: 'Home', url: '/' }, { name: 'Blog', url: '/blog/' }, { name: cat.name, url: d.urls.blogCategory(cat) }, { name: p.title }];
+const article = {
+  '@context': 'https://schema.org', '@type': 'BlogPosting', headline: p.title, description: desc, mainEntityOfPage: url,
+  datePublished: p.published_at, dateModified: p.updated_at, articleSection: cat.name, wordCount: p.body.split(/\s+/).filter(Boolean).length,
+  ...(p.cover_url ? { image: [p.cover_url] } : {}),
+  author: { '@type': p.author_name ? 'Person' : 'Organization', name: p.author_name || SITE_NAME },
+  publisher: { '@type': 'Organization', name: SITE_NAME, url: new URL('/', Astro.site).href },
+  ...(comments.length ? { commentCount: comments.length } : {}),
+};
+---
+<Base title={p.seo_title || p.title} description={desc} image={p.cover_url ?? undefined} ogType="article" jsonld={[article, breadcrumbJsonLd(Astro.site, crumbs)]} rss>
+  <main class="wrap" style="padding-top:24px">
+    <Breadcrumbs items={crumbs} />
+    <article class="post">
+      <header class="post-head">
+        <a href={d.urls.blogCategory(cat)} class="pcat">{cat.name}</a>
+        <h1 class="serif">{p.title}</h1>
+        <p class="muted post-meta">
+          {p.author_name && <span>By <b style="color:var(--ink)">{p.author_name}</b> · </span>}
+          <time datetime={p.published_at}>{fmt(p.published_at)}</time>
+          {updated && <span> · Updated <time datetime={p.updated_at}>{fmt(p.updated_at)}</time></span>}
+          <span> · {readingMinutes(p.body)} min read</span>
+        </p>
+      </header>
+      {p.cover_url && <img class="post-cover" src={p.cover_url} alt={p.cover_alt ?? ''} fetchpriority="high" />}
+      <div class="post-layout">
+        {headings.length >= 3 && (
+          <nav class="toc" aria-label="On this page">
+            <b>On this page</b>
+            <ol>{headings.map((h) => <li class={`d${h.depth}`}><a href={`#${h.id}`}>{h.text}</a></li>)}</ol>
+          </nav>
+        )}
+        <div class="prose" set:html={html} />
+      </div>
+      {cta && <p class="post-cta"><a class="btn btn-primary btn-lg" href={cta.url}>{cta.text}</a> <a class="btn btn-outline btn-lg" href={`/get-matched/${city ? `?city=${city.id}` : ''}`}>Get free quotes</a></p>}
+    </article>
+
+    <section class="comments" id="comments" aria-labelledby="comments-h">
+      <h2 id="comments-h" class="serif">{comments.length ? `${comments.length} comment${comments.length > 1 ? 's' : ''}` : 'Comments'}</h2>
+      {top.map((c) => (
+        <div class="cmt" id={`c-${c.id}`}>
+          <div class="cmt-head"><b>{c.author_name}</b>{c.is_staff && <span class="badge badge-green">{SITE_NAME} team</span>}<time class="muted" datetime={c.created_at}>{fmt(c.created_at)}</time></div>
+          <p>{c.body}</p>
+          {p.comments_open && <button type="button" class="linkish" data-reply={c.id} data-reply-name={c.author_name}>Reply</button>}
+          {replies(c.id).map((r) => (
+            <div class="cmt cmt-reply" id={`c-${r.id}`}>
+              <div class="cmt-head"><b>{r.author_name}</b>{r.is_staff && <span class="badge badge-green">{SITE_NAME} team</span>}<time class="muted" datetime={r.created_at}>{fmt(r.created_at)}</time></div>
+              <p>{r.body}</p>
+            </div>
+          ))}
+        </div>
+      ))}
+      {p.comments_open ? (
+        <form id="comment-form" class="cmt-form" data-post={p.id} novalidate>
+          <h3 style="margin:0">Leave a comment</h3>
+          <p class="muted" id="replying" hidden style="margin:0">Replying to <b></b> · <button type="button" class="linkish" id="cancel-reply">Cancel</button></p>
+          <p class="muted" style="margin:0;font-size:14px">Comments are checked before they appear. Your email is never shown.</p>
+          <div class="cmt-row">
+            <label class="field">Name<input name="name" required maxlength="80" autocomplete="name" /></label>
+            <label class="field">Email<input name="email" type="email" required maxlength="254" autocomplete="email" /></label>
+          </div>
+          <label class="field">Comment<textarea name="body" required rows="5" maxlength="3000"></textarea></label>
+          <label class="hp" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off" /></label>
+          <p class="form-error" role="alert"></p>
+          <div><button class="btn btn-primary" type="submit">Post comment</button></div>
+        </form>
+      ) : <p class="muted">Comments are closed for this article.</p>}
+    </section>
+
+    {related.length > 0 && <section class="section"><h2>Keep reading</h2><div class="post-grid">{related.map((r) => <PostCard p={r} />)}</div></section>}
+  </main>
+</Base>
+<script>
+  import { initComments } from '../../scripts/comments';
+  initComments();
+</script>
+<style>
+  .post { max-width: 1060px; }
+  .post-head { max-width: 760px; margin: 16px 0 24px; }
+  .post-head h1 { font-size: clamp(36px, 5vw, 54px); line-height: 1.08; margin: 8px 0 12px; }
+  .pcat { font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--rose-dark); text-decoration: none; }
+  .post-meta { margin: 0; font-size: 15px; }
+  .post-cover { width: 100%; max-height: 520px; object-fit: cover; border-radius: 20px; margin-bottom: 32px; }
+  .post-layout { display: flex; gap: 48px; align-items: flex-start; flex-wrap: wrap-reverse; }
+  .toc { flex: 0 1 240px; position: sticky; top: 16px; border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; font-size: 14px; }
+  .toc ol { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-direction: column; gap: 8px; }
+  .toc .d3 { padding-left: 14px; }
+  .toc a { text-decoration: none; color: var(--ink-2); }
+  .prose { flex: 1 1 520px; max-width: 720px; font-size: 18px; line-height: 1.7; color: var(--ink-2); }
+  .prose :global(h2) { font-family: var(--serif); font-weight: 400; font-size: 34px; color: var(--ink); margin: 40px 0 12px; line-height: 1.15; scroll-margin-top: 16px; }
+  .prose :global(h3) { font-size: 21px; color: var(--ink); margin: 28px 0 8px; scroll-margin-top: 16px; }
+  .prose :global(img) { max-width: 100%; border-radius: 14px; }
+  .prose :global(table) { border-collapse: collapse; width: 100%; font-size: 16px; }
+  .prose :global(th), .prose :global(td) { border-bottom: 1px solid var(--line); padding: 8px; text-align: left; }
+  .prose :global(blockquote) { border-left: 3px solid var(--rose); margin: 0; padding-left: 16px; }
+  .post-cta { display: flex; flex-wrap: wrap; gap: 12px; margin: 40px 0 0; }
+  .comments { max-width: 760px; margin-top: 56px; }
+  .comments h2 { font-size: 34px; margin: 0 0 16px; }
+  .cmt { border-top: 1px solid var(--line); padding: 16px 0; }
+  .cmt p { margin: 6px 0; white-space: pre-line; }
+  .cmt-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 15px; }
+  .cmt-reply { margin-left: 24px; border-top: 0; border-left: 3px solid var(--line); padding: 4px 0 4px 16px; margin-top: 8px; }
+  .linkish { background: none; border: 0; padding: 0; color: var(--rose-dark); font: inherit; font-weight: 600; font-size: 14px; cursor: pointer; }
+  .cmt-form { display: flex; flex-direction: column; gap: 14px; border: 1px solid var(--line); border-radius: 18px; padding: 20px; margin-top: 16px; }
+  .cmt-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+  .post-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px; }
+</style>

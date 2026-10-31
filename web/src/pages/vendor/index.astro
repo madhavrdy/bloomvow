@@ -1,0 +1,59 @@
+---
+// One shared, noindex page for basic listings: /vendor/?v=<slug>
+// Details load in the browser from the public API (see scripts/basic-vendor.ts).
+import Base from '../../layouts/Base.astro';
+const today = new Date().toISOString().slice(0, 10);
+---
+<Base title="Wedding vendor" description="Wedding vendor details, pricing requests and contact information." noindex>
+  <main class="wrap" style="padding:24px 0 64px" id="basic-vendor">
+    <p id="bv-loading" class="muted">Loading…</p>
+    <div id="bv-missing" hidden>
+      <h1 class="serif" style="font-size:44px">Vendor not found</h1>
+      <p>This listing may have been removed. <a href="/categories/">Browse all vendors</a>.</p>
+    </div>
+    <div id="bv-page" hidden class="bv">
+      <nav class="crumbs" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li><a id="bv-listing" href="/"></a></li></ol></nav>
+      <div class="bv-layout">
+        <div class="bv-main">
+          <h1 class="serif" id="bv-name" style="font-size:clamp(38px,5vw,56px);margin:12px 0 8px;line-height:1"></h1>
+          <p id="bv-meta" class="muted" style="font-size:16px;margin:0 0 16px"></p>
+          <div class="contact" style="display:flex;flex-wrap:wrap;gap:10px">
+            <a id="bv-phone" class="btn btn-outline" data-track="click_phone" hidden></a>
+            <a id="bv-web" class="btn btn-outline" target="_blank" rel="noopener nofollow" data-track="click_website" hidden>Website ↗</a>
+            <a id="bv-dir" class="btn btn-outline" target="_blank" rel="noopener" data-track="click_directions" hidden>Directions</a>
+          </div>
+          <p id="bv-address" class="muted"></p>
+          <p class="claim" style="background:var(--green-soft);border-radius:14px;padding:16px">Is this your business? <a id="bv-claim" href="/for-vendors/">Claim this listing</a> to add photos, pricing and reply to couples.</p>
+        </div>
+        <aside class="bv-lead">
+          <form id="lead-form" class="lead-card" data-source="profile">
+            <span class="serif" style="font-size:28px;line-height:1.1">Check availability &amp; pricing</span>
+            <div class="two">
+              <label class="field">Wedding date<input type="date" name="wedding_date" min={today} /></label>
+              <label class="field">Guests<input type="number" name="guests" min="1" max="3000" inputmode="numeric" placeholder="150" /></label>
+            </div>
+            <label class="field">Full name<input name="couple_name" required maxlength="120" autocomplete="name" /></label>
+            <label class="field">Email<input type="email" name="email" required autocomplete="email" /></label>
+            <label class="field">Phone (optional)<input type="tel" name="phone" autocomplete="tel" /></label>
+            <label class="field">Message<textarea name="message" rows="3">Hi! We're planning our wedding and would love to know your pricing and availability for our date.</textarea></label>
+            <label class="hp" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off" /></label>
+            <label class="check" style="background:var(--rose-soft);border-radius:12px;padding:12px"><input type="checkbox" name="also_similar" checked /><span><b>Also send to 3 similar vendors</b> to compare more quotes.</span></label>
+            <p class="form-error" role="alert"></p>
+            <button type="submit" class="btn btn-primary btn-lg">Send request</button>
+          </form>
+        </aside>
+      </div>
+    </div>
+  </main>
+</Base>
+<script>
+  import { initBasicVendor } from '../../scripts/basic-vendor';
+  initBasicVendor();
+</script>
+<style>
+  .bv-layout { display: flex; flex-wrap: wrap; gap: 48px; align-items: flex-start; }
+  .bv-main { flex: 999 1 480px; display: flex; flex-direction: column; gap: 12px; }
+  .bv-lead { flex: 1 1 340px; max-width: 400px; }
+  .lead-card { border: 1px solid var(--line-2); border-radius: 22px; padding: 24px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 16px 40px rgba(31,26,46,.10); background: #fff; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+</style>

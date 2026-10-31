@@ -3,6 +3,7 @@ import Base from '../../../../../layouts/Base.astro';
 import Breadcrumbs from '../../../../../components/Breadcrumbs.astro';
 import VendorRow from '../../../../../components/VendorRow.astro';
 import { getData, money, type ListingPage } from '../../../../../lib/data';
+import Guides from '../../../../../components/Guides.astro';
 import { listingFaqs, listingIntro, faqJsonLd, breadcrumbJsonLd, itemListJsonLd } from '../../../../../lib/seo';
 import { kmBetween, niceRound } from '../../../../../lib/geo';
 import { PAGE_SIZE } from '../../../../../lib/constants';
@@ -116,6 +117,7 @@ const pageUrl = (n: number) => (n === 1 ? l.url : `${l.url}page/${n}/`);
         )}
       </section>
     </div>
+    {pageNo === 1 && <Guides cityId={city.id} categoryId={cat.id} title={`Planning guides: ${cat.name.toLowerCase()} in ${city.name}`} />}
   </main>
 
   <section class="bg2">

@@ -1,0 +1,28 @@
+# Weekly database backup (Supabase's free plan has none). Each run is kept for
+# 60 days under Actions > Weekly backup > the run > Artifacts. Restore with
+# pg_restore --clean --no-owner -d "<connection string>" bloomvow.dump
+name: Weekly backup
+on:
+  schedule: [{ cron: '13 2 * * 0' }]
+  workflow_dispatch:
+permissions: { contents: read }
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Install pg_dump 17
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17
+      - name: Dump
+        env: { DATABASE_URL: '${{ secrets.SUPABASE_DB_URL }}' }
+        run: |
+          test -n "$DATABASE_URL" || { echo "::error::Add the SUPABASE_DB_URL secret first"; exit 1; }
+          /usr/lib/postgresql/17/bin/pg_dump "$DATABASE_URL" --format=custom --no-owner --no-privileges \
+            --schema=public --schema=auth --schema=storage -f bloomvow.dump
+          ls -lh bloomvow.dump >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with: { name: 'bloomvow-db-${{ github.run_number }}', path: bloomvow.dump, retention-days: 60 }

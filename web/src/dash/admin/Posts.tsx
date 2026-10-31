@@ -1,3 +1,4 @@
+import { shrinkImage, extOf, MAX_ORIGINAL } from '../image';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { sb, must, friendly } from '../supabase';
 import { ago, fmtDate, Toast, useToast, type Ref } from '../shared';
@@ -113,11 +114,13 @@ function Editor({ post, cats, ref_, userId, onClose }: { post: Post; cats: BlogC
     onClose('Post deleted');
   }
   async function upload(e: Event) {
-    const file = (e.currentTarget as HTMLInputElement).files?.[0];
-    if (!file) return;
-    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return setErr('Please upload a JPG, PNG or WebP image.');
-    if (file.size > 5 * 1024 * 1024) return setErr('That image is larger than 5 MB.');
-    const path = `${new Date().toISOString().slice(0, 7)}/${crypto.randomUUID()}.${file.type.split('/')[1].replace('jpeg', 'jpg')}`;
+    const original = (e.currentTarget as HTMLInputElement).files?.[0];
+    if (!original) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(original.type)) return setErr('Please upload a JPG, PNG or WebP image.');
+    if (original.size > MAX_ORIGINAL) return setErr('That image is larger than 25 MB.');
+    const file = await shrinkImage(original, 2000);
+    if (file.size > 5 * 1024 * 1024) return setErr('That image is too large even after resizing.');
+    const path = `${new Date().toISOString().slice(0, 7)}/${crypto.randomUUID()}.${extOf(file)}`;
     const { error } = await sb().storage.from('blog-images').upload(path, file, { contentType: file.type, cacheControl: '31536000' });
     if (error) return setErr(friendly(error));
     setP({ ...p, cover_url: sb().storage.from('blog-images').getPublicUrl(path).data.publicUrl, cover_alt: p.cover_alt || p.title });

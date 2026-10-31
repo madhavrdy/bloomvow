@@ -231,6 +231,21 @@ test('edit listing: details, packages, service-area cities and photos are saved'
   await p.waitForFunction(() => document.querySelectorAll('#photos .photo').length === 1);
   assert.equal((await q(`select count(*)::int n from photos where vendor_id = $1`, [v.id]))[0].n, 1);
   assert.equal((await fetch(photos[1].url)).status, 404, 'deleted photo file is removed from storage');
+  // A big phone photo is shrunk in the browser before upload (1600px WebP).
+  const bigPng = Buffer.from((await p.evaluate(() => {
+    const c = document.createElement('canvas'); c.width = 4000; c.height = 3000;
+    const g = c.getContext('2d'); for (let i = 0; i < 400; i++) { g.fillStyle = `hsl(${i * 37 % 360} 60% 60%)`; g.fillRect((i * 97) % 4000, (i * 61) % 3000, 300, 200); }
+    return c.toDataURL('image/png').split(',')[1];
+  })), 'base64');
+  await p.setInputFiles('#photos input[type=file]', [{ name: 'IMG_0001.png', mimeType: 'image/png', buffer: bigPng }]);
+  await p.waitForFunction(() => document.querySelectorAll('#photos .photo').length === 2);
+  const [big] = await q(`select url from photos where vendor_id = $1 and url <> $2`, [v.id, photos[0].url]);
+  assert.match(big.url, /\.webp$/);
+  const stored = await fetch(big.url);
+  const bytes = (await stored.arrayBuffer()).byteLength;
+  assert.ok(bytes < bigPng.length / 3, `shrunk: ${bytes} bytes vs ${bigPng.length}`);
+  const dims = await p.evaluate(async (u) => { const i = new Image(); i.src = u; await i.decode(); return [i.naturalWidth, i.naturalHeight]; }, big.url);
+  assert.deepEqual(dims, [1600, 1200]);
   await p.setInputFiles('#photos input[type=file]', [{ name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') }]);
   await p.waitForSelector('aside .form-error:has-text("JPG")');
   assert.deepEqual(p.errors, []);

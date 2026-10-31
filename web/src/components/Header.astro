@@ -10,11 +10,13 @@ const top = d.categories.slice(0, 6);
     <nav class="nav" aria-label="Categories">
       {top.map((c) => <a href={`/categories/${c.slug}/`}>{c.name.replace(/^Wedding /, '').replace(/^./, (s) => s.toUpperCase())}</a>)}
       <a href="/categories/">More</a>
+      <a href="/blog/">Blog</a>
     </nav>
     <details class="mobile-menu">
       <summary class="btn btn-outline" aria-label="Open menu">Menu</summary>
       <div class="mobile-panel">
         {d.categories.map((c) => <a href={`/categories/${c.slug}/`}>{c.name}</a>)}
+        <a href="/blog/">Wedding planning blog</a>
         <a href="/for-vendors/">For vendors</a>
       </div>
     </details>

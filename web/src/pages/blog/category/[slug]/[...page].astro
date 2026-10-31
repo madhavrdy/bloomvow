@@ -1,0 +1,23 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import BlogList from '../../../../components/BlogList.astro';
+import { getData, type BlogCategory } from '../../../../lib/data';
+import { pageParams, pageCount, pageSlice } from '../../../../lib/blog';
+import { breadcrumbJsonLd } from '../../../../lib/seo';
+
+export async function getStaticPaths() {
+  const d = await getData();
+  return d.blogCategories.flatMap((c) => pageParams(d.postsByCategory.get(c.id)!.length).map((page) => ({ params: { slug: c.slug, page }, props: { c } })));
+}
+interface Props { c: BlogCategory }
+const { c } = Astro.props;
+const d = await getData();
+const posts = d.postsByCategory.get(c.id)!;
+const pageNo = Number(Astro.params.page?.split('/')[1] ?? 1);
+const base = d.urls.blogCategory(c);
+const crumbs = [{ name: 'Home', url: '/' }, { name: 'Blog', url: '/blog/' }, { name: c.name, url: base }];
+const desc = c.seo_description || c.description || `${c.name}: wedding planning articles and guides.`;
+---
+<Base title={`${c.seo_title || c.name}${pageNo > 1 ? ` (page ${pageNo})` : ''}`} description={desc} jsonld={[breadcrumbJsonLd(Astro.site, crumbs)]} rss>
+  <BlogList posts={pageSlice(posts, pageNo)} pageNo={pageNo} pages={pageCount(posts.length)} base={base} heading={c.name} intro={c.description || desc} current={c} crumbs={crumbs} />
+</Base>

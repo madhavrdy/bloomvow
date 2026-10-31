@@ -1,3 +1,4 @@
+import { shrinkImage, extOf, MAX_ORIGINAL } from '../image';
 import { useEffect, useState } from 'preact/hooks';
 import { sb, must, friendly } from '../supabase';
 import { Toast, useToast, type Category, type City, type Ref } from '../shared';
@@ -95,10 +96,12 @@ export function ListingEditor({ listing, category, city, ref_, onSaved }: { list
     const files = [...(input.files ?? [])];
     input.value = '';
     setErr('');
-    for (const file of files) {
-      if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { setErr('Please upload JPG, PNG or WebP images.'); continue; }
-      if (file.size > 5 * 1024 * 1024) { setErr(`${file.name} is larger than 5 MB.`); continue; }
-      const path = `${listing.id}/${crypto.randomUUID()}.${file.type.split('/')[1].replace('jpeg', 'jpg')}`;
+    for (const original of files) {
+      if (!/^image\/(jpeg|png|webp)$/.test(original.type)) { setErr('Please upload JPG, PNG or WebP images.'); continue; }
+      if (original.size > MAX_ORIGINAL) { setErr(`${original.name} is larger than 25 MB.`); continue; }
+      const file = await shrinkImage(original);
+      if (file.size > 5 * 1024 * 1024) { setErr(`${original.name} is too large even after resizing. Please use a smaller image.`); continue; }
+      const path = `${listing.id}/${crypto.randomUUID()}.${extOf(file)}`;
       try {
         await must(sb().storage.from('vendor-photos').upload(path, file, { contentType: file.type, cacheControl: '31536000' }) as never);
         const url = sb().storage.from('vendor-photos').getPublicUrl(path).data.publicUrl;

@@ -83,6 +83,15 @@ def query_places(source, cities, radius_km, min_conf):
     return con.execute(sql).fetchall(), [d[0] for d in con.description]
 
 
+def import_rows(conn, rows):
+    tot = {'inserted': 0, 'merged': 0, 'needs_review': 0}
+    for i in range(0, len(rows), 500):
+        res = conn.execute("select admin_import_vendors(%s::jsonb, 'overture', false)", [json.dumps(rows[i:i + 500], default=str)]).fetchone()[0]
+        tot['inserted'] += res['inserted']; tot['merged'] += res['merged']; tot['needs_review'] += len(res['needs_review'])
+        print(f'  batch {i // 500 + 1}: {res["inserted"]} new, {res["merged"]} merged', flush=True)
+    return tot
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--cities', default='all', help="'all' or comma-separated city slugs/names")
@@ -92,9 +101,16 @@ def main():
     ap.add_argument('--source', help='override the parquet path (used by tests)')
     ap.add_argument('--dry-run', action='store_true')
     ap.add_argument('--out', default='vendors.csv')
+    ap.add_argument('--from-csv', help='skip Overture and import this CSV (e.g. after the website enricher)')
     a = ap.parse_args()
 
     conn = psycopg.connect(os.environ['DATABASE_URL'], autocommit=True)
+    if a.from_csv:
+        with open(a.from_csv, newline='') as f:
+            rows = [{k: v for k, v in r.items() if v not in (None, '') and k not in ('overture_id', 'enrich_status', 'pages', 'site_summary', 'lat', 'lng')}
+                    for r in csv.DictReader(f)]
+        print(json.dumps({'import': import_rows(conn, rows)}, indent=2))
+        return
     cities = load_cities(conn, a.cities)
     if not cities:
         sys.exit('No matching cities with coordinates')
@@ -131,13 +147,7 @@ def main():
                'by_city': dict(sorted(by_city.items(), key=lambda x: -x[1]))}
 
     if not a.dry_run and out:
-        tot = {'inserted': 0, 'merged': 0, 'needs_review': 0}
-        for i in range(0, len(out), 500):
-            batch = [{k: v for k, v in o.items() if k not in ('overture_id',)} for o in out[i:i + 500]]
-            res = conn.execute("select admin_import_vendors(%s::jsonb, 'overture', false)", [json.dumps(batch)]).fetchone()[0]
-            tot['inserted'] += res['inserted']; tot['merged'] += res['merged']; tot['needs_review'] += len(res['needs_review'])
-            print(f'  batch {i // 500 + 1}: {res["inserted"]} new, {res["merged"]} merged', flush=True)
-        summary['import'] = tot
+        summary['import'] = import_rows(conn, [{k: v for k, v in o.items() if k != 'overture_id'} for o in out])
     print(json.dumps(summary, indent=2))
     with open(os.environ.get('GITHUB_STEP_SUMMARY', os.devnull), 'a') as f:
         f.write('## Vendor import\n```json\n' + json.dumps(summary, indent=2) + '\n```\n')

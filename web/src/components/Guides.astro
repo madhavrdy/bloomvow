@@ -1,0 +1,16 @@
+---
+// "Planning guides": blog posts linked to this city and/or vendor category.
+import PostCard from './PostCard.astro';
+import { getData } from '../lib/data';
+interface Props { cityId: number | null; categoryId: number | null; title: string }
+const { cityId, categoryId, title } = Astro.props;
+const d = await getData();
+const guides = d.guidesFor(cityId, categoryId);
+---
+{guides.length > 0 && (
+  <section class="section" aria-label="Planning guides">
+    <h2>{title}</h2>
+    <div class="guide-grid">{guides.map((p) => <PostCard p={p} compact />)}</div>
+  </section>
+)}
+<style>.guide-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }</style>

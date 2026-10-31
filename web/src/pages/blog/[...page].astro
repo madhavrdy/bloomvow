@@ -1,0 +1,20 @@
+---
+import Base from '../../layouts/Base.astro';
+import BlogList from '../../components/BlogList.astro';
+import { getData } from '../../lib/data';
+import { pageParams, pageCount, pageSlice } from '../../lib/blog';
+import { breadcrumbJsonLd } from '../../lib/seo';
+import { SITE_NAME } from '../../config';
+
+export async function getStaticPaths() {
+  const d = await getData();
+  return pageParams(d.posts.length).map((page) => ({ params: { page } }));
+}
+const d = await getData();
+const pageNo = Number(Astro.params.page?.split('/')[1] ?? 1);
+const crumbs = [{ name: 'Home', url: '/' }, { name: 'Blog', url: '/blog/' }];
+---
+<Base title={`Wedding planning blog${pageNo > 1 ? ` (page ${pageNo})` : ''}`} description={`Wedding planning advice, real costs and checklists from ${SITE_NAME}: venues, budgets, vendors and more.`} jsonld={[breadcrumbJsonLd(Astro.site, crumbs)]} rss>
+  <BlogList posts={pageSlice(d.posts, pageNo)} pageNo={pageNo} pages={pageCount(d.posts.length)} base="/blog/" heading="Wedding planning blog"
+    intro="Practical advice for planning your wedding: what things really cost, how to choose vendors, and checklists to keep you on track." crumbs={crumbs} />
+</Base>

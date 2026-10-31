@@ -63,6 +63,47 @@ US wedding vendor directory (venues, photographers, hair & makeup, caterers and
   * Organization and author markup;
   * hreflang for US/CA/UK/AU, IndexNow, and share images.
 
+## Blog (public, Oct 31)
+
+* `/blog/`, `/blog/category/<slug>/` (empty categories are not built) and `/blog/page/N/` (12 posts per page).
+* Post pages: breadcrumb, cover image, table of contents (3+ headings), author, reading time, "Updated" date, BlogPosting + Breadcrumb schema, related posts, and a call to action to the linked city/category listing.
+* Comments: approved comments are in the static HTML, with one level of replies and a team badge on staff replies. The form posts to `submit_comment`; new comments wait for moderation.
+* "Planning guides" on city pages and city + category pages, from posts linked to that city/category in the editor.
+* `/blog/rss.xml`, blog links in the header and footer, and blog URLs in the sitemap.
+
+## Hosting build (Oct 31)
+
+* **URL format: kept as directory pages with trailing slashes** (`/us/texas/austin/`). Switching to one file per page would change every URL and need rewrite rules. The inode saving is instead made by not pre-building thin profiles (below), which cut the file count far more.
+* **Basic listings** (unclaimed and no description, photos, packages or reviews, typically from the open-data import) have no built page. They link to one shared page, `/vendor/?v=<slug>`, which loads the details in the browser, is `noindex`, stays out of the sitemap, and still takes quote requests. When a vendor claims or fills in a listing, the next build gives it a full page, and the shared page redirects to it.
+* **Sitemap index**: `/sitemap.xml` lists `/sitemap-1.xml`, `/sitemap-2.xml`… with up to 45,000 URLs each.
+* `web/public/.htaccess`: https redirect, 404 page, long caching for `/_astro/` files, compression, security headers.
+
+## Automatic jobs (GitHub Actions)
+
+| Job | When | Needs |
+|---|---|---|
+| **Build and deploy** (`deploy.yml`) | every 3 hours, every push, or on demand | Upload: secrets `FTP_HOST`, `FTP_USER`, `FTP_PASS`; variables `SITE_URL`, `SITE_NAME`, `CONTACT_EMAIL`, optional `FTP_DIR` (default `public_html/`). Without FTP secrets it only builds and type checks. Only changed files are uploaded. |
+| **Weekly backup** (`backup.yml`) | Sundays, or on demand | secret `SUPABASE_DB_URL`. The dump is kept 60 days as a run artifact. |
+| **Import vendors** (`import-vendors.yml`) | on demand | secret `SUPABASE_DB_URL`. Optional "visit vendor websites" step (see below). |
+
+## Emails (migration 012)
+
+* Sent from the database by `pg_cron` every minute through `pg_net` to **Resend** (free tier: 3,000 emails a month). There's no separate server.
+* Lead emails go to vendors with the couple as reply-to. Unclaimed vendors get a "claim your listing" link. Also sent: vendor replies to couples, a 24-hour no-reply reminder (hourly job), and claim decisions.
+* Failed sends retry up to 5 times. Until a Resend key exists, emails wait in the queue.
+* To switch on (SQL editor, once): `select vault.create_secret('<resend key>', 'resend_api_key');` then set `email_from` and `site_url` in `settings`. Verify the sending domain in Resend first.
+* A daily job rolls click/view events older than 120 days into daily totals (`event_daily`).
+
+## Website enricher (`scripts/scraper/enrich.mjs`)
+
+* Takes a CSV with a `website` column (e.g. the import's `vendors.csv`) and reads each vendor's own site to add phone, email, address, ZIP, starting price and capacity. It also adds a short `site_summary` for you to review; this is never imported.
+* Obeys robots.txt, identifies itself as BloomvowBot, waits between requests to the same site, reads at most 5 pages per site, and never copies reviews, testimonials or photos. It only fills blank fields.
+* Run it locally (`node scripts/scraper/enrich.mjs vendors.csv enriched.csv`), then import in Admin › Vendors › Import CSV. Or tick "visit vendor websites" in the Import vendors job.
+
+## Photos
+
+* Photos are shrunk in the browser before upload: longest side 1600px (blog covers 2000px), WebP, about 80% quality (JPEG on browsers that can't make WebP). Originals up to 25 MB are accepted.
+
 ## Real vendor data (Overture Maps)
 
 * Source: [Overture Maps](https://overturemaps.org) places, open data under CDLA-Permissive-2.0 (commercial use allowed). Google Maps, Yelp and The Knot are not used: their terms forbid copying listings.
@@ -133,10 +174,10 @@ Local dev logins (password `password123`): `admin@bloomvow.local` (admin), `dana
 ## Tests
 
 ```bash
-npm run test:db     # 36 database tests: permissions, routing, claims, import, stats, photos, onboarding
-npm run test:unit   # front-end logic: filters, search, quote flow validation
+npm run test:db     # 39 database tests: permissions, routing, claims, import, stats, photos, onboarding
+npm run test:unit   # front-end logic (filters, search, quote flow) + website enricher
 npm run test:e2e    # needs POSTGREST_BIN + AUTH_BIN: builds the whole site and drives a real browser
-                    # through every public and vendor-dashboard flow (18 tests)
+                    # through every public and vendor-dashboard flow (36 tests: public site, blog, vendor and admin dashboards)
 ```
 
 ## Notes for deployment (Oct 31)
@@ -148,7 +189,7 @@ npm run test:e2e    # needs POSTGREST_BIN + AUTH_BIN: builds the whole site and 
 ## Live Supabase project (status Oct 30)
 
 * Applied: 001–006, 006b (editor role), 007 (blog tables and views), 007b (comment functions and image bucket), 008 (advisor hardening), 008b, 009 (countries + regions), 010 + 010b (per-country categories), 011 (scheduled jobs may run admin imports), 007c + 007d (blog category delete, editors can delete blog images).
-* Nothing pending: all migrations are applied (Oct 30).
+* Pending: 012 (emails + scheduled jobs). Its approval prompt timed out on Oct 31. Also schedule its jobs (the end of `012_email_and_jobs.sql`) once it's applied.
 * Known advisor items:
   * public_* views are SECURITY DEFINER by design: they expose safe columns only. Plan to convert them to invoker views with column grants on Nov 1.
   * Default EXECUTE grants on admin functions are harmless, because each checks require_admin().

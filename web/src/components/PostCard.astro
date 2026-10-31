@@ -1,0 +1,31 @@
+---
+import type { Post } from '../lib/data';
+import { getData } from '../lib/data';
+import { plainText, readingMinutes } from '../lib/markdown';
+interface Props { p: Post; compact?: boolean }
+const { p, compact = false } = Astro.props;
+const d = await getData();
+const cat = d.blogCategoryById.get(p.category_id)!;
+const date = new Date(p.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+---
+<article class="pcard">
+  <a href={d.urls.post(p)} class="pcard-media" tabindex="-1" aria-hidden="true">
+    {p.cover_url ? <img src={p.cover_url} alt="" loading="lazy" decoding="async" /> : <div class={`ph ph-${p.title.length % 5}`} />}
+  </a>
+  <div class="pcard-body">
+    <span class="pcard-cat">{cat.name}</span>
+    <a href={d.urls.post(p)} class="pcard-title">{p.title}</a>
+    {!compact && <p>{p.excerpt || plainText(p.body, 150)}</p>}
+    <span class="muted" style="font-size:13px">{date} · {readingMinutes(p.body)} min read</span>
+  </div>
+</article>
+<style>
+  .pcard { border: 1px solid var(--line); border-radius: 18px; overflow: hidden; display: flex; flex-direction: column; background: #fff; }
+  .pcard-media { display: block; aspect-ratio: 16 / 9; }
+  .pcard-media img, .pcard-media .ph { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .pcard-body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 6px; }
+  .pcard-cat { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--rose-dark); }
+  .pcard-title { font-weight: 700; font-size: 18px; line-height: 1.3; text-decoration: none; color: var(--ink); }
+  .pcard-title:hover { color: var(--rose-dark); }
+  .pcard p { margin: 0; font-size: 15px; color: var(--ink-2); }
+</style>

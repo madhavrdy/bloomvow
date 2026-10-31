@@ -16,6 +16,14 @@ export type Pkg = { id: string; vendor_id: string; name: string; description: st
 export type Photo = { id: string; vendor_id: string; url: string; alt: string | null; sort: number };
 export type Review = { id: string; vendor_id: string; author_name: string; wedding_date: string | null; rating: number; body: string; created_at: string };
 
+export type BlogCategory = { id: number; slug: string; name: string; description: string | null; seo_title: string | null; seo_description: string | null; sort: number };
+export type Post = {
+  id: string; slug: string; title: string; excerpt: string | null; body: string; cover_url: string | null; cover_alt: string | null;
+  author_name: string | null; category_id: number; published_at: string; updated_at: string; seo_title: string | null;
+  seo_description: string | null; city_id: number | null; vendor_category_id: number | null; comments_open: boolean;
+};
+export type Comment = { id: string; post_id: string; parent_id: string | null; author_name: string; body: string; is_staff: boolean; created_at: string };
+
 export type ListingPage = {
   country: Country; region: Region; city: City; category: Category;
   vendors: Vendor[]; indexable: boolean; url: string;
@@ -52,7 +60,7 @@ export function getData() {
 }
 
 async function load() {
-  const [countries, regions, cities, categories, settings, vendors, vendorCities, packages, photos, reviews, hidden] = await Promise.all([
+  const [countries, regions, cities, categories, settings, vendors, vendorCities, packages, photos, reviews, hidden, blogCategories, posts, comments] = await Promise.all([
     rest<Country>('countries', 'select=*&active=eq.true&order=code'),
     rest<Region>('regions', 'select=*&order=name'),
     rest<City>('cities', 'select=*&order=name'),
@@ -64,8 +72,11 @@ async function load() {
     rest<Photo>('photos', 'select=*&order=vendor_id,sort'),
     rest<Review>('public_reviews', 'select=*&order=created_at.desc'),
     rest<{ country_code: string; category_id: number }>('country_hidden_categories', 'select=country_code,category_id&order=country_code'),
+    rest<BlogCategory>('public_blog_categories', 'select=*&order=sort,name'),
+    rest<Post>('public_posts', 'select=*&order=published_at.desc,id'),
+    rest<Comment>('public_comments', 'select=*&order=created_at,id'),
   ]);
-  return { countries, regions, cities, categories, settings, vendors, vendorCities, packages, photos, reviews, hidden };
+  return { countries, regions, cities, categories, settings, vendors, vendorCities, packages, photos, reviews, hidden, blogCategories, posts, comments };
 }
 
 function group<T, K>(rows: T[], key: (r: T) => K): Map<K, T[]> {
@@ -91,6 +102,15 @@ function build(d: Awaited<ReturnType<typeof load>>) {
   const shownIn = (cityId: number, catId: number) => !hiddenIn.has(`${countryOfCity(cityId)}:${catId}`);
   const vendors = d.vendors.filter((v) => cityById.has(v.city_id) && categoryById.has(v.category_id) && shownIn(v.city_id, v.category_id));
   const vendorById = new Map(vendors.map((v) => [v.id, v]));
+  // Thin listings (unclaimed, no description, photos, packages or reviews: typically
+  // imported open data) get no pre-built page. They share one /vendor/?v=<slug>
+  // page that loads the details in the browser and is noindex. This keeps the
+  // build small (hosting file limits) and keeps thin pages out of Google.
+  const hasPhotos = new Set(d.photos.map((p) => p.vendor_id));
+  const hasPackages = new Set(d.packages.map((p) => p.vendor_id));
+  const isRich = (v: Vendor) => v.status === 'claimed' || v.featured || !!v.description?.trim() || v.review_count > 0 || hasPhotos.has(v.id) || hasPackages.has(v.id);
+  const richVendors = vendors.filter(isRich);
+  const richIds = new Set(richVendors.map((v) => v.id));
   const vendorBySlug = new Map(vendors.map((v) => [v.slug, v]));
 
   const urls = {
@@ -98,8 +118,26 @@ function build(d: Awaited<ReturnType<typeof load>>) {
     region: (r: Region) => `/${r.country_code}/${r.slug}/`,
     city: (c: City) => { const r = regionById.get(c.region_id)!; return `/${r.country_code}/${r.slug}/${c.slug}/`; },
     listing: (c: City, cat: Category) => `${urls.city(c)}${cat.slug}/`,
-    vendor: (v: Vendor) => `/vendor/${v.slug}/`,
+    vendor: (v: Vendor) => (richIds.has(v.id) ? `/vendor/${v.slug}/` : `/vendor/?v=${v.slug}`),
+    blog: () => '/blog/',
+    blogCategory: (c: BlogCategory) => `/blog/category/${c.slug}/`,
+    post: (p: Post) => `/blog/${p.slug}/`,
   };
+
+  // ------------------------------------------------------------- blog
+  const blogCategoryById = new Map(d.blogCategories.map((c) => [c.id, c]));
+  const posts = d.posts.filter((p) => blogCategoryById.has(p.category_id));
+  const postsByCategory = group(posts, (p) => p.category_id);
+  const blogCategories = d.blogCategories.filter((c) => postsByCategory.has(c.id));
+  const commentsByPost = group(d.comments, (c) => c.post_id);
+  // "Planning guides": posts tied to a city and/or vendor category. Exact match first.
+  const guidesFor = (cityId: number | null, catId: number | null, n = 3) => posts
+    .map((p) => ({ p, score: (p.city_id && p.city_id === cityId ? 2 : 0) + (p.vendor_category_id && p.vendor_category_id === catId ? 1 : 0)
+      - ((p.city_id && p.city_id !== cityId) || (p.vendor_category_id && catId && p.vendor_category_id !== catId) ? 9 : 0) }))
+    .filter((x) => x.score > 0).sort((a, b) => b.score - a.score).slice(0, n).map((x) => x.p);
+  const relatedPosts = (p: Post, n = 3) => posts.filter((x) => x.id !== p.id)
+    .map((x) => ({ x, s: (x.category_id === p.category_id ? 2 : 0) + (p.city_id && x.city_id === p.city_id ? 2 : 0) + (p.vendor_category_id && x.vendor_category_id === p.vendor_category_id ? 1 : 0) }))
+    .sort((a, b) => b.s - a.s).slice(0, n).map((a) => a.x);
 
   // Every city x category combination with at least one vendor (primary or service area).
   const byPage = new Map<string, Vendor[]>();
@@ -132,10 +170,11 @@ function build(d: Awaited<ReturnType<typeof load>>) {
 
   return {
     countries: d.countries, regions, cities, activeCities, categories: d.categories,
-    vendors, vendorById, vendorBySlug, listings, listingsByCity, listingsByCategory,
+    vendors, richVendors, vendorById, vendorBySlug, listings, listingsByCity, listingsByCategory,
     countryByCode, regionById, cityById, categoryById,
     packagesByVendor, photosByVendor, reviewsByVendor,
     minToIndex, budgetBands, urls, cityVendorCount,
+    posts, blogCategories, blogCategoryById, postsByCategory, commentsByPost, guidesFor, relatedPosts,
   };
 }
 

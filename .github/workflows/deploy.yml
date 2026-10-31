@@ -1,0 +1,43 @@
+# Builds the static site from the live database and uploads changed files to Hostinger.
+# Runs every 3 hours (so vendor edits and new blog posts go live), on every push to
+# main, and on demand (Actions > Build and deploy > Run workflow).
+# Uploading is skipped until the FTP secrets exist; the build still runs as a check.
+name: Build and deploy
+on:
+  push: { branches: [main] }
+  schedule: [{ cron: '41 */3 * * *' }]
+  workflow_dispatch:
+concurrency: { group: deploy, cancel-in-progress: false }
+permissions: { contents: read }
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env: { HAS_FTP: "${{ secrets.FTP_HOST != '' }}" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: '**/package-lock.json' }
+      - run: npm ci && (cd web && npm ci)
+      - name: Type check and unit tests
+        run: (cd web && npm run check) && npm run test:unit
+      - name: Build
+        working-directory: web
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+          PUBLIC_SITE_NAME: ${{ vars.SITE_NAME }}
+          PUBLIC_CONTACT_EMAIL: ${{ vars.CONTACT_EMAIL }}
+        run: |
+          test -n "$SITE_URL" || echo "::warning::Set the SITE_URL variable (Settings > Secrets and variables > Actions > Variables) to your domain before launch."
+          npm run build
+          echo "Pages: $(find dist -name '*.html' | wc -l), files: $(find dist -type f | wc -l)" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload changed files to Hostinger
+        if: env.HAS_FTP == 'true'
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASS }}
+          local-dir: web/dist/
+          server-dir: ${{ vars.FTP_DIR || 'public_html/' }}
+          dangerous-clean-slate: false
