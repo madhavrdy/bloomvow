@@ -1,0 +1,21 @@
+---
+// Long-form guide at the bottom of a page (Markdown from the page content editor).
+import type { Content } from '../lib/content';
+import { fmtDay } from '../lib/content';
+interface Props { c: Content; title?: string }
+const { c, title } = Astro.props;
+---
+{c.body && (
+  <section id="guide" class="guide wrap" aria-label={title ?? 'Guide'}>
+    {title && <h2 class="serif">{title}</h2>}
+    <div class="guide-layout">
+      {c.body.headings.length >= 3 && (
+        <nav class="toc" aria-label="In this guide"><b>In this guide</b>
+          <ol>{c.body.headings.map((h) => <li class={`d${h.depth}`}><a href={`#${h.id}`}>{h.text}</a></li>)}</ol>
+        </nav>
+      )}
+      <div class="prose" set:html={c.body.html} />
+    </div>
+    {c.updatedAt && <p class="muted" style="font-size:14px">Guide updated <time datetime={c.updatedAt}>{fmtDay(c.updatedAt)}</time></p>}
+  </section>
+)}

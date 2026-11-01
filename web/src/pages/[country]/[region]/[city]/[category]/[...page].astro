@@ -7,6 +7,11 @@ import Guides from '../../../../../components/Guides.astro';
 import { listingFaqs, listingIntro, faqJsonLd, breadcrumbJsonLd, itemListJsonLd } from '../../../../../lib/seo';
 import { kmBetween, niceRound } from '../../../../../lib/geo';
 import { PAGE_SIZE } from '../../../../../lib/constants';
+import Intro from '../../../../../components/Intro.astro';
+import Guide from '../../../../../components/Guide.astro';
+import { contentFor, mergeFaqs, latest, fmtDay } from '../../../../../lib/content';
+import { listingSummary } from '../../../../../lib/seo';
+import type { Style } from '../../../../../lib/styles';
 
 export async function getStaticPaths() {
   const d = await getData();
@@ -14,25 +19,39 @@ export async function getStaticPaths() {
     const pages = Math.max(1, Math.ceil(l.vendors.length / PAGE_SIZE));
     return Array.from({ length: pages }, (_, i) => ({
       params: { country: l.country.code, region: l.region.slug, city: l.city.slug, category: l.category.slug, page: i === 0 ? undefined : `page/${i + 1}` },
-      props: { listing: l, pageNo: i + 1, pages },
+      props: { listing: l, pageNo: i + 1, pages, style: undefined as Style | undefined },
     }));
-  });
+  }).concat(d.styleListings.map((x) => ({
+    params: { country: x.listing.country.code, region: x.listing.region.slug, city: x.listing.city.slug, category: x.listing.category.slug, page: x.style.slug as string | undefined },
+    props: { listing: x.listing, pageNo: 1, pages: 1, style: x.style },
+  })));
 }
 
-interface Props { listing: ListingPage; pageNo: number; pages: number }
-const { listing: l, pageNo, pages } = Astro.props;
+interface Props { listing: ListingPage; pageNo: number; pages: number; style?: Style }
+const { listing: l, pageNo, pages, style } = Astro.props;
 const d = await getData();
 const { city, region, category: cat } = l;
-const vendors = l.vendors.slice((pageNo - 1) * PAGE_SIZE, pageNo * PAGE_SIZE);
+const styleList = style ? d.styleListings.find((x) => x.listing === l && x.style.slug === style.slug)! : null;
+const all = styleList ? styleList.vendors : l.vendors;            // every vendor this page is about
+const vendors = styleList ? all.slice(0, PAGE_SIZE) : l.vendors.slice((pageNo - 1) * PAGE_SIZE, pageNo * PAGE_SIZE);
+const path = styleList ? styleList.url : pageNo === 1 ? l.url : `${l.url}page/${pageNo}/`;
+const c = contentFor(d, path, Astro.site?.host);
+const styles = d.styleListings.filter((x) => x.listing === l);
 const st = region.code.toUpperCase();
-const title = `${cat.name} in ${city.name}, ${st}${pageNo > 1 ? ` (page ${pageNo})` : ''}`;
-const faqs = pageNo === 1 ? listingFaqs(l) : [];
+const heading = style ? `${style.label} ${cat.name.toLowerCase()} in ${city.name}, ${st}` : `${cat.name} in ${city.name}, ${st}`;
+const title = c.seoTitle ?? `${heading}${pageNo > 1 ? ` (page ${pageNo})` : ''}`;
+const autoIntro = style
+  ? `${all.length} ${style.label.toLowerCase()} ${cat.name.toLowerCase()} in and around ${city.name}. Compare pricing and capacity, then request quotes from several at once.`
+  : listingIntro(l);
+const faqs = pageNo === 1 ? mergeFaqs(c.faqs, style ? [] : listingFaqs(l)) : [];
+const glance = pageNo === 1 ? listingSummary(d, l, all, style?.label) : [];
+const updated = latest(all.reduce((m, v) => (v.updated_at > m ? v.updated_at : m), ''), c.updatedAt);
 
 const crumbs = [
   { name: 'Home', url: '/' },
   { name: region.name, url: d.urls.region(region) },
   { name: city.name, url: d.urls.city(city) },
-  { name: cat.name },
+  ...(style ? [{ name: cat.name, url: l.url }, { name: style.label }] : [{ name: cat.name }]),
 ];
 
 // Price filter bands from this page's own prices (quartiles, rounded).
@@ -48,18 +67,27 @@ const nearby = (d.listingsByCategory.get(cat.id) ?? [])
   .map((x) => ({ x, km: kmBetween(city.lat!, city.lng!, x.city.lat!, x.city.lng!) }))
   .filter((o) => o.km < 160).sort((a, b) => a.km - b.km).slice(0, 6).map((o) => o.x);
 
-const jsonld = [breadcrumbJsonLd(Astro.site, crumbs), itemListJsonLd(Astro.site, d, vendors), ...(faqs.length ? [faqJsonLd(faqs)] : [])];
+const jsonld = [breadcrumbJsonLd(Astro.site, crumbs), itemListJsonLd(Astro.site, d, vendors), ...(faqs.length ? [faqJsonLd(faqs)] : []),
+  { '@context': 'https://schema.org', '@type': 'CollectionPage', name: heading, url: new URL(path, Astro.site).href, ...(updated ? { dateModified: updated } : {}) }];
+const ogImage = c.hero?.url ?? vendors.map((v) => d.photosByVendor.get(v.id)?.[0]?.url).find(Boolean);
 const pageUrl = (n: number) => (n === 1 ? l.url : `${l.url}page/${n}/`);
 ---
-<Base title={title} description={listingIntro(l).slice(0, 158)} noindex={!l.indexable} jsonld={jsonld}>
+<Base title={title} description={c.seoDescription ?? autoIntro.slice(0, 158)} noindex={style ? false : !l.indexable} jsonld={jsonld} image={ogImage}>
   <main class="wrap" style="padding-top:24px">
     <Breadcrumbs items={crumbs} />
-    <h1 class="serif" style="font-size:clamp(36px,5vw,52px);margin:16px 0 8px">{cat.name} in {city.name}, {st}</h1>
-    <p class="muted" style="font-size:17px;max-width:760px;margin:0">{listingIntro(l)}</p>
+    <h1 class="serif" style="font-size:clamp(36px,5vw,52px);margin:16px 0 8px">{heading}</h1>
+    <Intro c={c} auto={autoIntro} />
+    {updated && <p class="updated">Last updated <time datetime={updated}>{fmtDay(updated)}</time></p>}
+    {glance.length > 0 && <aside class="glance" aria-labelledby="glance-h"><h2 id="glance-h">At a glance</h2><ul>{glance.map((g) => <li>{g}</li>)}</ul></aside>}
+    {styles.length > 0 && (
+      <nav class="styles-nav" aria-label="Venue styles"><a href={l.url} aria-current={!style ? 'page' : undefined}>All</a>
+        {styles.map((x) => <a href={x.url} aria-current={style?.slug === x.style.slug ? 'page' : undefined}>{x.style.label} ({x.vendors.length})</a>)}</nav>
+    )}
 
     <div class="layout">
       <aside class="filters" aria-label="Filters">
         <form id="filters">
+          {style && <input type="hidden" name="style" value={style.slug} />}
           <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:17px">Filters</b><button type="reset" class="linkish">Clear all</button></div>
           {cat.uses_capacity && (
             <fieldset><legend>Guest count</legend>
@@ -89,12 +117,12 @@ const pageUrl = (n: number) => (n === 1 ? l.url : `${l.url}page/${n}/`);
 
       <section class="results" aria-label="Results">
         <div class="results-head">
-          <span class="muted" aria-live="polite"><b style="color:var(--ink)" id="count">{l.vendors.length}</b> {cat.name.toLowerCase()}{pages > 1 && ` · page ${pageNo} of ${pages}`}</span>
+          <span class="muted" aria-live="polite"><b style="color:var(--ink)" id="count">{all.length}</b> {cat.name.toLowerCase()}{pages > 1 && ` · page ${pageNo} of ${pages}`}</span>
           <label style="display:flex;gap:8px;align-items:center;font-size:15px">Sort by
             <select id="sort" class="sort"><option value="rec">Recommended</option><option value="rating">Highest rated</option><option value="price">Price: low to high</option><option value="reviews">Most reviewed</option></select>
           </label>
         </div>
-        <div id="list" class="list">
+        <div id="list" class="list" data-total={all.length} data-city={city.id} data-cat={cat.id} data-st={st}>
           {vendors.map((v, i) => (
             <div class="item" data-i={i} data-cap={v.capacity_max ?? ''} data-price={v.price_from ?? ''} data-setting={v.setting ?? ''} data-rating={v.rating ?? 0} data-reviews={v.review_count} hidden={i >= 20}>
               <VendorRow v={v} index={i} />
@@ -117,6 +145,9 @@ const pageUrl = (n: number) => (n === 1 ? l.url : `${l.url}page/${n}/`);
         )}
       </section>
     </div>
+  </main>
+  <Guide c={c} title={`${heading}: the guide`} />
+  <main class="wrap">
     {pageNo === 1 && <Guides cityId={city.id} categoryId={cat.id} title={`Planning guides: ${cat.name.toLowerCase()} in ${city.name}`} />}
   </main>
 
@@ -124,7 +155,7 @@ const pageUrl = (n: number) => (n === 1 ? l.url : `${l.url}page/${n}/`);
     <div class="wrap faqwrap">
       {faqs.length > 0 && (
         <div style="flex:2 1 520px">
-          <h2 class="serif" style="font-size:36px;margin:0 0 8px">{city.name} {cat.name.toLowerCase()}: FAQs</h2>
+          <h2 class="serif" style="font-size:36px;margin:0 0 8px">{style ? heading : `${city.name} ${cat.name.toLowerCase()}`}: FAQs</h2>
           {faqs.map((f, i) => <details class="faq" open={i === 0}><summary>{f.q}</summary><p>{f.a}</p></details>)}
         </div>
       )}

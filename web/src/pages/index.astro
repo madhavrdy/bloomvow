@@ -2,7 +2,7 @@
 import Base from '../layouts/Base.astro';
 import VendorCard from '../components/VendorCard.astro';
 import { getData, rankVendors } from '../lib/data';
-import { SITE_NAME } from '../config';
+import { SITE_NAME, CONTACT_EMAIL, SOCIAL_LINKS } from '../config';
 
 const d = await getData();
 const total = d.vendors.length;
@@ -12,9 +12,12 @@ const popularCities = [...d.activeCities].sort((a, b) => d.cityVendorCount(b) - 
 const popular = [...d.listings].filter((l) => l.indexable).sort((a, b) => b.vendors.length - a.vendors.length).slice(0, 3);
 const statesWithVendors = d.regions.filter((r) => d.activeCities.some((c) => c.region_id === r.id));
 const fmt = new Intl.NumberFormat('en-US');
-const jsonld = [{
-  '@context': 'https://schema.org', '@type': 'WebSite', name: SITE_NAME, url: Astro.site?.href,
-}];
+const org = new URL('/#organization', Astro.site).href;
+const jsonld = [
+  { '@context': 'https://schema.org', '@type': 'Organization', '@id': org, name: SITE_NAME, url: Astro.site?.href,
+    logo: new URL('/favicon.svg', Astro.site).href, email: CONTACT_EMAIL, ...(SOCIAL_LINKS.length ? { sameAs: SOCIAL_LINKS } : {}) },
+  { '@context': 'https://schema.org', '@type': 'WebSite', name: SITE_NAME, url: Astro.site?.href, publisher: { '@id': org }, inLanguage: 'en-US' },
+];
 ---
 <Base title={`${SITE_NAME}: Wedding venues, photographers & vendors near you`} description={`Compare ${fmt.format(total)} wedding vendors across the US: venues, photographers, hair & makeup, caterers, cakes and more. Check pricing and availability in one free request.`} jsonld={jsonld}>
   <main>

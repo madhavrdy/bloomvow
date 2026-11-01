@@ -1,6 +1,7 @@
 // Build-time data: everything the static pages need, loaded once from the
 // Supabase REST API (public views only, using the public anon key).
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config';
+import { VENUE_STYLES, STYLE_CATEGORIES } from './styles';
 
 export type Country = { code: string; name: string; currency: string; active: boolean };
 export type Region = { id: number; country_code: string; code: string; name: string; slug: string };
@@ -23,6 +24,11 @@ export type Post = {
   seo_description: string | null; city_id: number | null; vendor_category_id: number | null; comments_open: boolean;
 };
 export type Comment = { id: string; post_id: string; parent_id: string | null; author_name: string; body: string; is_staff: boolean; created_at: string };
+
+export type PageContentRow = {
+  path: string; intro: string | null; body: string | null; faqs: { q: string; a: string }[]; seo_title: string | null;
+  seo_description: string | null; hero_url: string | null; hero_alt: string | null; updated_at: string;
+};
 
 export type ListingPage = {
   country: Country; region: Region; city: City; category: Category;
@@ -60,7 +66,7 @@ export function getData() {
 }
 
 async function load() {
-  const [countries, regions, cities, categories, settings, vendors, vendorCities, packages, photos, reviews, hidden, blogCategories, posts, comments] = await Promise.all([
+  const [countries, regions, cities, categories, settings, vendors, vendorCities, packages, photos, reviews, hidden, blogCategories, posts, comments, pageContent] = await Promise.all([
     rest<Country>('countries', 'select=*&active=eq.true&order=code'),
     rest<Region>('regions', 'select=*&order=name'),
     rest<City>('cities', 'select=*&order=name'),
@@ -75,8 +81,9 @@ async function load() {
     rest<BlogCategory>('public_blog_categories', 'select=*&order=sort,name'),
     rest<Post>('public_posts', 'select=*&order=published_at.desc,id'),
     rest<Comment>('public_comments', 'select=*&order=created_at,id'),
+    rest<PageContentRow>('page_content', 'select=*&order=path'),
   ]);
-  return { countries, regions, cities, categories, settings, vendors, vendorCities, packages, photos, reviews, hidden, blogCategories, posts, comments };
+  return { countries, regions, cities, categories, settings, vendors, vendorCities, packages, photos, reviews, hidden, blogCategories, posts, comments, pageContent };
 }
 
 function group<T, K>(rows: T[], key: (r: T) => K): Map<K, T[]> {
@@ -122,6 +129,7 @@ function build(d: Awaited<ReturnType<typeof load>>) {
     blog: () => '/blog/',
     blogCategory: (c: BlogCategory) => `/blog/category/${c.slug}/`,
     post: (p: Post) => `/blog/${p.slug}/`,
+    author: (name: string) => `/blog/author/${name.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}/`,
   };
 
   // ------------------------------------------------------------- blog
@@ -130,6 +138,7 @@ function build(d: Awaited<ReturnType<typeof load>>) {
   const postsByCategory = group(posts, (p) => p.category_id);
   const blogCategories = d.blogCategories.filter((c) => postsByCategory.has(c.id));
   const commentsByPost = group(d.comments, (c) => c.post_id);
+  const postsByAuthor = group(posts.filter((p) => p.author_name?.trim()), (p) => p.author_name!.trim());
   // "Planning guides": posts tied to a city and/or vendor category. Exact match first.
   const guidesFor = (cityId: number | null, catId: number | null, n = 3) => posts
     .map((p) => ({ p, score: (p.city_id && p.city_id === cityId ? 2 : 0) + (p.vendor_category_id && p.vendor_category_id === catId ? 1 : 0)
@@ -159,6 +168,12 @@ function build(d: Awaited<ReturnType<typeof load>>) {
   }
   listings.sort((a, b) => a.url.localeCompare(b.url));
   const listingsByCity = group(listings, (l) => l.city.id);
+
+  // Style sub-pages (e.g. barn venues in Austin) where there are enough vendors.
+  const styleListings = listings.filter((l) => STYLE_CATEGORIES.has(l.category.slug)).flatMap((l) => VENUE_STYLES
+    .map((style) => ({ listing: l, style, vendors: l.vendors.filter((v) => style.test(v)), url: `${l.url}${style.slug}/` }))
+    .filter((x) => x.vendors.length >= minToIndex));
+  const contentByPath = new Map(d.pageContent.map((c) => [c.path, c]));
   const listingsByCategory = group(listings, (l) => l.category.id);
 
   const packagesByVendor = group(d.packages, (p) => p.vendor_id);
@@ -174,7 +189,8 @@ function build(d: Awaited<ReturnType<typeof load>>) {
     countryByCode, regionById, cityById, categoryById,
     packagesByVendor, photosByVendor, reviewsByVendor,
     minToIndex, budgetBands, urls, cityVendorCount,
-    posts, blogCategories, blogCategoryById, postsByCategory, commentsByPost, guidesFor, relatedPosts,
+    styleListings, contentByPath,
+    posts, postsByAuthor, blogCategories, blogCategoryById, postsByCategory, commentsByPost, guidesFor, relatedPosts,
   };
 }
 

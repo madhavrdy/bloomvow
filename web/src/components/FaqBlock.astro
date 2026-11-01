@@ -1,0 +1,10 @@
+---
+import type { Faq } from '../lib/seo';
+interface Props { faqs: Faq[]; title: string }
+const { faqs, title } = Astro.props;
+---
+{faqs.length > 0 && (
+  <section class="section wrap faq-block"><h2>{title}</h2>
+    {faqs.map((f, i) => <details class="faq" open={i === 0}><summary>{f.q}</summary><p>{f.a}</p></details>)}
+  </section>
+)}

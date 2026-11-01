@@ -86,3 +86,43 @@ test('vendor ranking matches the database order', () => {
   const out = rankVendors([v({ slug: 'a', rating: 5 }), v({ slug: 'b', featured: true, rating: 3 }), v({ slug: 'c', status: 'claimed', rating: 4 }), v({ slug: 'd', rating: 5, review_count: 9 })]);
   assert.deepEqual(out.map((x) => x.slug), ['b', 'c', 'd', 'a']);
 });
+
+// ---------------------------------------------------------------- Nov 1
+import { filtersToQuery, queryToSearch, rowHtml } from '../src/scripts/listing';
+import { mergeFaqs } from '../src/lib/content';
+import { VENUE_STYLES } from '../src/lib/styles';
+
+test('filters round-trip through the URL; defaults are left out', () => {
+  const fd = new FormData();
+  fd.set('guests', '100'); fd.append('price', '0-4000'); fd.append('price', '8000-0'); fd.append('setting', 'Outdoor'); fd.set('rating', '4.5');
+  const q = filtersToQuery(fd, 'price');
+  assert.equal(q, 'guests=100&price=0-4000&price=8000-0&setting=Outdoor&rating=4.5&sort=price');
+  assert.deepEqual(queryToSearch(new URLSearchParams(q)), { guests: 100, prices: [[0, 4000], [8000, 0]], settings: ['Outdoor'], min_rating: 4.5, sort: 'price' });
+  const blank = new FormData(); blank.set('guests', '0');
+  assert.equal(filtersToQuery(blank, 'rec'), '');
+  assert.deepEqual(queryToSearch(new URLSearchParams('price=abc')).prices, []);
+});
+
+test('rows from the API are escaped and link to the right profile page', () => {
+  const v = { id: '1', slug: 'x-y', name: '<img src=x onerror=alert(1)>', city: 'Austin', st: 'TX', setting: null, capacity_max: 120, price_from: 4500,
+    rating: 4.8, review_count: 3, featured: false, description: 'A & B', photo: null, has_page: false };
+  const html = rowHtml(v, 0, true);
+  assert.ok(!html.includes('<img src=x'), 'name is escaped');
+  assert.match(html, /href="\/vendor\/\?v=x-y"/);
+  assert.match(html, /Up to <b>120<\/b> guests/);
+  assert.match(html, /\$4,500/);
+  assert.match(rowHtml({ ...v, has_page: true }, 0, false), /href="\/vendor\/x-y\/"/);
+});
+
+test('custom FAQs come first and replace automatic ones with the same question', () => {
+  const out = mergeFaqs([{ q: 'How much?', a: 'Custom' }], [{ q: 'how much?', a: 'Auto' }, { q: 'How many?', a: 'Auto 2' }]);
+  assert.deepEqual(out.map((f) => f.a), ['Custom', 'Auto 2']);
+});
+
+test('venue styles match names and settings', () => {
+  const by = (slug: string) => VENUE_STYLES.find((s) => s.slug === slug)!;
+  assert.ok(by('barn').test({ name: 'Cedar Hollow Ranch', setting: null }));
+  assert.ok(by('vineyard').test({ name: 'Duchman Family Winery', setting: null }));
+  assert.ok(by('outdoor').test({ name: 'Anything', setting: 'Indoor + outdoor' }));
+  assert.ok(!by('waterfront').test({ name: 'Downtown Loft', setting: null }));
+});

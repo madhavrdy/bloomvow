@@ -1,7 +1,7 @@
 // Text and structured data generated from real listing data, so every
 // city x category page has unique, factual content.
 import type { ListingPage, SiteData, Vendor } from './data';
-import { money, median, replyLabel } from './data';
+import { money, median, replyLabel, rankVendors } from './data';
 
 export type Faq = { q: string; a: string };
 
@@ -89,4 +89,23 @@ export function vendorJsonLd(site: URL | undefined, d: SiteData, v: Vendor) {
     ...(v.rating && v.review_count ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: Number(v.rating), reviewCount: v.review_count, bestRating: 5, worstRating: 1 } } : {}),
     ...(cat.uses_capacity && v.capacity_max && type === 'EventVenue' ? { maximumAttendeeCapacity: v.capacity_max } : {}),
   };
+}
+
+// "At a glance": short factual answers drawn from the listing data, written so
+// search engines and AI assistants can quote them directly.
+export function listingSummary(d: SiteData, l: ListingPage, vendors: Vendor[], styleLabel?: string): string[] {
+  const { city, category: cat } = l;
+  const plural = (styleLabel ? `${styleLabel.toLowerCase()} ` : '') + cat.name.toLowerCase();
+  const out: string[] = [`${vendors.length} ${plural} serve ${city.name}.`];
+  const prices = vendors.map((v) => v.price_from).filter((p): p is number => p != null);
+  if (prices.length >= 3) out.push(`Starting prices range from ${money(Math.min(...prices))} to ${money(Math.max(...prices))}; the typical starting price is about ${money(median(prices))}.`);
+  if (cat.uses_capacity) {
+    const caps = vendors.map((v) => v.capacity_max).filter((c): c is number => c != null);
+    if (caps.length >= 3) out.push(`The largest can host up to ${Math.max(...caps)} guests; ${caps.filter((c) => c >= 150).length} take 150 or more.`);
+  }
+  const rated = rankVendors(vendors.filter((v) => v.rating && v.review_count >= 3)).slice(0, 3);
+  if (rated.length) out.push(`Highly rated: ${rated.map((v) => `${v.name} (${Number(v.rating).toFixed(1)}★)`).join(', ')}.`);
+  const replies = vendors.map((v) => v.avg_reply_minutes).filter((m): m is number => m != null);
+  if (replies.length >= 2) out.push(`Vendors who reply through this site typically answer within ${replyLabel(median(replies))}.`);
+  return out;
 }

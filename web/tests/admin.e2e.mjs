@@ -39,7 +39,7 @@ async function signedIn(email) {
 const go = async (p, route) => { await p.goto(`${SITE}/admin/#${route}`); await p.waitForSelector('.dmain h1'); };
 const toast = async (p, re) => { await p.waitForFunction((src) => new RegExp(src).test(document.querySelector('.toast')?.textContent ?? ''), re.source); };
 
-test('access: vendors are denied, editors see only the blog, sign-up is not offered', async () => {
+test('access: vendors are denied, editors see only content screens, sign-up is not offered', async () => {
   const ctx = await browser.newContext();
   const p = await ctx.newPage();
   await p.goto(`${SITE}/admin/`);
@@ -52,10 +52,10 @@ test('access: vendors are denied, editors see only the blog, sign-up is not offe
 
   const ed = await signedIn('writer@bloomvow.local');
   const nav = await ed.locator('.side a[href^="#"]').allInnerTexts();
-  assert.deepEqual(nav.map((t) => t.replace(/\d+$/, '').trim()), ['Blog posts', 'Blog categories']);
+  assert.deepEqual(nav.map((t) => t.replace(/\d+$/, '').trim()), ['Page content', 'Blog posts', 'Blog categories']);
   await ed.goto(`${SITE}/admin/#leads`);
   await ed.waitForSelector('.dmain h1');
-  assert.equal(await ed.locator('.dmain h1').innerText(), 'Blog posts', 'editors are sent to the blog, not leads');
+  assert.equal(await ed.locator('.dmain h1').innerText(), 'Page content', 'editors are sent to content, not leads');
   await ed.context().close();
 });
 
@@ -327,4 +327,47 @@ test('admin works on a phone screen', async () => {
     assert.ok(w <= 390, `#${r} is ${w}px wide`);
   }
   await p.context().close();
+});
+
+test('page content editor: find a page, write intro/guide/FAQ with preview and length warning, filter, CSV import', async () => {
+  const ed = await signedIn('writer@bloomvow.local');
+  await go(ed, 'pages');
+  await ed.waitForSelector('.tbl tbody tr');
+  await ed.fill('input[aria-label="Search pages"]', 'photographers in Austin');
+  await ed.click('.tbl tbody tr:has-text("Wedding photographers in Austin, TX") button:has-text("Edit")');
+  await ed.waitForSelector('form[aria-label="Edit page content"]');
+  await ed.fill('textarea[name=intro]', 'x'.repeat(360));
+  await ed.locator('.form-error:has-text("Too long")').waitFor();
+  await ed.fill('textarea[name=intro]', 'Austin photographers who know the Hill Country light.');
+  await ed.fill('textarea[name=body]', '## Prices\n\nMost start at $3,000.\n\n## Styles\n\nDocumentary or editorial.\n\n## Tips\n\n- Book early');
+  await ed.click('.seg button:has-text("Preview")');
+  await ed.locator('.preview-box h2#prices').waitFor();
+  assert.match(await ed.locator('.preview-box').innerText(), /Table of contents: Prices · Styles · Tips/);
+  await ed.click('button:has-text("+ Add FAQ")');
+  await ed.fill('input[aria-label="Question 1"]', 'Do Austin photographers travel?');
+  await ed.click('button.btn-primary:has-text("Save")');
+  await ed.locator('.form-error:has-text("both a question and an answer")').waitFor();
+  await ed.fill('textarea[aria-label="Answer 1"]', 'Most include travel within 30 miles.');
+  await ed.fill('input[name=seo_title]', 'Austin Wedding Photographers');
+  await ed.click('button.btn-primary:has-text("Save")');
+  await toast(ed, /Saved/);
+  const [row] = await q(`select intro, body, faqs, seo_title, updated_by is not null as by from page_content where path = '/us/texas/austin/photographers/'`);
+  assert.equal(row.intro, 'Austin photographers who know the Hill Country light.');
+  assert.match(row.body, /## Styles/);
+  assert.deepEqual(row.faqs, [{ q: 'Do Austin photographers travel?', a: 'Most include travel within 30 miles.' }]);
+  assert.equal(row.by, true);
+
+  await ed.fill('input[aria-label="Search pages"]', '');
+  await ed.selectOption('select[aria-label="Custom content"]', 'custom');
+  const titles = await ed.locator('.tbl tbody tr td:first-child b').allInnerTexts();
+  assert.deepEqual(titles.sort(), ['Wedding photographers in Austin, TX', 'Wedding venues in Austin, TX']);
+
+  const csv = 'path,intro,faqs\n/us/texas/dallas/,Dallas weddings: big venues and bigger skylines.,Is Dallas expensive? | Venues start around $5k || When to book? | 12 months ahead\n/nope/,x,\n';
+  await ed.setInputFiles('input[type=file][accept=".csv,text/csv"]', { name: 'pages.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+  await toast(ed, /Imported 1 page; skipped 1 unknown: \/nope\//);
+  const [dal] = await q(`select intro, faqs from page_content where path = '/us/texas/dallas/'`);
+  assert.equal(dal.intro, 'Dallas weddings: big venues and bigger skylines.');
+  assert.equal(dal.faqs.length, 2);
+  assert.deepEqual(ed.errors ?? [], []);
+  await ed.context().close();
 });

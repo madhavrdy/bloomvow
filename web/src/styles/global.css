@@ -1,3 +1,4 @@
+[hidden] { display: none !important; }
 :root {
   --ink: #1f1a2e; --ink-2: #4a4458; --ink-3: #5c566a;
   --rose: #b83260; --rose-dark: #9e2a52; --rose-soft: #fbf1f3; --rose-tint: #f2a7bf;
@@ -121,3 +122,29 @@ details.faq p { margin: 10px 0 0; color: var(--ink-2); }
   .site-header .logo { font-size: 26px; margin-right: auto; }
   .site-header .btn { padding: 0 14px; font-size: 14px; white-space: nowrap; }
 }
+
+/* Long-form content: blog posts and page guides */
+.prose { flex: 1 1 520px; max-width: 720px; font-size: 18px; line-height: 1.7; color: var(--ink-2); }
+.prose h2 { font-family: var(--serif); font-weight: 400; font-size: 34px; color: var(--ink); margin: 40px 0 12px; line-height: 1.15; scroll-margin-top: 16px; }
+.prose h3 { font-size: 21px; color: var(--ink); margin: 28px 0 8px; scroll-margin-top: 16px; }
+.prose img { max-width: 100%; height: auto; border-radius: 14px; }
+.prose table { border-collapse: collapse; width: 100%; font-size: 16px; }
+.prose th, .prose td { border-bottom: 1px solid var(--line); padding: 8px; text-align: left; }
+.prose blockquote { border-left: 3px solid var(--rose); margin: 0; padding-left: 16px; }
+.toc { flex: 0 1 240px; position: sticky; top: 16px; border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; font-size: 14px; }
+.toc ol { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-direction: column; gap: 8px; }
+.toc .d3 { padding-left: 14px; }
+.toc a { text-decoration: none; color: var(--ink-2); }
+.guide { padding-top: 48px; padding-bottom: 16px; }
+.guide h2.serif { font-size: clamp(30px, 4vw, 40px); margin: 0 0 20px; }
+.guide-layout { display: flex; gap: 48px; align-items: flex-start; flex-wrap: wrap-reverse; }
+.page-intro { font-size: 17px; max-width: 760px; margin: 0; }
+.guide-link { font-weight: 600; color: var(--rose-dark); white-space: nowrap; }
+.page-hero { width: 100%; max-height: 380px; object-fit: cover; border-radius: 20px; margin-top: 20px; }
+.glance { border: 1px solid var(--line); border-radius: 16px; padding: 16px 20px; margin: 20px 0 0; max-width: 760px; background: #fff; }
+.glance h2 { font-size: 15px; font-weight: 700; margin: 0 0 8px; font-family: inherit; }
+.glance ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 15px; color: var(--ink-2); }
+.updated { font-size: 13px; color: var(--ink-3); margin: 8px 0 0; }
+.styles-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; font-size: 14px; }
+.styles-nav a { padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; text-decoration: none; }
+.styles-nav a[aria-current] { background: var(--ink); color: #fff; border-color: var(--ink); }

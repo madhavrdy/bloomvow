@@ -41,3 +41,7 @@ jobs:
           local-dir: web/dist/
           server-dir: ${{ vars.FTP_DIR || 'public_html/' }}
           dangerous-clean-slate: false
+      - name: Notify search engines (IndexNow)
+        if: env.HAS_FTP == 'true'
+        env: { SITE_URL: '${{ vars.SITE_URL }}' }
+        run: node scripts/indexnow.mjs web/dist

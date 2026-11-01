@@ -35,7 +35,7 @@ const article = {
   '@context': 'https://schema.org', '@type': 'BlogPosting', headline: p.title, description: desc, mainEntityOfPage: url,
   datePublished: p.published_at, dateModified: p.updated_at, articleSection: cat.name, wordCount: p.body.split(/\s+/).filter(Boolean).length,
   ...(p.cover_url ? { image: [p.cover_url] } : {}),
-  author: { '@type': p.author_name ? 'Person' : 'Organization', name: p.author_name || SITE_NAME },
+  author: p.author_name ? { '@type': 'Person', name: p.author_name, url: new URL(d.urls.author(p.author_name), Astro.site).href } : { '@type': 'Organization', name: SITE_NAME },
   publisher: { '@type': 'Organization', name: SITE_NAME, url: new URL('/', Astro.site).href },
   ...(comments.length ? { commentCount: comments.length } : {}),
 };
@@ -48,7 +48,7 @@ const article = {
         <a href={d.urls.blogCategory(cat)} class="pcat">{cat.name}</a>
         <h1 class="serif">{p.title}</h1>
         <p class="muted post-meta">
-          {p.author_name && <span>By <b style="color:var(--ink)">{p.author_name}</b> · </span>}
+          {p.author_name && <span>By <a rel="author" href={d.urls.author(p.author_name)} style="color:var(--ink);font-weight:700">{p.author_name}</a> · </span>}
           <time datetime={p.published_at}>{fmt(p.published_at)}</time>
           {updated && <span> · Updated <time datetime={p.updated_at}>{fmt(p.updated_at)}</time></span>}
           <span> · {readingMinutes(p.body)} min read</span>
@@ -114,17 +114,7 @@ const article = {
   .post-meta { margin: 0; font-size: 15px; }
   .post-cover { width: 100%; max-height: 520px; object-fit: cover; border-radius: 20px; margin-bottom: 32px; }
   .post-layout { display: flex; gap: 48px; align-items: flex-start; flex-wrap: wrap-reverse; }
-  .toc { flex: 0 1 240px; position: sticky; top: 16px; border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; font-size: 14px; }
-  .toc ol { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-direction: column; gap: 8px; }
-  .toc .d3 { padding-left: 14px; }
-  .toc a { text-decoration: none; color: var(--ink-2); }
-  .prose { flex: 1 1 520px; max-width: 720px; font-size: 18px; line-height: 1.7; color: var(--ink-2); }
-  .prose :global(h2) { font-family: var(--serif); font-weight: 400; font-size: 34px; color: var(--ink); margin: 40px 0 12px; line-height: 1.15; scroll-margin-top: 16px; }
-  .prose :global(h3) { font-size: 21px; color: var(--ink); margin: 28px 0 8px; scroll-margin-top: 16px; }
-  .prose :global(img) { max-width: 100%; border-radius: 14px; }
-  .prose :global(table) { border-collapse: collapse; width: 100%; font-size: 16px; }
-  .prose :global(th), .prose :global(td) { border-bottom: 1px solid var(--line); padding: 8px; text-align: left; }
-  .prose :global(blockquote) { border-left: 3px solid var(--rose); margin: 0; padding-left: 16px; }
+  .post-layout .toc { flex: 0 1 240px; }
   .post-cta { display: flex; flex-wrap: wrap; gap: 12px; margin: 40px 0 0; }
   .comments { max-width: 760px; margin-top: 56px; }
   .comments h2 { font-size: 34px; margin: 0 0 16px; }

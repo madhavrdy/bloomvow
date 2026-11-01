@@ -45,72 +45,30 @@ US wedding vendor directory (venues, photographers, hair & makeup, caterers and
   * hreflang tags between countries;
   * localised words (postcode / PIN code vs ZIP).
 
-## Requested on Oct 29, to schedule (proposed for a Nov 1 session)
+## Page content, filters and GEO/AEO (Nov 1)
 
-* **Layout confirmed by the user:**
-  * A short intro at the top: 2–3 sentences, about 350 characters max, with a "Read the full guide ↓" link.
-  * Lengthy SEO content at the bottom, below the listings and above the FAQs. It supports headings with an automatic table of contents, links and images.
-* **Page content editor (admin)** for city, state, category and city + category pages:
-  * Fields: custom intro (above the listings), long-form guide content (below), custom FAQs, SEO title/description overrides, hero image.
-  * Empty fields fall back to the auto-generated text.
-  * A list of all pages, filterable by "has custom content" and sortable by traffic.
-  * Bulk import from CSV.
-* **Database-backed filters** across all vendors in a city, with shareable filter URLs that canonicalise to the main page. Sub-category pages, e.g. "Barn venues in Austin".
-* **GEO/AEO additions:**
-  * robots.txt rules for AI crawlers, plus `llms.txt`;
-  * a direct-answer summary block on listing pages;
-  * visible "Last updated" dates (dateModified);
-  * Organization and author markup;
-  * hreflang for US/CA/UK/AU, IndexNow, and share images.
-
-## Blog (public, Oct 31)
-
-* `/blog/`, `/blog/category/<slug>/` (empty categories are not built) and `/blog/page/N/` (12 posts per page).
-* Post pages: breadcrumb, cover image, table of contents (3+ headings), author, reading time, "Updated" date, BlogPosting + Breadcrumb schema, related posts, and a call to action to the linked city/category listing.
-* Comments: approved comments are in the static HTML, with one level of replies and a team badge on staff replies. The form posts to `submit_comment`; new comments wait for moderation.
-* "Planning guides" on city pages and city + category pages, from posts linked to that city/category in the editor.
-* `/blog/rss.xml`, blog links in the header and footer, and blog URLs in the sitemap.
-
-## Hosting build (Oct 31)
-
-* **URL format: kept as directory pages with trailing slashes** (`/us/texas/austin/`). Switching to one file per page would change every URL and need rewrite rules. The inode saving is instead made by not pre-building thin profiles (below), which cut the file count far more.
-* **Basic listings** (unclaimed and no description, photos, packages or reviews, typically from the open-data import) have no built page. They link to one shared page, `/vendor/?v=<slug>`, which loads the details in the browser, is `noindex`, stays out of the sitemap, and still takes quote requests. When a vendor claims or fills in a listing, the next build gives it a full page, and the shared page redirects to it.
-* **Sitemap index**: `/sitemap.xml` lists `/sitemap-1.xml`, `/sitemap-2.xml`… with up to 45,000 URLs each.
-* `web/public/.htaccess`: https redirect, 404 page, long caching for `/_astro/` files, compression, security headers.
-
-## Automatic jobs (GitHub Actions)
-
-| Job | When | Needs |
-|---|---|---|
-| **Build and deploy** (`deploy.yml`) | every 3 hours, every push, or on demand | Upload: secrets `FTP_HOST`, `FTP_USER`, `FTP_PASS`; variables `SITE_URL`, `SITE_NAME`, `CONTACT_EMAIL`, optional `FTP_DIR` (default `public_html/`). Without FTP secrets it only builds and type checks. Only changed files are uploaded. |
-| **Weekly backup** (`backup.yml`) | Sundays, or on demand | secret `SUPABASE_DB_URL`. The dump is kept 60 days as a run artifact. |
-| **Import vendors** (`import-vendors.yml`) | on demand | secret `SUPABASE_DB_URL`. Optional "visit vendor websites" step (see below). |
-
-## Emails (migration 012)
-
-* Sent from the database by `pg_cron` every minute through `pg_net` to **Resend** (free tier: 3,000 emails a month). There's no separate server.
-* Lead emails go to vendors with the couple as reply-to. Unclaimed vendors get a "claim your listing" link. Also sent: vendor replies to couples, a 24-hour no-reply reminder (hourly job), and claim decisions.
-* Failed sends retry up to 5 times. Until a Resend key exists, emails wait in the queue.
-* To switch on (SQL editor, once): `select vault.create_secret('<resend key>', 'resend_api_key');` then set `email_from` and `site_url` in `settings`. Verify the sending domain in Resend first.
-* A daily job rolls click/view events older than 120 days into daily totals (`event_daily`).
-
-## Website enricher (`scripts/scraper/enrich.mjs`)
-
-* Takes a CSV with a `website` column (e.g. the import's `vendors.csv`) and reads each vendor's own site to add phone, email, address, ZIP, starting price and capacity. It also adds a short `site_summary` for you to review; this is never imported.
-* Obeys robots.txt, identifies itself as BloomvowBot, waits between requests to the same site, reads at most 5 pages per site, and never copies reviews, testimonials or photos. It only fills blank fields.
-* Run it locally (`node scripts/scraper/enrich.mjs vendors.csv enriched.csv`), then import in Admin › Vendors › Import CSV. Or tick "visit vendor websites" in the Import vendors job.
-
-## Photos
-
-* Photos are shrunk in the browser before upload: longest side 1600px (blog covers 2000px), WebP, about 80% quality (JPEG on browsers that can't make WebP). Originals up to 25 MB are accepted.
-
-## Real vendor data (Overture Maps)
-
-* Source: [Overture Maps](https://overturemaps.org) places, open data under CDLA-Permissive-2.0 (commercial use allowed). Google Maps, Yelp and The Knot are not used: their terms forbid copying listings.
-* Run it: GitHub > Actions > **Import vendors** > Run workflow. Keep **dry run** ticked first; download `vendors-csv` from the run to check the data. Then run again with dry run unticked.
-* Rules: open businesses only, confidence 0.6+, within 35 km of a launch city, mapped to our 15 categories (`scripts/vendors/categories.py`; broad types such as bakeries or salons need a wedding word in the name). Duplicates merge; nothing is overwritten. Imported rows have `source = 'overture'`, so a batch can be removed with `delete from vendors where source = 'overture' and status = 'unclaimed';`.
-* Needs the GitHub secret `SUPABASE_DB_URL`: Supabase > Connect > **Session pooler** connection string, with your database password filled in. GitHub's servers can't use the direct connection.
-* Footer credit to add: "Business data includes Overture Maps Foundation open data."
+* **Page content editor** (Admin › Page content; admins and editors):
+  * Covers every state, city, category, city + category and style page.
+  * **Short intro** at the top: a 350-character target with a warning past it (600 max). A "Read the full guide ↓" link appears when there's a guide.
+  * **Long guide** at the bottom, below the listings and above the FAQs. It's Markdown with headings that build an automatic table of contents, plus links, images and lists, with a live preview.
+  * **Custom FAQs**: shown first, merged with the automatic ones, and included in the FAQ schema.
+  * **SEO title and description overrides**, and a **hero image** (upload or URL).
+  * Empty fields fall back to the automatic text.
+  * Page list: search, type filter, "has custom content" filter, sort by 30-day visits or vendor count, and bulk **CSV import** (`path, intro, body, seo_title, seo_description, hero_url, hero_alt, faqs` with FAQs as `Q | A || Q2 | A2`).
+  * Stored in `page_content`, keyed by URL path.
+* **Database-backed filters**:
+  * When every vendor is on the page, filters run in the browser. On bigger listings (more than one page), a filter or sort queries `search_vendors()` across the whole city + category, including service-area vendors, with "Show more".
+  * Filters are kept in the URL (`?guests=201&price=0-4000&sort=price`), so filtered views can be shared; the canonical stays the plain page.
+* **Style sub-pages**: e.g. `/us/texas/austin/wedding-venues/barn/` for Barn & ranch, Outdoor, Garden, Vineyard & winery, Ballroom & hotel, Loft & industrial, Waterfront, and Historic & estate. A page is built only when a city has 5 or more matching venues. They're linked from the listing and included in the sitemap.
+* **GEO / AEO**:
+  * `robots.txt` explicitly welcomes GPTBot, OAI-SearchBot, ClaudeBot, PerplexityBot, Google-Extended, Applebot-Extended and others. There's an `/llms.txt` site map for AI assistants.
+  * "At a glance" factual summary on listing pages, a visible "Last updated" date, and CollectionPage `dateModified`.
+  * Organization + WebSite schema on the homepage. `sameAs` comes from `PUBLIC_SOCIAL_LINKS`, a comma-separated list of your social profile URLs.
+  * Blog author pages (`/blog/author/<name>/`) with Person schema, linked from posts.
+  * hreflang: `en-us` on US pages, plus x-default and one link per live country on the homepage. New countries are added automatically when switched on.
+  * Per-page share images: the hero image or first vendor photo, else `og-default.png`. Regenerate it with your brand: `PUBLIC_SITE_NAME="Brand" node scripts/og-image.mjs`.
+  * IndexNow: the key file is in `web/public/`, and `scripts/indexnow.mjs` runs after each deploy to ping changed URLs.
+  * Page views of content pages are counted (`page_view` events), which drives "sort by traffic".
 
 ## Folder layout
 
@@ -174,10 +132,10 @@ Local dev logins (password `password123`): `admin@bloomvow.local` (admin), `dana
 ## Tests
 
 ```bash
-npm run test:db     # 39 database tests: permissions, routing, claims, import, stats, photos, onboarding
+npm run test:db     # 42 database tests: permissions, routing, claims, import, stats, photos, onboarding
 npm run test:unit   # front-end logic (filters, search, quote flow) + website enricher
 npm run test:e2e    # needs POSTGREST_BIN + AUTH_BIN: builds the whole site and drives a real browser
-                    # through every public and vendor-dashboard flow (36 tests: public site, blog, vendor and admin dashboards)
+                    # through every public and vendor-dashboard flow (44 tests: public site, blog, content & filters, vendor and admin dashboards)
 ```
 
 ## Notes for deployment (Oct 31)
@@ -189,7 +147,8 @@ npm run test:e2e    # needs POSTGREST_BIN + AUTH_BIN: builds the whole site and 
 ## Live Supabase project (status Oct 30)
 
 * Applied: 001–006, 006b (editor role), 007 (blog tables and views), 007b (comment functions and image bucket), 008 (advisor hardening), 008b, 009 (countries + regions), 010 + 010b (per-country categories), 011 (scheduled jobs may run admin imports), 007c + 007d (blog category delete, editors can delete blog images).
-* Pending: 012 (emails + scheduled jobs). Its approval prompt timed out on Oct 31. Also schedule its jobs (the end of `012_email_and_jobs.sql`) once it's applied.
+* Applied Nov 1: 013 (page content, page views, search).
+* Pending: 012 (emails + scheduled jobs). Its approval prompt timed out on Oct 31. Once it's applied, also run the schedules at the end of `012_email_and_jobs.sql`.
 * Known advisor items:
   * public_* views are SECURITY DEFINER by design: they expose safe columns only. Plan to convert them to invoker views with column grants on Nov 1.
   * Default EXECUTE grants on admin functions are harmless, because each checks require_admin().

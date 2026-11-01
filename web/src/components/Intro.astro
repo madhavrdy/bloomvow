@@ -1,0 +1,8 @@
+---
+// Short intro under the H1 (editor text, or the automatic one), plus a jump link to the long guide.
+import type { Content } from '../lib/content';
+interface Props { c: Content; auto: string }
+const { c, auto } = Astro.props;
+---
+<p class="muted page-intro">{c.intro ?? auto}{c.body && <> <a href="#guide" class="guide-link">Read the full guide ↓</a></>}</p>
+{c.hero && <img class="page-hero" src={c.hero.url} alt={c.hero.alt} fetchpriority="high" />}

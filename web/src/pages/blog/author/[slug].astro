@@ -1,0 +1,29 @@
+---
+import Base from '../../../layouts/Base.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import PostCard from '../../../components/PostCard.astro';
+import { getData, type Post } from '../../../lib/data';
+import { breadcrumbJsonLd } from '../../../lib/seo';
+import { SITE_NAME } from '../../../config';
+
+export async function getStaticPaths() {
+  const d = await getData();
+  return [...d.postsByAuthor].map(([name, posts]) => ({ params: { slug: d.urls.author(name).split('/')[3] }, props: { name, posts } }));
+}
+interface Props { name: string; posts: Post[] }
+const { name, posts } = Astro.props;
+const d = await getData();
+const url = new URL(d.urls.author(name), Astro.site).href;
+const crumbs = [{ name: 'Home', url: '/' }, { name: 'Blog', url: '/blog/' }, { name }];
+const person = { '@context': 'https://schema.org', '@type': 'Person', name, url, worksFor: { '@type': 'Organization', name: SITE_NAME, url: new URL('/', Astro.site).href } };
+const page = { '@context': 'https://schema.org', '@type': 'ProfilePage', mainEntity: { '@type': 'Person', name, url }, dateModified: posts[0]?.updated_at };
+---
+<Base title={`${name}: wedding planning articles`} description={`Wedding planning guides and advice by ${name}, writer at ${SITE_NAME}.`} jsonld={[person, page, breadcrumbJsonLd(Astro.site, crumbs)]}>
+  <main class="wrap" style="padding-top:24px">
+    <Breadcrumbs items={crumbs} />
+    <h1 class="serif" style="font-size:clamp(36px,5vw,52px);margin:16px 0 8px">{name}</h1>
+    <p class="muted" style="font-size:17px;margin:0 0 28px">Writes for {SITE_NAME} about wedding planning, budgets and choosing vendors. {posts.length} article{posts.length > 1 ? 's' : ''}.</p>
+    <div class="post-grid">{posts.map((p) => <PostCard p={p} />)}</div>
+  </main>
+</Base>
+<style>.post-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px; }</style>

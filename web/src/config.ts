@@ -6,3 +6,5 @@ export const SUPABASE_URL = (env.PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
 export const SUPABASE_ANON_KEY = env.PUBLIC_SUPABASE_ANON_KEY || '';
 export const CONTACT_EMAIL = env.PUBLIC_CONTACT_EMAIL || 'hello@example.com';
 export const TAGLINE = 'Find, compare and book wedding vendors';
+// Official profiles for Organization schema (comma-separated URLs), e.g. Instagram, Pinterest, Facebook.
+export const SOCIAL_LINKS = (env.PUBLIC_SOCIAL_LINKS || '').split(',').map((s) => s.trim()).filter(Boolean);

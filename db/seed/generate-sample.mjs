@@ -172,6 +172,20 @@ insert into comments (post_id, parent_id, author_name, author_email, body, statu
   select post_id, id, 'Wren Writer', 'writer@bloomvow.local', 'Fridays can save 20-30%. Great choice!', 'approved', true, created_at + interval '1 hour'
   from comments where author_name = 'Priya';
 
+-- A big listing (66 venues in San Marcos, more than one page of 60) to exercise
+-- database-backed filters and the "Barn & ranch" style page.
+insert into vendors (slug, name, category_id, city_id, price_from, capacity_max, setting, status, source)
+select 'sm-venue-' || g, (array['Willow Barn', 'Bluebonnet Ranch', 'River Hall', 'Oak Loft', 'Limestone Estate', 'Pecan Farm'])[g % 6 + 1] || ' ' || g,
+  (select id from categories where slug = 'wedding-venues'), (select id from cities where name = 'San Marcos'),
+  2000 + (g * 397) % 14000, 50 + (g * 37) % 350, (array['Indoor', 'Outdoor', 'Indoor + outdoor'])[g % 3 + 1], 'unclaimed', 'overture'
+from generate_series(1, 66) g;
+
+-- Page content example: custom intro, long guide and FAQ on the Austin venues page.
+insert into page_content (path, intro, body, faqs, seo_title) values ('/us/texas/austin/wedding-venues/',
+  'Austin has everything from Hill Country ranches to downtown lofts. Compare prices and capacity below, then send one request to several venues.',
+  E'## How much do Austin venues cost?\n\nMost venues start between $4,000 and $12,000 for a Saturday.\n\n## When to book\n\nBook 10 to 14 months ahead for spring and fall.\n\n## Questions to ask\n\n- Is there a rain plan?\n- What is the end time?',
+  '[{"q":"Are Austin venues cheaper on Fridays?","a":"Yes, many offer 15-30% off Friday and Sunday dates."}]', 'Austin Wedding Venues: Prices & Availability');
+
 -- Basic listings like the Overture open-data import produces: no description,
 -- photos, packages or reviews. They share the /vendor/?v= page instead of a built page.
 insert into vendors (slug, name, category_id, city_id, address, phone, website, status, source) values

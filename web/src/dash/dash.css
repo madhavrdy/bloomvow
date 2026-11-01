@@ -87,3 +87,10 @@
   .grid2, .grid3 { grid-template-columns: 1fr; }
   .inbox-list { max-width: none; }
 }
+
+/* Page content editor */
+.dash .input { font: inherit; font-size: 15px; border: 1px solid var(--line-2); border-radius: 10px; padding: 8px 12px; min-height: 44px; background: #fff; }
+.pill-ok { color: var(--green); font-weight: 600; font-size: 13px; white-space: nowrap; }
+.preview-box { border: 1px solid var(--line); border-radius: 12px; padding: 8px 20px; max-height: 520px; overflow: auto; background: #fff; }
+.faq-edit { display: grid; grid-template-columns: 1fr; gap: 6px; border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 8px; }
+.faq-edit .linkbtn { justify-self: start; }

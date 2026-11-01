@@ -12,17 +12,19 @@ import { Posts } from './Posts';
 import { BlogCategories } from './BlogCategories';
 import { Comments } from './Comments';
 import { Team } from './Team';
+import { PageContent } from './PageContent';
 
 export type Role = 'admin' | 'editor';
 type Counts = { claims: number; reviews: number; comments: number };
 
-// Editors only see the blog screens.
+// Editors see the content screens (page content and blog).
 const NAV: { r: string; label: string; roles: Role[] }[] = [
   { r: 'overview', label: 'Overview', roles: ['admin'] },
   { r: 'leads', label: 'Leads', roles: ['admin'] },
   { r: 'vendors', label: 'Vendors & claims', roles: ['admin'] },
   { r: 'reviews', label: 'Reviews', roles: ['admin'] },
   { r: 'taxonomy', label: 'Cities & categories', roles: ['admin'] },
+  { r: 'pages', label: 'Page content', roles: ['admin', 'editor'] },
   { r: 'posts', label: 'Blog posts', roles: ['admin', 'editor'] },
   { r: 'blog-categories', label: 'Blog categories', roles: ['admin', 'editor'] },
   { r: 'comments', label: 'Comments', roles: ['admin'] },
@@ -100,6 +102,7 @@ function Gate({ session, siteName }: { session: Session; siteName: string }) {
         {current === 'reviews' && <Reviews onChange={refreshCounts} />}
         {current === 'taxonomy' && <Taxonomy />}
         {current === 'posts' && <Posts ref_={ref} userId={session.user.id} userName={(session.user.user_metadata?.full_name as string) || ''} />}
+        {current === 'pages' && <PageContent />}
         {current === 'blog-categories' && <BlogCategories />}
         {current === 'comments' && <Comments onChange={refreshCounts} />}
         {current === 'team' && <Team selfEmail={session.user.email ?? ''} />}
