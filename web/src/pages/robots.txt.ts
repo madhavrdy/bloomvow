@@ -3,7 +3,8 @@ import type { APIContext } from 'astro';
 // Search engines and AI assistants are welcome to read and cite public pages.
 const AI_BOTS = ['GPTBot', 'OAI-SearchBot', 'ChatGPT-User', 'ClaudeBot', 'Claude-SearchBot', 'Claude-User', 'PerplexityBot',
   'Perplexity-User', 'Google-Extended', 'Applebot-Extended', 'Bingbot', 'CCBot'];
-const PRIVATE = ['/admin/', '/vendor-dashboard/', '/shortlist/'];
+// The back end (/back-end/) is left out on purpose: it is noindex, and listing it here would advertise its address.
+const PRIVATE = ['/vendor-dashboard/', '/shortlist/'];
 
 export function GET({ site }: APIContext) {
   const block = (ua: string) => `User-agent: ${ua}\nAllow: /\n${PRIVATE.map((p) => `Disallow: ${p}`).join('\n')}\n`;

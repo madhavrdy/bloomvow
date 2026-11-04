@@ -12,7 +12,7 @@ US wedding vendor directory (venues, photographers, hair & makeup, caterers and
   * claim a listing, or add a new business that goes live after admin approval;
   * overview stats, a lead inbox with quick replies and statuses;
   * listing editor: details, packages, service-area cities with plan limits, photos up to 30.
-* **Admin dashboard** (`/admin/`, admins and editors only):
+* **Admin dashboard** (`/back-end/`, admins and editors only):
   * overview stats (leads, clicks, views, reply rate, attention list) and leads with routing log, re-route and spam;
   * vendors: edit, plan and status, claims queue, CSV import with duplicate merging;
   * review moderation;

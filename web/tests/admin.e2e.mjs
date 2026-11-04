@@ -29,20 +29,26 @@ async function signedIn(email) {
   p.errors = [];
   p.on('pageerror', (e) => p.errors.push(e.message));
   p.on('dialog', (d) => d.accept());
-  await p.goto(`${SITE}/admin/`);
+  await p.goto(`${SITE}/back-end/`);
   await p.fill('input[type=email]', email);
   await p.fill('input[type=password]', 'password123');
   await p.click('form.auth button.btn-acc');
   await p.waitForSelector('.dash.admin .side');
   return p;
 }
-const go = async (p, route) => { await p.goto(`${SITE}/admin/#${route}`); await p.waitForSelector('.dmain h1'); };
+const go = async (p, route) => { await p.goto(`${SITE}/back-end/#${route}`); await p.waitForSelector('.dmain h1'); };
 const toast = async (p, re) => { await p.waitForFunction((src) => new RegExp(src).test(document.querySelector('.toast')?.textContent ?? ''), re.source); };
+
+test('the back end lives at /back-end/; the old /admin/ address does not exist', async () => {
+  const res = await fetch(`${SITE}/admin/`);
+  assert.equal(res.status, 404);
+  assert.equal((await fetch(`${SITE}/back-end/`)).status, 200);
+});
 
 test('access: vendors are denied, editors see only content screens, sign-up is not offered', async () => {
   const ctx = await browser.newContext();
   const p = await ctx.newPage();
-  await p.goto(`${SITE}/admin/`);
+  await p.goto(`${SITE}/back-end/`);
   assert.equal(await p.locator('text=New account').count(), 0, 'no public sign-up on the admin page');
   await p.fill('input[type=email]', 'dana@vendor.local');
   await p.fill('input[type=password]', 'password123');
@@ -53,7 +59,7 @@ test('access: vendors are denied, editors see only content screens, sign-up is n
   const ed = await signedIn('writer@bloomvow.local');
   const nav = await ed.locator('.side a[href^="#"]').allInnerTexts();
   assert.deepEqual(nav.map((t) => t.replace(/\d+$/, '').trim()), ['Page content', 'Blog posts', 'Blog categories']);
-  await ed.goto(`${SITE}/admin/#leads`);
+  await ed.goto(`${SITE}/back-end/#leads`);
   await ed.waitForSelector('.dmain h1');
   assert.equal(await ed.locator('.dmain h1').innerText(), 'Page content', 'editors are sent to content, not leads');
   await ed.context().close();

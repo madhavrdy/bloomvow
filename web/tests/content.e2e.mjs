@@ -114,7 +114,8 @@ test('filters on a big listing query the database, live in the URL, and "show mo
 
 test('GEO: robots.txt welcomes AI crawlers, llms.txt, Organization + WebSite schema, hreflang, share images, IndexNow key', () => {
   const robots = html('robots.txt');
-  for (const bot of ['GPTBot', 'ClaudeBot', 'PerplexityBot', 'Google-Extended']) assert.match(robots, new RegExp(`User-agent: ${bot}\\nAllow: /\\nDisallow: /admin/`));
+  for (const bot of ['GPTBot', 'ClaudeBot', 'PerplexityBot', 'Google-Extended']) assert.match(robots, new RegExp(`User-agent: ${bot}\\nAllow: /\\nDisallow: /vendor-dashboard/`));
+  assert.ok(!robots.includes("back-end"), "the back-end address is not advertised");
   const llms = html('llms.txt');
   assert.match(llms, /^# Bloomvow\n\n> /);
   assert.match(llms, /## Popular city pages\n- \[/);
