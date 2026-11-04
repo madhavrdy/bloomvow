@@ -23,12 +23,14 @@ create table if not exists auth.users (
   id uuid primary key default gen_random_uuid(),
   email text unique,
   raw_user_meta_data jsonb default '{}'::jsonb,
+  email_confirmed_at timestamptz,
   created_at timestamptz default now()
 );
 
 -- Supabase exposes the JWT subject through these helpers.
 -- The real auth.users (when GoTrue's schema is installed) has no id default; tests and seeds rely on one.
 alter table auth.users alter column id set default gen_random_uuid();
+alter table auth.users add column if not exists email_confirmed_at timestamptz;
 alter table auth.users alter column created_at set default now();
 do $$ begin
   if exists (select 1 from information_schema.columns where table_schema = 'auth' and table_name = 'users' and column_name = 'updated_at') then
