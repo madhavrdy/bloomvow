@@ -70,6 +70,12 @@ US wedding vendor directory (venues, photographers, hair & makeup, caterers and
   * IndexNow: the key file is in `web/public/`, and `scripts/indexnow.mjs` runs after each deploy to ping changed URLs.
   * Page views of content pages are counted (`page_view` events), which drives "sort by traffic".
 
+## Preview on janatajobs.in (Nov 5)
+
+* A preview build is live at https://janatajobs.in (it replaced the old WordPress site there, as agreed). It is hidden from every search engine: robots.txt `Disallow: /`, a `noindex, nofollow` meta tag on every page, and an `X-Robots-Tag` header.
+* To refresh it: Claude gets a fresh Hostinger upload link, runs **Preview deploy** (`preview.yml`), then unpacks `site.zip` with Hostinger's static-archive deploy.
+* 42,934 real vendors (Overture Maps) were imported on Nov 5 through a temporary write-only staging table with a one-time token (`db/ops/temp_import_staging.sql`). The token expired the same day. Still to do: drop the staging table (approval needed).
+
 ## Folder layout
 
 ```
