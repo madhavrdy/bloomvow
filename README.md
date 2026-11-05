@@ -70,6 +70,12 @@ US wedding vendor directory (venues, photographers, hair & makeup, caterers and
   * IndexNow: the key file is in `web/public/`, and `scripts/indexnow.mjs` runs after each deploy to ping changed URLs.
   * Page views of content pages are counted (`page_view` events), which drives "sort by traffic".
 
+## Live site: celebrateio.com (Nov 5)
+
+* Brand **Celebrateio**, live at https://celebrateio.com (Hostinger website created Nov 5), indexable, with the sitemap at `/sitemap.xml`.
+* To publish an update: Claude gets a Hostinger upload link for celebrateio.com, runs **Preview deploy** with `mode=live`, then unpacks `site.zip` with Hostinger's static-archive deploy. Or add the FTP secrets so **Build and deploy** publishes daily by itself.
+* The back end is at https://celebrateio.com/back-end/ (admins and editors only).
+
 ## Preview on janatajobs.in (Nov 5)
 
 * A preview build is live at https://janatajobs.in (it replaced the old WordPress site there, as agreed). It is hidden from every search engine: robots.txt `Disallow: /`, a `noindex, nofollow` meta tag on every page, and an `X-Robots-Tag` header.
