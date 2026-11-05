@@ -71,6 +71,7 @@ export function Auth({ title, subtitle, allowSignup = true, siteName }: { title:
           {mode !== 'reset' && mode !== 'signup' && <button type="button" class="linkbtn" onClick={() => setMode('reset')}>Forgot password?</button>}
           {(mode === 'link' || mode === 'reset') && <button type="button" class="linkbtn" onClick={() => setMode('signin')}>Back to sign in</button>}
         </div>
+        {!allowSignup && <p class="muted" style="font-size:13px;margin:4px 0 0">New here? Create your account at <a href="/vendor-dashboard/">/vendor-dashboard/</a> first, then come back.</p>}
       </form>
     </div>
   );

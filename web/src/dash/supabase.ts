@@ -30,6 +30,9 @@ const messages: Record<string, string> = {
 export function friendly(e: unknown): string {
   const msg = (e as { message?: string })?.message ?? String(e);
   for (const [k, v] of Object.entries(messages)) if (msg.includes(k)) return v;
+  if (/Signups not allowed for otp/i.test(msg)) return "There's no account with this email yet. Create one first at /vendor-dashboard/ (New account), confirm your email, then sign in here.";
+  if (/Signups not allowed/i.test(msg)) return 'New sign-ups are switched off for this site right now.';
+  if (/Email not confirmed/i.test(msg)) return 'Please confirm your email first: click the link we sent you (check spam too).';
   if (/duplicate key.*claims_one_pending/.test(msg)) return 'You already asked to claim this listing. We will review it shortly.';
   if (/row-level security|violates/.test(msg)) return "You don't have permission to change that.";
   if (/mime type|invalid_mime/.test(msg)) return 'Please upload a JPG, PNG or WebP image.';
