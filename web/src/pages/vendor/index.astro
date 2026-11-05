@@ -24,6 +24,16 @@ const today = new Date().toISOString().slice(0, 10);
           </div>
           <p id="bv-address" class="muted"></p>
           <p class="claim" style="background:var(--green-soft);border-radius:14px;padding:16px">Is this your business? <a id="bv-claim" href="/for-vendors/">Claim this listing</a> to add photos, pricing and reply to couples.</p>
+          <section id="bv-nearby" hidden aria-labelledby="bv-nearby-h" style="margin-top:24px">
+            <h2 class="serif" id="bv-nearby-h" style="font-size:32px;margin:0 0 4px"></h2>
+            <p class="muted" id="bv-nearby-sub" style="margin:0 0 16px"></p>
+            <div class="card-grid"></div>
+            <p class="nearby-more"><a id="bv-nearby-all" href="/"></a></p>
+          </section>
+          <section id="bv-team" hidden aria-labelledby="bv-team-h" style="margin-top:24px">
+            <h2 class="serif" id="bv-team-h" style="font-size:32px;margin:0 0 16px"></h2>
+            <div class="card-grid"></div>
+          </section>
         </div>
         <aside class="bv-lead">
           <form id="lead-form" class="lead-card" data-source="profile">

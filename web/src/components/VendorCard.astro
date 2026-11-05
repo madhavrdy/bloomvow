@@ -1,8 +1,8 @@
 ---
 import type { Vendor } from '../lib/data';
 import { getData, money } from '../lib/data';
-interface Props { v: Vendor; index: number }
-const { v, index } = Astro.props;
+interface Props { v: Vendor; index: number; showCategory?: boolean }
+const { v, index, showCategory = false } = Astro.props;
 const d = await getData();
 const city = d.cityById.get(v.city_id)!;
 const region = d.regionById.get(city.region_id)!;
@@ -12,6 +12,7 @@ const photo = d.photosByVendor.get(v.id)?.[0];
 <a href={d.urls.vendor(v)} class="vcard">
   {photo ? <img src={photo.url} alt={photo.alt ?? v.name} loading="lazy" decoding="async" width="400" height="180" /> : <div class={`ph ph-${index % 5}`} />}
   <div class="vcard-body">
+    {showCategory && <span class="vcard-cat">{cat.singular}</span>}
     <b>{v.name}</b>
     <span class="muted">{city.name}, {region.code.toUpperCase()}</span>
     {v.rating && <span><b style="font-size:14px">★ {Number(v.rating).toFixed(1)}</b> <span class="muted">({v.review_count} reviews)</span></span>}

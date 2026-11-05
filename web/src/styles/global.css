@@ -148,3 +148,5 @@ details.faq p { margin: 10px 0 0; color: var(--ink-2); }
 .styles-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; font-size: 14px; }
 .styles-nav a { padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; text-decoration: none; }
 .styles-nav a[aria-current] { background: var(--ink); color: #fff; border-color: var(--ink); }
+.vcard-cat { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--rose-dark); }
+.nearby-more { margin-top: 12px; }

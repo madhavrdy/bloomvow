@@ -20,7 +20,10 @@ const listing = d.listings.find((l) => l.city.id === city.id && l.category.id ==
 const photos = d.photosByVendor.get(v.id) ?? [];
 const packages = d.packagesByVendor.get(v.id) ?? [];
 const reviews = (d.reviewsByVendor.get(v.id) ?? []).slice(0, 10);
-const similar = rankVendors(listing.vendors.filter((x) => x.id !== v.id)).slice(0, 3);
+const similar = rankVendors(listing.vendors.filter((x) => x.id !== v.id)).slice(0, 3);   // for "also send to similar"
+const nearby = d.nearbyFor(v, 6);
+const team = d.teamFor(v, 6);
+const plural = cat.name.toLowerCase();
 const reply = replyLabel(v.avg_reply_minutes);
 const st = region.code.toUpperCase();
 const crumbs = [
@@ -124,10 +127,18 @@ const facts = [
           <p class="claim">Is this your business? <a href={`/for-vendors/?claim=${v.id}`}>Claim this listing</a> to add photos, pricing and reply to couples.</p>
         )}
 
-        {similar.length > 0 && (
-          <section>
-            <h2 class="serif">Similar {cat.name.toLowerCase()} in {city.name}</h2>
-            <div class="card-grid">{similar.map((s, i) => <VendorCard v={s} index={i + 1} />)}</div>
+        {nearby.length > 0 && (
+          <section aria-labelledby="nearby-h">
+            <h2 class="serif" id="nearby-h">More {plural} near {city.name}</h2>
+            <p class="muted" style="margin:-8px 0 16px">Popular with couples in and around {city.name}.</p>
+            <div class="card-grid">{nearby.map((s, i) => <VendorCard v={s} index={i + 1} />)}</div>
+            <p><a href={listing.url}>See all {listing.vendors.length} {plural} in {city.name} →</a></p>
+          </section>
+        )}
+        {team.length > 0 && (
+          <section aria-labelledby="team-h">
+            <h2 class="serif" id="team-h">Complete your wedding team in {city.name}</h2>
+            <div class="card-grid">{team.map((s, i) => <VendorCard v={s} index={i + 1} showCategory />)}</div>
           </section>
         )}
       </div>

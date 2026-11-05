@@ -148,3 +148,29 @@ test('page views are counted for content pages (for "sort by traffic")', async (
   const after_ = (await q(`select count(*)::int n from events where kind = 'page_view' and page_path = $1`, [AUSTIN]))[0].n;
   assert.equal(after_, before + 1);
 });
+
+test('vendor pages: "More … near …" ranked by location then popularity, and "Complete your wedding team"', async () => {
+  // Full (pre-built) profile.
+  const [v] = await q(`select v.slug, c.name city from vendors v join cities c on c.id = v.city_id join categories k on k.id = v.category_id
+    where c.name = 'Austin' and k.slug = 'wedding-venues' and v.description is not null and v.status <> 'hidden' order by v.slug limit 1`);
+  const h = html(`vendor/${v.slug}/index.html`);
+  assert.match(h, /<h2 class="serif" id="nearby-h"[^>]*>More wedding venues near Austin<\/h2>/);
+  assert.match(h, /<h2 class="serif" id="team-h"[^>]*>Complete your wedding team in Austin<\/h2>/);
+  const nearbyBlock = h.slice(h.indexOf('id="nearby-h"'), h.indexOf('id="team-h"'));
+  assert.ok(!nearbyBlock.includes(`/vendor/${v.slug}/"`), 'a vendor is not listed next to itself');
+  const cities = [...nearbyBlock.matchAll(/<span class="muted"[^>]*>([^<,]+), TX<\/span>/g)].map((m) => m[1]);
+  assert.ok(cities.length > 0);
+  const firstOther = cities.findIndex((c) => c !== 'Austin');
+  assert.ok(firstOther === -1 || cities.slice(firstOther).every((c) => c !== 'Austin'), `same city first: ${cities.join(',')}`);
+  assert.match(h.slice(h.indexOf('id="team-h"')), /class="vcard-cat"[^>]*>Wedding photographer</);
+
+  // Shared page for basic listings loads the same sections from the database.
+  const p = await page();
+  await p.goto(`${SITE}/vendor/?v=open-data-florals-austin`);
+  await p.locator('#bv-nearby-h:has-text("More wedding florists near Austin")').waitFor();
+  const near = await p.locator('#bv-nearby .vcard b').allTextContents();
+  assert.ok(near.length > 0 && !near.includes('Open Data Florals'));
+  await p.locator('#bv-team-h:has-text("Complete your wedding team in Austin")').waitFor();
+  assert.ok(await p.locator('#bv-team .vcard-cat').count() > 0);
+  assert.deepEqual(p.errors, []);
+});

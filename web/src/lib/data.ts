@@ -50,6 +50,18 @@ async function rest<T>(table: string, query: string): Promise<T[]> {
 }
 
 // Same ordering the database uses for lead matching and vendor rank.
+// Popularity for "near you" sections. Mirrors vendor_score() in db/migrations/015_nearby_vendors.sql.
+export function popularityScore(v: Vendor, activity = 0): number {
+  return (v.featured ? 3 : 0) + (v.status === 'claimed' ? 2 : 0) + (v.rating ?? 0) * Math.log(1 + v.review_count) + activity
+    + (v.phone ? 0.5 : 0) + (v.website ? 0.5 : 0);
+}
+export function kmBetween(a: { lat: number | null; lng: number | null }, b: { lat: number | null; lng: number | null }): number | null {
+  if (a.lat == null || a.lng == null || b.lat == null || b.lng == null) return null;
+  const r = Math.PI / 180;
+  const h = Math.sin(((b.lat - a.lat) * r) / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(((b.lng - a.lng) * r) / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(h));
+}
+
 export function rankVendors(list: Vendor[]): Vendor[] {
   return [...list].sort((a, b) =>
     Number(b.featured) - Number(a.featured) ||
@@ -66,7 +78,7 @@ export function getData() {
 }
 
 async function load() {
-  const [countries, regions, cities, categories, settings, vendors, vendorCities, packages, photos, reviews, hidden, blogCategories, posts, comments, pageContent] = await Promise.all([
+  const [countries, regions, cities, categories, settings, vendors, vendorCities, packages, photos, reviews, hidden, blogCategories, posts, comments, pageContent, popularity] = await Promise.all([
     rest<Country>('countries', 'select=*&active=eq.true&order=code'),
     rest<Region>('regions', 'select=*&order=name'),
     rest<City>('cities', 'select=*&order=name'),
@@ -82,8 +94,9 @@ async function load() {
     rest<Post>('public_posts', 'select=*&order=published_at.desc,id'),
     rest<Comment>('public_comments', 'select=*&order=created_at,id'),
     rest<PageContentRow>('page_content', 'select=*&order=path'),
+    rest<{ vendor_id: string; activity: number }>('vendor_popularity', 'select=vendor_id,activity&order=vendor_id'),
   ]);
-  return { countries, regions, cities, categories, settings, vendors, vendorCities, packages, photos, reviews, hidden, blogCategories, posts, comments, pageContent };
+  return { countries, regions, cities, categories, settings, vendors, vendorCities, packages, photos, reviews, hidden, blogCategories, posts, comments, pageContent, popularity };
 }
 
 function group<T, K>(rows: T[], key: (r: T) => K): Map<K, T[]> {
@@ -174,6 +187,22 @@ function build(d: Awaited<ReturnType<typeof load>>) {
     .map((style) => ({ listing: l, style, vendors: l.vendors.filter((v) => style.test(v)), url: `${l.url}${style.slug}/` }))
     .filter((x) => x.vendors.length >= minToIndex));
   const contentByPath = new Map(d.pageContent.map((c) => [c.path, c]));
+
+  // "More <category> near <city>": same city first, then within 30 km, then 80 km; most popular first in each band.
+  const activity = new Map(d.popularity.map((p) => [p.vendor_id, Number(p.activity)]));
+  const score = (v: Vendor) => popularityScore(v, activity.get(v.id) ?? 0);
+  const kmFrom = (from: number, to: number) => (from === to ? 0 : kmBetween(cityById.get(from)!, cityById.get(to)!));
+  const nearbyFor = (v: Vendor, n = 6) => vendors
+    .filter((x) => x.id !== v.id && x.category_id === v.category_id)
+    .map((x) => ({ x, km: kmFrom(v.city_id, x.city_id) }))
+    .filter((c) => c.km != null && c.km <= 80)
+    .map((c) => ({ ...c, band: c.km === 0 ? 0 : c.km! <= 30 ? 1 : 2, s: score(c.x) }))
+    .sort((a, b) => a.band - b.band || b.s - a.s || a.x.slug.localeCompare(b.x.slug))
+    .slice(0, n).map((c) => c.x);
+  // "Complete your team in <city>": the most popular vendor of each other category in the same city.
+  const teamFor = (v: Vendor, n = 6) => d.categories.filter((c) => c.id !== v.category_id && categoryById.has(c.id))
+    .map((c) => vendors.filter((x) => x.city_id === v.city_id && x.category_id === c.id).sort((a, b) => score(b) - score(a) || a.slug.localeCompare(b.slug))[0])
+    .filter(Boolean).slice(0, n) as Vendor[];
   const listingsByCategory = group(listings, (l) => l.category.id);
 
   const packagesByVendor = group(d.packages, (p) => p.vendor_id);
@@ -189,7 +218,7 @@ function build(d: Awaited<ReturnType<typeof load>>) {
     countryByCode, regionById, cityById, categoryById,
     packagesByVendor, photosByVendor, reviewsByVendor,
     minToIndex, budgetBands, urls, cityVendorCount,
-    styleListings, contentByPath,
+    styleListings, contentByPath, nearbyFor, teamFor,
     posts, postsByAuthor, blogCategories, blogCategoryById, postsByCategory, commentsByPost, guidesFor, relatedPosts,
   };
 }
