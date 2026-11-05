@@ -57,7 +57,8 @@ export function Posts({ ref_, userId, userName }: { ref_: Ref; userId: string; u
                 <td>{cats.find((c) => c.id === p.category_id)?.name}</td>
                 <td><span class={`chip-s ${st.cls}`}>{st.label}</span></td>
                 <td style="font-size:13px">{ago(p.updated_at)}</td>
-                <td><button class="btn btn-outline btn-sm" onClick={() => setEdit(p)}>Edit</button></td>
+                <td style="white-space:nowrap"><button class="btn btn-outline btn-sm" onClick={() => setEdit(p)}>Edit</button>
+                  {isLive(p) && <> <a class="btn btn-outline btn-sm" href={`/blog/${p.slug}/`} target="_blank" rel="noopener" title="Opens the post on the site. New posts appear there after the next site update.">View ↗</a></>}</td>
               </tr>;
             })}
           </tbody>
@@ -105,7 +106,7 @@ function Editor({ post, cats, ref_, userId, onClose }: { post: Post; cats: BlogC
       if (/slug_locked/.test(error.message)) return setErr('This post is live, so its web address is locked.');
       return setErr(friendly(error));
     }
-    onClose(status === 'published' ? 'Published. It appears on the site after the next rebuild.' : status === 'scheduled' ? `Scheduled for ${fmtDate(published_at)}` : 'Draft saved');
+    onClose(status === 'published' ? `Published. It goes live at /blog/${p.slug}/ with the next site update.` : status === 'scheduled' ? `Scheduled for ${fmtDate(published_at)}` : 'Draft saved');
   }
   async function remove() {
     if (!post.id || !confirm(`Delete "${post.title}" and its comments permanently?`)) return;
@@ -129,7 +130,11 @@ function Editor({ post, cats, ref_, userId, onClose }: { post: Post; cats: BlogC
   return (
     <div class="row" style="align-items:flex-start">
       <div class="grow" style="display:flex;flex-direction:column;gap:16px">
-        <div class="dhead"><h1>{post.id ? 'Edit post' : 'New post'}</h1><button class="btn btn-outline btn-sm" onClick={() => onClose()}>← All posts</button></div>
+        <div class="dhead"><h1>{post.id ? 'Edit post' : 'New post'}</h1>
+          <div class="row" style="gap:8px">
+            {isLive(post) && <a class="btn btn-outline btn-sm" href={`/blog/${post.slug}/`} target="_blank" rel="noopener">View post ↗</a>}
+            <button class="btn btn-outline btn-sm" onClick={() => onClose()}>← All posts</button></div></div>
+        {isLive(post) && <p class="muted" style="margin:-8px 0 0;font-size:13px">Live at <a href={`/blog/${post.slug}/`} target="_blank" rel="noopener">{location.host}/blog/{post.slug}/</a>. Edits show there after the next site update.</p>}
         <section class="panel">
           <label class="field">Title<input value={p.title} maxLength={200} style="font-size:20px;font-weight:700"
             onInput={(e) => { const t = e.currentTarget.value; setP({ ...p, title: t, slug: slugTouched ? p.slug : toSlug(t).slice(0, 80) }); }} /></label>
@@ -155,7 +160,7 @@ function Editor({ post, cats, ref_, userId, onClose }: { post: Post; cats: BlogC
         <section class="panel"><h2>Search engine listing</h2>
           <div style="border:1px solid var(--ln);border-radius:12px;padding:14px;font-family:Arial,sans-serif">
             <div style="color:#1a0dab;font-size:18px">{(p.seo_title || p.title || 'Post title').slice(0, 60)}</div>
-            <div style="color:#006621;font-size:13px">yourdomain.com › blog › {p.slug || 'post'}</div>
+            <div style="color:#006621;font-size:13px">{location.host} › blog › {p.slug || 'post'}</div>
             <div style="color:#545454;font-size:13px">{metaDesc.slice(0, 160) || 'Description…'}</div>
           </div>
           <label class="field">SEO title (optional, ~60 characters)<input value={p.seo_title ?? ''} maxLength={70} onInput={(e) => set('seo_title', e.currentTarget.value)} /></label>

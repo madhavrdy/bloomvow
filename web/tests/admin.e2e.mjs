@@ -258,6 +258,8 @@ test('blog posts: write with preview, schedule, publish, slug lock, delete', asy
   [p] = await q(`select status, published_at <= now() live from posts where slug = 'best-barn-venues-near-austin'`);
   assert.equal(p.status, 'published');
   assert.equal(p.live, true);
+  assert.equal(await admin.locator('tr:has-text("Best barn venues") a:has-text("View")').getAttribute('href'), '/blog/best-barn-venues-near-austin/', 'published posts link to the live page');
+  assert.equal(await admin.locator('tr:has-text("20 questions to ask") a:has-text("View")').count(), 0, 'drafts have no link');
 
   await admin.locator('tr:has-text("Best barn venues") button:has-text("Edit")').click();
   assert.equal(await admin.locator('label:has-text("Web address") input').isDisabled(), true, 'live post: address locked');
