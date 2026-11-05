@@ -171,3 +171,14 @@ test('vendor pages: "More … near …" ranked by location then popularity, and 
   const p = await page();
   assert.deepEqual(p.errors, []);
 });
+
+test('category images: home page and /categories/ show the same image cards with counts', () => {
+  const home = html('index.html');
+  assert.match(home, /<a href="\/categories\/wedding-venues\/" class="cat"[^>]*>\s*<span class="cat-img"[^>]*>\s*<img src="\/img\/categories\/wedding-venues\.svg"/);
+  const cats = html('categories/index.html');
+  const cards = [...cats.matchAll(/<a href="\/categories\/([a-z-]+)\/" class="cat"/g)].map((m) => m[1]);
+  assert.ok(cards.length >= 10, String(cards.length));
+  for (const slug of cards) assert.ok(fs.existsSync(path.join(DIST, 'img/categories', `${slug}.svg`)), `illustration for ${slug}`);
+  assert.match(cats, /class="muted cat-count"[^>]*>[\d,]+ vendors · \d+ cit(y|ies)</);
+  assert.equal(ld(cats, 'ItemList')[0].itemListElement.length, cards.length);
+});

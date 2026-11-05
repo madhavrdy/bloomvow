@@ -1,4 +1,5 @@
 ---
+import CategoryCard from '../components/CategoryCard.astro';
 import Base from '../layouts/Base.astro';
 import VendorCard from '../components/VendorCard.astro';
 import { getData, rankVendors } from '../lib/data';
@@ -60,9 +61,7 @@ const jsonld = [
     <section class="section wrap">
       <div class="section-head"><h2>Browse by category</h2><a href="/categories/" style="font-weight:600">All {d.categories.length} categories →</a></div>
       <div class="cat-grid">
-        {d.categories.slice(0, 10).map((c, i) => (
-          <a href={`/categories/${c.slug}/`} class="cat"><div class={`ph ph-${i % 5}`}></div><b>{c.name}</b></a>
-        ))}
+        {d.categories.slice(0, 10).map((c) => <CategoryCard c={c} />)}
       </div>
     </section>
 
@@ -134,8 +133,6 @@ const jsonld = [
   .hero-art .ph { border-radius: 20px; } .hero-art .tall { grid-row: span 2; }
   .trust { display: flex; flex-wrap: wrap; gap: 12px 32px; padding-bottom: 36px; font-size: 15px; color: var(--ink-2); }
   .cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px; }
-  .cat { text-decoration: none; display: flex; flex-direction: column; gap: 10px; }
-  .cat .ph { height: 140px; border-radius: 16px; }
   .how { background: var(--ink); color: #fff; border-radius: 28px; padding: 48px; display: flex; flex-wrap: wrap; gap: 32px; align-items: center; }
   .how-copy { flex: 1 1 400px; } .how-copy p { color: #d9d4e2; font-size: 17px; margin: 0; }
   .how-steps { flex: 1 1 400px; list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }

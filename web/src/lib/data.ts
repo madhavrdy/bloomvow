@@ -6,7 +6,9 @@ import { VENUE_STYLES, STYLE_CATEGORIES } from './styles';
 export type Country = { code: string; name: string; currency: string; active: boolean };
 export type Region = { id: number; country_code: string; code: string; name: string; slug: string };
 export type City = { id: number; region_id: number; name: string; slug: string; lat: number | null; lng: number | null; population: number | null };
-export type Category = { id: number; slug: string; name: string; singular: string; sort: number; uses_capacity: boolean };
+export type Category = { id: number; slug: string; name: string; singular: string; sort: number; uses_capacity: boolean; description?: string | null; image_url?: string | null; image_alt?: string | null };
+// The admin-uploaded image, or the built-in illustration for that category.
+export const categoryImage = (c: Category) => c.image_url || `/img/categories/${c.slug}.svg`;
 export type Vendor = {
   id: string; slug: string; name: string; category_id: number; city_id: number; address: string | null; zip: string | null;
   phone: string | null; website: string | null; description: string | null; price_from: number | null; capacity_max: number | null;
@@ -87,7 +89,7 @@ async function load() {
     rest<Country>('countries', 'select=*&active=eq.true&order=code'),
     rest<Region>('regions', 'select=*&order=name'),
     rest<City>('cities', 'select=*&order=name'),
-    rest<Category>('categories', 'select=id,slug,name,singular,sort,uses_capacity&active=eq.true&order=sort'),
+    rest<Category>('categories', 'select=id,slug,name,singular,sort,uses_capacity,description,image_url,image_alt&active=eq.true&order=sort'),
     rest<{ key: string; value: unknown }>('settings', 'select=key,value'),
     rest<Vendor>('public_vendors', 'select=*&order=slug'),
     rest<{ vendor_id: string; city_id: number }>('vendor_cities', 'select=vendor_id,city_id&order=vendor_id'),

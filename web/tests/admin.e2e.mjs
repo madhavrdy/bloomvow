@@ -190,6 +190,25 @@ test('vendor categories: add, edit, reorder, hide; slug locks when used; cities 
 
   await admin.locator('tr:has-text("Wedding venues") button:has-text("Edit")').first().click();
   assert.equal(await admin.locator('label:has-text("Web address") input').isDisabled(), true, 'used category: address locked');
+  // Category image: built-in illustration by default, upload a photo, then go back to the default.
+  assert.match(await admin.locator('form[aria-label="Category editor"] img').getAttribute('src'), /\/img\/categories\/wedding-venues\.svg$/);
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  await admin.setInputFiles('input[aria-label="Upload category image"]', { name: 'venue.png', mimeType: 'image/png', buffer: png });
+  await toast(admin, /Image uploaded/);
+  await admin.fill('label:has-text("Image description") input', 'Garden ceremony at sunset');
+  await admin.click('button:has-text("Save category")');
+  await toast(admin, /saved/);
+  let [cv] = await q(`select image_url, image_alt from categories where slug = 'wedding-venues'`);
+  assert.match(cv.image_url, /\/storage\/v1\/object\/public\/blog-images\/categories\/wedding-venues-/);
+  assert.equal(cv.image_alt, 'Garden ceremony at sunset');
+  assert.equal((await fetch(cv.image_url)).status, 200);
+  await admin.locator('tr:has-text("Wedding venues") button:has-text("Edit")').first().click();
+  await admin.click('button:has-text("Use the default illustration")');
+  await admin.click('button:has-text("Save category")');
+  await toast(admin, /saved/);
+  [cv] = await q(`select image_url, image_alt from categories where slug = 'wedding-venues'`);
+  assert.deepEqual(cv, { image_url: null, image_alt: null });
+  await admin.locator('tr:has-text("Wedding venues") button:has-text("Edit")').first().click();
   await admin.click('button:has-text("Cancel")');
   await admin.locator('tr:has-text("Mehndi artists") button:has-text("Delete")').click();
   await toast(admin, /deleted/);

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'preact/hooks';
 import { sb, must, friendly } from '../supabase';
 import { Toast, useToast } from '../shared';
+import { shrinkImage, extOf, MAX_ORIGINAL } from '../image';
 
-type Cat = { id: number; slug: string; name: string; singular: string; description: string | null; sort: number; budget_share: number; uses_capacity: boolean; active: boolean };
+type Cat = { id: number; slug: string; name: string; singular: string; description: string | null; sort: number; budget_share: number; uses_capacity: boolean; active: boolean; image_url: string | null; image_alt: string | null };
 type Country = { code: string; name: string; currency: string; active: boolean };
 type Region = { id: number; country_code: string; code: string; name: string; slug: string };
 type City = { id: number; region_id: number; name: string; slug: string; lat: number | null; lng: number | null };
@@ -46,7 +47,8 @@ function Categories({ toast }: { toast: (t: string) => void }) {
     e.preventDefault();
     if (!edit) return;
     const row = { slug: edit.slug, name: edit.name?.trim(), singular: edit.singular?.trim() || edit.name?.trim(), description: edit.description?.trim() || null,
-      sort: Number(edit.sort ?? 100), budget_share: Number(edit.budget_share ?? 0.05), uses_capacity: Boolean(edit.uses_capacity), active: edit.active ?? true };
+      sort: Number(edit.sort ?? 100), budget_share: Number(edit.budget_share ?? 0.05), uses_capacity: Boolean(edit.uses_capacity), active: edit.active ?? true,
+      image_url: edit.image_url || null, image_alt: edit.image_url ? (edit.image_alt?.trim() || edit.name?.trim() || null) : null };
     if (!row.name || !row.slug) return toast('Name and web address are required.');
     const p = edit.id ? sb().from('categories').update(row).eq('id', edit.id) : sb().from('categories').insert(row);
     const { error } = await p;
@@ -71,6 +73,26 @@ function Categories({ toast }: { toast: (t: string) => void }) {
     if (error) return toast(/category_in_use/.test(error.message) ? 'This category has vendors. Hide it instead.' : friendly(error));
     toast('Category deleted'); load();
   }
+  const [busy, setBusy] = useState(false);
+  async function upload(e: Event) {
+    const input = e.currentTarget as HTMLInputElement;
+    const original = input.files?.[0];
+    input.value = '';
+    if (!original || !edit) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(original.type)) return toast('Please upload a JPG, PNG or WebP image.');
+    if (original.size > MAX_ORIGINAL) return toast('That image is larger than 25 MB.');
+    setBusy(true);
+    try {
+      const file = await shrinkImage(original, 1200);
+      if (file.size > 5 * 1024 * 1024) return toast('That image is too large even after resizing.');
+      const path = `categories/${edit.slug || 'new'}-${crypto.randomUUID().slice(0, 8)}.${extOf(file)}`;
+      const { error } = await sb().storage.from('blog-images').upload(path, file, { contentType: file.type, cacheControl: '31536000' });
+      if (error) return toast(friendly(error));
+      setEdit({ ...edit, image_url: sb().storage.from('blog-images').getPublicUrl(path).data.publicUrl, image_alt: edit.image_alt || edit.name || null });
+      toast('Image uploaded. Save the category to use it.');
+    } finally { setBusy(false); }
+  }
+  const imgOf = (c: Partial<Cat>) => c.image_url || (c.slug ? `/img/categories/${c.slug}.svg` : '');
   const locked = (c: Partial<Cat>) => Boolean(c.id && (used.get(c.id) ?? 0) > 0);
 
   return (
@@ -79,10 +101,11 @@ function Categories({ toast }: { toast: (t: string) => void }) {
         <button class="btn btn-primary" onClick={() => setEdit({ name: '', slug: '', singular: '', sort: (rows.at(-1)?.sort ?? 100) + 10, budget_share: 0.05, uses_capacity: false, active: true })}>+ Add category</button></div>
       <section class="panel" style="padding:0;overflow:hidden"><div class="scroll-x">
         <table class="tbl" style="min-width:720px">
-          <thead><tr><th style="padding-left:16px">Order</th><th>Name</th><th>Web address</th><th>Vendors</th><th>Shown</th><th /></tr></thead>
+          <thead><tr><th style="padding-left:16px">Order</th><th>Image</th><th>Name</th><th>Web address</th><th>Vendors</th><th>Shown</th><th /></tr></thead>
           <tbody>{rows.map((c, i) => (
             <tr style={c.active ? '' : 'opacity:.6'}>
               <td style="padding-left:16px;white-space:nowrap"><button class="btn btn-outline btn-sm" aria-label={`Move ${c.name} up`} disabled={i === 0} onClick={() => move(c, -1)}>↑</button> <button class="btn btn-outline btn-sm" aria-label={`Move ${c.name} down`} disabled={i === rows.length - 1} onClick={() => move(c, 1)}>↓</button></td>
+              <td><img src={imgOf(c)} alt="" width={60} height={40} loading="lazy" style="width:60px;height:40px;object-fit:cover;border-radius:6px;background:#f6ece9;display:block" onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} /></td>
               <td><b>{c.name}</b><span class="muted" style="display:block;font-size:12px">{c.singular}</span></td>
               <td style="font-size:13px">/{c.slug}/{locked(c) && <span title="Locked: has vendors"> 🔒</span>}</td>
               <td>{used.get(c.id) ?? 0}</td>
@@ -105,6 +128,18 @@ function Categories({ toast }: { toast: (t: string) => void }) {
               onInput={(e) => setEdit({ ...edit, budget_share: Number(e.currentTarget.value) / 100 })} />
               <span class="muted" style="font-weight:400">Used to match couples' budgets to vendor prices.</span></label>
             <label class="check" style="align-self:center"><input type="checkbox" checked={edit.uses_capacity} onChange={(e) => setEdit({ ...edit, uses_capacity: e.currentTarget.checked })} /> Guest capacity matters (venues, caterers)</label>
+            <div class="field span2" role="group" aria-label="Category image">Image
+              <div class="row" style="gap:14px;align-items:center;flex-wrap:wrap">
+                {imgOf(edit) && <img src={imgOf(edit)} alt="" class="cat-thumb" width={150} height={100} style="width:150px;height:100px;object-fit:cover;border-radius:10px;background:#f6ece9" />}
+                <div style="display:flex;flex-direction:column;gap:8px">
+                  <label class="btn btn-outline btn-sm" style="cursor:pointer;position:relative">{busy ? 'Uploading…' : edit.image_url ? 'Replace image' : 'Upload image'}
+                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={upload} disabled={busy} style="position:absolute;width:1px;height:1px;opacity:0" aria-label="Upload category image" /></label>
+                  {edit.image_url && <button type="button" class="btn btn-outline btn-sm" onClick={() => setEdit({ ...edit, image_url: null, image_alt: null })}>Use the default illustration</button>}
+                </div>
+              </div>
+              <span class="muted" style="font-weight:400">{edit.image_url ? 'Custom image.' : 'Showing the built-in illustration.'} Landscape photos work best (3:2, at least 900 px wide).</span>
+              {edit.image_url && <label class="field" style="margin-top:6px">Image description (for screen readers and Google)<input value={edit.image_alt ?? ''} maxLength={200} onInput={(e) => setEdit({ ...edit, image_alt: e.currentTarget.value })} /></label>}
+            </div>
             <label class="field span2">Description (optional)<textarea rows={2} value={edit.description ?? ''} onInput={(e) => setEdit({ ...edit, description: e.currentTarget.value })} /></label>
           </div>
           <div style="display:flex;gap:10px"><button class="btn btn-primary">Save category</button><button type="button" class="btn btn-outline" onClick={() => setEdit(null)}>Cancel</button></div>

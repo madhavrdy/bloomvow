@@ -1,13 +1,39 @@
 ---
 import Base from '../../layouts/Base.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import CategoryCard from '../../components/CategoryCard.astro';
 import { getData } from '../../lib/data';
+import { breadcrumbJsonLd } from '../../lib/seo';
 const d = await getData();
+const total = (id: number) => new Set((d.listingsByCategory.get(id) ?? []).flatMap((l) => l.vendors.map((v) => v.id))).size;
+const cities = (id: number) => (d.listingsByCategory.get(id) ?? []).length;
+const crumbs = [{ name: 'Home', url: '/' }, { name: 'Categories' }];
+const list = {
+  '@context': 'https://schema.org', '@type': 'ItemList', name: 'Wedding vendor categories',
+  itemListElement: d.categories.map((c, i) => ({ '@type': 'ListItem', position: i + 1, name: c.name, url: new URL(`/categories/${c.slug}/`, Astro.site).href })),
+};
+const n = (x: number) => x.toLocaleString('en-US');
 ---
-<Base title="All wedding vendor categories" description="Browse every type of wedding vendor: venues, photographers, hair & makeup, caterers, cakes, florists, DJs, planners and more.">
-  <main class="wrap" style="padding-top:32px">
-    <h1 class="serif" style="font-size:clamp(36px,5vw,52px);margin:0 0 24px">Wedding vendor categories</h1>
-    <div class="tile-grid">
-      {d.categories.map((c) => <a class="tile" href={`/categories/${c.slug}/`}><b>{c.name}</b><span>{(d.listingsByCategory.get(c.id) ?? []).length} cities</span></a>)}
+<Base title="All wedding vendor categories" description="Browse every type of wedding vendor: venues, photographers, hair & makeup, caterers, cakes, florists, DJs, planners and more." jsonld={[breadcrumbJsonLd(Astro.site, crumbs), list]}>
+  <main class="wrap" style="padding-top:24px">
+    <Breadcrumbs items={crumbs} />
+    <div class="section-head" style="margin:16px 0 8px">
+      <h1 class="serif" style="font-size:clamp(36px,5vw,52px);margin:0">Wedding vendor categories</h1>
     </div>
+    <p class="muted" style="font-size:17px;max-width:720px;margin:0 0 28px">Everything you need for the big day, from the venue to the getaway car. Pick a category to compare {n(d.vendors.length)} vendors across {d.activeCities.length} cities.</p>
+    <div class="cat-grid">
+      {d.categories.map((c, i) => <CategoryCard c={c} eager={i < 4} count={`${n(total(c.id))} vendors · ${cities(c.id)} ${cities(c.id) === 1 ? 'city' : 'cities'}`} />)}
+    </div>
+    <section class="cta">
+      <div><h2 class="serif">Not sure where to start?</h2><p>Tell us your date, city and budget, and we'll match you with vendors who are available.</p></div>
+      <a class="btn btn-primary btn-lg" href="/get-matched/">Get free quotes</a>
+    </section>
   </main>
 </Base>
+<style>
+  .cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 24px 20px; }
+  .cta { margin: 56px 0 0; background: var(--rose-soft); border-radius: 24px; padding: 32px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: space-between; }
+  .cta h2 { font-size: clamp(28px, 4vw, 36px); margin: 0 0 6px; }
+  .cta p { margin: 0; color: var(--ink-2); max-width: 520px; }
+  @media (max-width: 640px) { .cat-grid { grid-template-columns: repeat(2, 1fr); gap: 16px 12px; } .cta { padding: 24px; } }
+</style>
