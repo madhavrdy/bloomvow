@@ -43,14 +43,19 @@ jobs:
         env: { U: '${{ inputs.upload_url }}', A: '${{ inputs.auth_key }}', R: '${{ inputs.rest_auth_key }}' }
         run: |
           SIZE=$(stat -c%s site.zip)
-          curl -sf -X POST "$U/site.zip?override=true" -H "X-Auth: $A" -H "X-Auth-Rest: $R" -H "Tus-Resumable: 1.0.0" -H "Upload-Length: $SIZE" -H "Upload-Offset: 0" -o /dev/null
+          echo "::notice::site.zip is $SIZE bytes"
+          call() {   # prints the HTTP status; on failure shows Hostinger's answer on the run page
+            code=$(curl -s -o resp.txt -D head.txt -w '%{http_code}' "$@")
+            if [ "${code:0:1}" != "2" ]; then echo "::error::$1 $code $(tr -d '\r' < head.txt | grep -i -E '^(upload-|tus-|content-length)' | tr '\n' ' ') $(head -c 300 resp.txt)"; exit 1; fi
+          }
+          call -X POST "$U/site.zip?override=true" -H "X-Auth: $A" -H "X-Auth-Rest: $R" -H "Tus-Resumable: 1.0.0" -H "Upload-Length: $SIZE" -H "Upload-Offset: 0"
           # Upload in 40 MB pieces (large single requests can be refused).
           CHUNK=$((40*1024*1024)); OFF=0
           while [ $OFF -lt $SIZE ]; do
             LEN=$(( SIZE-OFF < CHUNK ? SIZE-OFF : CHUNK ))
             tail -c +$((OFF+1)) site.zip | head -c $LEN > part.bin
-            curl -sf --retry 3 -X PATCH "$U/site.zip?override=true" -H "X-Auth: $A" -H "X-Auth-Rest: $R" -H "Tus-Resumable: 1.0.0" \
-              -H "Content-Type: application/offset+octet-stream" -H "Upload-Offset: $OFF" --data-binary @part.bin -o /dev/null
+            call -X PATCH "$U/site.zip?override=true" -H "X-Auth: $A" -H "X-Auth-Rest: $R" -H "Tus-Resumable: 1.0.0" \
+              -H "Content-Type: application/offset+octet-stream" -H "Upload-Offset: $OFF" --data-binary @part.bin
             OFF=$((OFF+LEN)); echo "uploaded $OFF / $SIZE"
           done
           echo "::notice::uploaded site.zip ($SIZE bytes)"
