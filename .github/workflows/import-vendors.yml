@@ -20,6 +20,9 @@ on:
         description: Only list the Overture categories found (for tuning)
         type: boolean
         default: false
+      staging_token:
+        description: One-time import token (only when the SUPABASE_DB_URL secret isn't set)
+        default: ''
       radius_km:
         description: Search radius around each city (km)
         default: '35'
@@ -45,8 +48,14 @@ jobs:
       - name: Visit vendor websites
         if: inputs.enrich
         run: node scripts/scraper/enrich.mjs vendors.csv vendors.csv --concurrency 12 --delay 1200
+      - name: Upload to staging (one-time token)
+        if: ${{ inputs.staging_token != '' }}
+        env: { IMPORT_TOKEN: '${{ inputs.staging_token }}' }
+        run: |
+          echo "::add-mask::$IMPORT_TOKEN"
+          python scripts/vendors/upload_staging.py vendors.csv
       - name: Import into the database
-        if: ${{ !inputs.dry_run }}
+        if: ${{ !inputs.dry_run && inputs.staging_token == '' }}
         env:
           DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
