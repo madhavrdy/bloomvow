@@ -263,8 +263,50 @@ test('SEO: titles, canonicals, structured data, noindex for thin pages, no priva
 
 test('unknown pages return the 404 page', async () => {
   const p = await page();
-  const res = await p.goto(`${SITE}/vendor/does-not-exist/`);
+  const res = await p.goto(`${SITE}/no-such-page/`);
   assert.equal(res.status(), 404);
   assert.match(await p.locator('h1').innerText(), /couldn't find/);
+  // An unknown vendor address is checked against the database, then says so.
+  await p.goto(`${SITE}/vendor/does-not-exist/`);
+  await p.locator('#bv-missing h1:has-text("Vendor not found")').waitFor();
   await p.context().close();
+});
+
+test('header search: suggestions for pages and vendor names, keyboard and Enter, results page; mobile toggle', async () => {
+  const p = await (await browser.newContext()).newPage();
+  const errors = []; p.on('pageerror', (e) => errors.push(e.message));
+  await p.goto(`${SITE}/blog/`);
+  const input = p.locator('#hsearch input[name=q]');
+  await input.fill('venues austin');
+  await p.locator('#hsearch-list li:has-text("Wedding venues in Austin, TX")').first().waitFor();
+  await p.keyboard.press('ArrowDown');
+  assert.equal(await input.getAttribute('aria-activedescendant'), 'hs-0');
+  await p.keyboard.press('Enter');
+  await p.waitForURL(/\/us\/texas\/austin\/wedding-venues\/$/);
+
+  await p.locator('#hsearch input[name=q]').fill('open data flor');
+  await p.locator('#hsearch-list li:has-text("Open Data Florals")').waitFor();
+  await p.click('#hsearch-list li:has-text("Open Data Florals") a');
+  await p.waitForURL(/\/vendor\/open-data-florals-austin\/$/);
+
+  await p.goto(`${SITE}/search/?q=florists`);
+  await p.locator('#sp-status:has-text("results for")').waitFor();
+  assert.ok(await p.locator('#sp-pages li').count() > 0);
+  assert.match(await p.locator('meta[name=robots]').getAttribute('content'), /noindex/);
+  assert.deepEqual(errors, []);
+
+  // Phone: the box is behind a search icon and opens full width.
+  const m = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })).newPage();
+  await m.goto(`${SITE}/`);
+  assert.equal(await m.locator('#hsearch').isVisible(), false);
+  await m.click('#hsearch-toggle');
+  assert.equal(await m.locator('#hsearch').isVisible(), true);
+  const box = await m.locator('#hsearch').boundingBox();
+  assert.ok(box.width > 330, `full width on phones: ${box.width}`);
+  assert.ok(await m.evaluate(() => document.activeElement?.getAttribute('name') === 'q'), 'keyboard opens straight away');
+  await m.locator('#hsearch input').fill('photographers');
+  await m.locator('#hsearch-list li').first().waitFor();
+  const list = await m.locator('#hsearch-list').boundingBox();
+  assert.ok(list.x >= 0 && list.x + list.width <= 390, 'suggestions fit on screen');
+  assert.ok(await m.evaluate(() => document.documentElement.scrollWidth <= 390), 'no sideways scrolling');
 });

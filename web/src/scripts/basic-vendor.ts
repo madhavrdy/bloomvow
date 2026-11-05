@@ -16,11 +16,10 @@ export async function initBasicVendor() {
     const [v] = slug ? await get<Record<string, any>>(`public_vendors?slug=eq.${encodeURIComponent(slug)}&select=*`) : [];
     if (!v) throw new Error('missing');
     // A full profile exists for this vendor now (it was claimed or filled in): go there.
+    // Every vendor has its own page from the next site build on: go there when it exists.
     const full = `/vendor/${v.slug}/`;
-    if (v.status === 'claimed' || v.description) {
-      const head = await fetch(full, { method: 'HEAD' }).catch(() => null);
-      if (head?.ok) { location.replace(full); return; }
-    }
+    const head = await fetch(full, { method: 'HEAD' }).catch(() => null);
+    if (head?.ok) { location.replace(full); return; }
     const [[city], [cat]] = await Promise.all([
       get<Record<string, any>>(`cities?id=eq.${v.city_id}&select=id,name,slug,regions(code,slug,country_code)`),
       get<Record<string, any>>(`categories?id=eq.${v.category_id}&select=slug,name,singular`),
@@ -56,7 +55,7 @@ type Near = { id: string; slug: string; name: string; category_id: number; city:
 const esc = (t: unknown) => String(t ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
 const usd = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
 export function nearCard(v: Near, i: number, catName?: string): string {
-  const url = v.has_page ? `/vendor/${v.slug}/` : `/vendor/?v=${v.slug}`;
+  const url = `/vendor/${v.slug}/`;
   return `<a href="${url}" class="vcard">${v.photo ? `<img src="${esc(v.photo)}" alt="${esc(v.name)}" loading="lazy" width="400" height="180">` : `<div class="ph ph-${i % 5}"></div>`}
   <div class="vcard-body">${catName ? `<span class="vcard-cat">${esc(catName)}</span>` : ''}<b>${esc(v.name)}</b>
   <span class="muted">${esc(v.city)}, ${esc(v.st)}${v.km > 0 ? ` · ${Math.round(v.km * 0.621)} mi away` : ''}</span>

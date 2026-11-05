@@ -122,15 +122,13 @@ function build(d: Awaited<ReturnType<typeof load>>) {
   const shownIn = (cityId: number, catId: number) => !hiddenIn.has(`${countryOfCity(cityId)}:${catId}`);
   const vendors = d.vendors.filter((v) => cityById.has(v.city_id) && categoryById.has(v.category_id) && shownIn(v.city_id, v.category_id));
   const vendorById = new Map(vendors.map((v) => [v.id, v]));
-  // Thin listings (unclaimed, no description, photos, packages or reviews: typically
-  // imported open data) get no pre-built page. They share one /vendor/?v=<slug>
-  // page that loads the details in the browser and is noindex. This keeps the
-  // build small (hosting file limits) and keeps thin pages out of Google.
+  // Every vendor gets its own static, crawlable page at /vendor/<slug>/. A page is
+  // indexed when it has something useful beyond a name (a phone, website, address,
+  // description, photos or reviews); bare name-only listings stay noindex.
   const hasPhotos = new Set(d.photos.map((p) => p.vendor_id));
   const hasPackages = new Set(d.packages.map((p) => p.vendor_id));
   const isRich = (v: Vendor) => v.status === 'claimed' || v.featured || !!v.description?.trim() || v.review_count > 0 || hasPhotos.has(v.id) || hasPackages.has(v.id);
-  const richVendors = vendors.filter(isRich);
-  const richIds = new Set(richVendors.map((v) => v.id));
+  const vendorIndexable = (v: Vendor) => isRich(v) || !!(v.phone || v.website || v.address);
   const vendorBySlug = new Map(vendors.map((v) => [v.slug, v]));
 
   const urls = {
@@ -138,7 +136,7 @@ function build(d: Awaited<ReturnType<typeof load>>) {
     region: (r: Region) => `/${r.country_code}/${r.slug}/`,
     city: (c: City) => { const r = regionById.get(c.region_id)!; return `/${r.country_code}/${r.slug}/${c.slug}/`; },
     listing: (c: City, cat: Category) => `${urls.city(c)}${cat.slug}/`,
-    vendor: (v: Vendor) => (richIds.has(v.id) ? `/vendor/${v.slug}/` : `/vendor/?v=${v.slug}`),
+    vendor: (v: Vendor) => `/vendor/${v.slug}/`,
     blog: () => '/blog/',
     blogCategory: (c: BlogCategory) => `/blog/category/${c.slug}/`,
     post: (p: Post) => `/blog/${p.slug}/`,
@@ -189,20 +187,30 @@ function build(d: Awaited<ReturnType<typeof load>>) {
   const contentByPath = new Map(d.pageContent.map((c) => [c.path, c]));
 
   // "More <category> near <city>": same city first, then within 30 km, then 80 km; most popular first in each band.
+  // Precomputed per city and category so 40,000+ vendor pages build quickly.
   const activity = new Map(d.popularity.map((p) => [p.vendor_id, Number(p.activity)]));
   const score = (v: Vendor) => popularityScore(v, activity.get(v.id) ?? 0);
+  const byScore = (a: Vendor, b: Vendor) => score(b) - score(a) || a.slug.localeCompare(b.slug);
+  const ranked = new Map<string, Vendor[]>();   // "cityId:catId" -> vendors based there, most popular first
+  for (const v of vendors) { const k = `${v.city_id}:${v.category_id}`; (ranked.get(k) ?? ranked.set(k, []).get(k)!).push(v); }
+  for (const list of ranked.values()) list.sort(byScore);
+  const nearCities = new Map<number, { id: number; km: number }[]>();
+  const citiesWithVendors = [...new Set(vendors.map((v) => v.city_id))];
+  const nearOf = (cityId: number) => nearCities.get(cityId) ?? nearCities.set(cityId, citiesWithVendors
+    .map((id) => ({ id, km: id === cityId ? 0 : kmBetween(cityById.get(cityId)!, cityById.get(id)!) ?? Infinity }))
+    .filter((c) => c.km <= 80).sort((a, b) => a.km - b.km)).get(cityId)!;
+  const nearbyFor = (v: Vendor, n = 6) => {
+    const bands: Vendor[][] = [[], [], []];
+    for (const c of nearOf(v.city_id)) {
+      const band = c.km === 0 ? 0 : c.km <= 30 ? 1 : 2;
+      for (const x of (ranked.get(`${c.id}:${v.category_id}`) ?? []).slice(0, n + 1)) if (x.id !== v.id) bands[band].push(x);
+    }
+    return bands.flatMap((b) => b.sort(byScore)).slice(0, n);
+  };
   const kmFrom = (from: number, to: number) => (from === to ? 0 : kmBetween(cityById.get(from)!, cityById.get(to)!));
-  const nearbyFor = (v: Vendor, n = 6) => vendors
-    .filter((x) => x.id !== v.id && x.category_id === v.category_id)
-    .map((x) => ({ x, km: kmFrom(v.city_id, x.city_id) }))
-    .filter((c) => c.km != null && c.km <= 80)
-    .map((c) => ({ ...c, band: c.km === 0 ? 0 : c.km! <= 30 ? 1 : 2, s: score(c.x) }))
-    .sort((a, b) => a.band - b.band || b.s - a.s || a.x.slug.localeCompare(b.x.slug))
-    .slice(0, n).map((c) => c.x);
   // "Complete your team in <city>": the most popular vendor of each other category in the same city.
   const teamFor = (v: Vendor, n = 6) => d.categories.filter((c) => c.id !== v.category_id && categoryById.has(c.id))
-    .map((c) => vendors.filter((x) => x.city_id === v.city_id && x.category_id === c.id).sort((a, b) => score(b) - score(a) || a.slug.localeCompare(b.slug))[0])
-    .filter(Boolean).slice(0, n) as Vendor[];
+    .map((c) => ranked.get(`${v.city_id}:${c.id}`)?.[0]).filter(Boolean).slice(0, n) as Vendor[];
   const listingsByCategory = group(listings, (l) => l.category.id);
 
   const packagesByVendor = group(d.packages, (p) => p.vendor_id);
@@ -214,11 +222,11 @@ function build(d: Awaited<ReturnType<typeof load>>) {
 
   return {
     countries: d.countries, regions, cities, activeCities, categories: d.categories,
-    vendors, richVendors, vendorById, vendorBySlug, listings, listingsByCity, listingsByCategory,
+    vendors, isRich, vendorIndexable, vendorById, vendorBySlug, listings, listingsByCity, listingsByCategory,
     countryByCode, regionById, cityById, categoryById,
     packagesByVendor, photosByVendor, reviewsByVendor,
     minToIndex, budgetBands, urls, cityVendorCount,
-    styleListings, contentByPath, nearbyFor, teamFor,
+    styleListings, contentByPath, nearbyFor, teamFor, kmFrom,
     posts, postsByAuthor, blogCategories, blogCategoryById, postsByCategory, commentsByPost, guidesFor, relatedPosts,
   };
 }

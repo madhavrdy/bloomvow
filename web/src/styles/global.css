@@ -118,7 +118,7 @@ details.faq p { margin: 10px 0 0; color: var(--ink-2); }
 @media (max-width: 640px) {
   .wrap { padding: 0 16px; }
   .nav { display: none; }
-  .site-header .wrap { flex-wrap: nowrap; gap: 8px; }
+  .site-header .wrap { flex-wrap: wrap; gap: 8px; }
   .site-header .logo { font-size: 26px; margin-right: auto; }
   .site-header .btn { padding: 0 14px; font-size: 14px; white-space: nowrap; }
 }
@@ -150,3 +150,4 @@ details.faq p { margin: 10px 0 0; color: var(--ink-2); }
 .styles-nav a[aria-current] { background: var(--ink); color: #fff; border-color: var(--ink); }
 .vcard-cat { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--rose-dark); }
 .nearby-more { margin-top: 12px; }
+.nap { font-style: normal; display: flex; flex-direction: column; gap: 6px; font-size: 16px; line-height: 1.5; }

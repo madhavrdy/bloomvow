@@ -1,13 +1,14 @@
 ---
+import { fmtDay } from '../../lib/content';
 import Base from '../../layouts/Base.astro';
 import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import VendorCard from '../../components/VendorCard.astro';
 import { getData, money, replyLabel, rankVendors, type Vendor } from '../../lib/data';
-import { vendorJsonLd, breadcrumbJsonLd } from '../../lib/seo';
+import { vendorJsonLd, breadcrumbJsonLd, faqJsonLd } from '../../lib/seo';
 
 export async function getStaticPaths() {
   const d = await getData();
-  return d.richVendors.map((v) => ({ params: { slug: v.slug }, props: { v } }));
+  return d.vendors.map((v) => ({ params: { slug: v.slug }, props: { v } }));
 }
 
 interface Props { v: Vendor }
@@ -29,10 +30,30 @@ const st = region.code.toUpperCase();
 const crumbs = [
   { name: 'Home', url: '/' },
   { name: region.name, url: d.urls.region(region) },
-  { name: `${city.name} ${cat.name.toLowerCase()}`, url: listing.url },
+  { name: city.name, url: d.urls.city(city) },
+  { name: cat.name, url: listing.url },
   { name: v.name },
 ];
-const desc = (v.description ?? `${v.name} is a ${cat.singular.toLowerCase()} in ${city.name}, ${st}.`).slice(0, 150) + ' Check pricing and availability.';
+const singular = cat.singular.toLowerCase();
+const article = /^[aeiou]/i.test(singular) ? 'an' : 'a';
+const where = `${city.name}, ${region.name}`;
+const desc = v.description?.trim()
+  ? `${v.description.trim().slice(0, 140)}… Request pricing and availability.`
+  : `${v.name} is ${article} ${singular} in ${where}.${v.phone ? ` Phone ${v.phone}.` : ''} See location, contact details and similar ${plural} nearby, and request pricing for your date.`;
+const webHost = v.website ? (() => { try { return new URL(v.website!).host.replace(/^www\./, ''); } catch { return null; } })() : null;
+const others = listing.vendors.length - 1;
+const about = v.description?.trim() || [
+  `${v.name} is ${article} ${singular} based in ${where}${v.address ? `, at ${v.address}` : ''}.`,
+  `Couples planning a wedding in ${city.name} can contact them directly${v.phone ? ` on ${v.phone}` : ''}${webHost ? ` or through their website, ${webHost}` : ''}, or send one request here to check pricing and availability for their date.`,
+  others > 0 ? `To compare options, browse ${others} other ${plural} in ${city.name}.` : '',
+].filter(Boolean).join(' ');
+const faqs = [
+  { q: `Where is ${v.name} located?`, a: v.address ? `${v.name} is at ${v.address}, ${city.name}, ${st}${v.zip ? ` ${v.zip}` : ''}.` : `${v.name} is based in ${city.name}, ${region.name}.` },
+  ...(v.phone || webHost ? [{ q: `How do I contact ${v.name}?`, a: [v.phone && `Call ${v.phone}`, webHost && `visit ${webHost}`].filter(Boolean).join(' or ') + `, or use the "Check availability & pricing" form on this page to send your date and guest count.` }] : []),
+  { q: `How much does ${v.name} cost?`, a: v.price_from != null ? `Pricing starts from ${money(v.price_from)}. Final prices depend on your date, guest count and package; request a quote for an exact price.` : `${v.name} hasn't published prices yet. Send a free request with your date and guest count to get a quote.` },
+  ...(cat.uses_capacity && v.capacity_max ? [{ q: `How many guests can ${v.name} host?`, a: `Up to ${v.capacity_max} guests.` }] : []),
+];
+const updated = v.updated_at;
 const fmtDate = (s: string | null) => (s ? new Date(s).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '');
 const today = new Date().toISOString().slice(0, 10);
 const facts = [
@@ -42,14 +63,15 @@ const facts = [
   reply && ['Typical reply', `Within ${reply}`],
 ].filter(Boolean) as [string, string][];
 ---
-<Base title={`${v.name}: ${cat.singular} in ${city.name}, ${st}`} description={desc} jsonld={[vendorJsonLd(Astro.site, d, v), breadcrumbJsonLd(Astro.site, crumbs)]}>
+<Base title={`${v.name} – ${cat.singular} in ${city.name}, ${st}`} description={desc} noindex={!d.vendorIndexable(v)} image={photos[0]?.url}
+  jsonld={[vendorJsonLd(Astro.site, d, v), breadcrumbJsonLd(Astro.site, crumbs), faqJsonLd(faqs)]}>
   <main class="wrap" style="padding-top:20px" data-vendor-page={v.id}>
     <Breadcrumbs items={crumbs} />
-    <div class="gallery">
-      {photos.length
-        ? photos.slice(0, 5).map((p, i) => <img src={p.url} alt={p.alt ?? `${v.name} photo ${i + 1}`} class={i === 0 ? 'big' : ''} loading={i === 0 ? 'eager' : 'lazy'} width="600" height="400" />)
-        : [0, 1, 2, 3, 4].map((i) => <div class={`ph ph-${i} ${i === 0 ? 'big' : ''}`} aria-hidden="true" />)}
-    </div>
+    {photos.length > 0 && (
+      <div class="gallery">
+        {photos.slice(0, 5).map((p, i) => <img src={p.url} alt={p.alt ?? `${v.name} photo ${i + 1}`} class={i === 0 ? 'big' : ''} loading={i === 0 ? 'eager' : 'lazy'} width="600" height="400" />)}
+      </div>
+    )}
 
     <div class="layout">
       <div class="main">
@@ -61,7 +83,7 @@ const facts = [
           <h1 class="serif" style="font-size:clamp(38px,5vw,56px);margin:0;line-height:1">{v.name}</h1>
           <div style="display:flex;flex-wrap:wrap;gap:8px 16px;font-size:15px;color:var(--ink-2)">
             {v.rating && <span><b style="color:var(--ink)">★ {Number(v.rating).toFixed(1)}</b> ({v.review_count} reviews)</span>}
-            <span>{cat.singular} · {city.name}, {st}</span>
+            <span><a href={listing.url}>{cat.singular}</a> in <a href={d.urls.city(city)}>{city.name}, {st}</a></span>
           </div>
           <div class="contact">
             {v.phone && <a class="btn btn-outline" href={`tel:${v.phone.replace(/[^\d+]/g, '')}`} data-track="click_phone">Call {v.phone}</a>}
@@ -76,14 +98,24 @@ const facts = [
         {facts.length > 0 && <div class="facts">{facts.map(([k, val]) => <div><span>{k}</span><b>{val}</b></div>)}</div>}
 
         <nav class="tabs" aria-label="Profile sections">
-          <a href="#about">About</a>{packages.length > 0 && <a href="#pricing">Pricing</a>}<a href="#reviews">Reviews</a>
+          <a href="#about">About</a><a href="#location">Location</a>{packages.length > 0 && <a href="#pricing">Pricing</a>}<a href="#reviews">Reviews</a><a href="#faqs">FAQs</a>
         </nav>
 
         <section id="about">
           <h2 class="serif">About {v.name}</h2>
-          {v.description ? <p style="font-size:16px;line-height:1.65;color:#3a3447;white-space:pre-line">{v.description}</p> : <p class="muted">This business hasn't added a description yet.</p>}
+          <p style="font-size:16px;line-height:1.65;color:#3a3447;white-space:pre-line">{about}</p>
           {v.amenities.length > 0 && <ul class="amen">{v.amenities.map((a) => <li>{a}</li>)}</ul>}
-          {v.address && <p class="muted">{v.address}, {city.name}, {st} {v.zip}</p>}
+        </section>
+
+        <section id="location">
+          <h2 class="serif">Location &amp; contact</h2>
+          <address class="nap">
+            <b>{v.name}</b>
+            <span>{v.address && <>{v.address}<br /></>}{city.name}, {region.name}{v.zip && ` ${v.zip}`}</span>
+            {v.phone && <span>Phone: <a href={`tel:${v.phone.replace(/[^\d+]/g, '')}`} data-track="click_phone">{v.phone}</a></span>}
+            {webHost && <span>Website: <a href={v.website!} target="_blank" rel="noopener nofollow" data-track="click_website">{webHost}</a></span>}
+          </address>
+          <p class="updated">Listing last updated <time datetime={updated}>{fmtDay(updated)}</time></p>
         </section>
 
         {packages.length > 0 && (
@@ -121,6 +153,11 @@ const facts = [
               <p>{r.body}</p>
             </article>
           )) : <p class="muted">No reviews yet. Worked with {v.name}? Be the first to review.</p>}
+        </section>
+
+        <section id="faqs">
+          <h2 class="serif">{v.name}: FAQs</h2>
+          {faqs.map((f, i) => <details class="faq" open={i === 0}><summary>{f.q}</summary><p>{f.a}</p></details>)}
         </section>
 
         {v.status === 'unclaimed' && (

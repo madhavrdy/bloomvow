@@ -164,13 +164,10 @@ test('vendor pages: "More … near …" ranked by location then popularity, and 
   assert.ok(firstOther === -1 || cities.slice(firstOther).every((c) => c !== 'Austin'), `same city first: ${cities.join(',')}`);
   assert.match(h.slice(h.indexOf('id="team-h"')), /class="vcard-cat"[^>]*>Wedding photographer</);
 
-  // Shared page for basic listings loads the same sections from the database.
+  // Basic (open-data) listings get the same sections on their own page.
+  const b = html('vendor/open-data-florals-austin/index.html');
+  assert.match(b, /More wedding florists near Austin/);
+  assert.match(b, /Complete your wedding team in Austin/);
   const p = await page();
-  await p.goto(`${SITE}/vendor/?v=open-data-florals-austin`);
-  await p.locator('#bv-nearby-h:has-text("More wedding florists near Austin")').waitFor();
-  const near = await p.locator('#bv-nearby .vcard b').allTextContents();
-  assert.ok(near.length > 0 && !near.includes('Open Data Florals'));
-  await p.locator('#bv-team-h:has-text("Complete your wedding team in Austin")').waitFor();
-  assert.ok(await p.locator('#bv-team .vcard-cat').count() > 0);
   assert.deepEqual(p.errors, []);
 });

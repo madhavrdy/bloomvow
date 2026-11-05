@@ -89,18 +89,29 @@ test('planning guides on matching city pages, RSS and sitemap index', async () =
   const sm = html('sitemap-1.xml');
   assert.match(sm, /\/blog\/how-much-does-a-wedding-venue-cost-in-austin\//);
   assert.match(sm, /\/blog\/category\/budget\//);
-  assert.ok(!sm.includes('open-data-florals'), 'basic listings stay out of the sitemap');
+  assert.ok(sm.includes('/vendor/open-data-florals-austin/'), 'every useful vendor page is in the sitemap');
 });
 
-test('basic listing: no built page, shared noindex page loads details and sends a lead', async () => {
-  assert.ok(!fs.existsSync(path.join(DIST, 'vendor/open-data-florals-austin/index.html')));
-  assert.match(html('vendor/index.html'), /noindex/);
-  assert.match(html('us/texas/austin/florists/index.html'), /href="\/vendor\/\?v=open-data-florals-austin"/);
+test('basic listing: its own static, indexable page with business schema and FAQs; still takes leads', async () => {
+  const h = html('vendor/open-data-florals-austin/index.html');
+  assert.ok(!/name="robots"/.test(h), 'indexable: it has a phone and website');
+  assert.match(h, /<title>Open Data Florals – Wedding florist in Austin, TX \| Bloomvow<\/title>/);
+  assert.match(h, /<h1[^>]*>Open Data Florals<\/h1>/);
+  const ld = [...h.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
+  const biz = ld.find((j) => j['@type'] === 'Florist');
+  assert.equal(biz.telephone, '+1 512-555-0142');
+  assert.deepEqual(biz.sameAs, ['https://opendataflorals.example']);
+  assert.equal(biz.address.streetAddress, '200 Congress Ave');
+  assert.ok(ld.some((j) => j['@type'] === 'FAQPage' && j.mainEntity[0].name === 'Where is Open Data Florals located?'));
+  assert.deepEqual(ld.find((j) => j['@type'] === 'BreadcrumbList').itemListElement.map((x) => x.name), ['Home', 'Texas', 'Austin', 'Wedding florists', 'Open Data Florals']);
+  assert.match(h, /<address class="nap"[^>]*>[\s\S]*200 Congress Ave[\s\S]*opendataflorals\.example/);
+  assert.match(h, /Open Data Florals is a wedding florist based in Austin, Texas, at 200 Congress Ave\./, 'factual About text');
+  assert.match(html('us/texas/austin/florists/index.html'), /href="\/vendor\/open-data-florals-austin\/"/);
+  assert.match(html('sitemap-1.xml'), /\/vendor\/open-data-florals-austin\//);
+
   const p = await page();
   await p.goto(`${SITE}/vendor/?v=open-data-florals-austin`);
-  await p.locator('#bv-name:has-text("Open Data Florals")').waitFor();
-  assert.match(await p.title(), /Open Data Florals: Wedding florist in Austin, TX/);
-  assert.equal(await p.locator('#bv-phone').getAttribute('href'), 'tel:+15125550142');
+  await p.waitForURL(/\/vendor\/open-data-florals-austin\/$/);   // old shared links redirect
   await p.fill('#lead-form [name=couple_name]', 'Ana & Leo');
   await p.fill('#lead-form [name=email]', 'ana.leo@example.com');
   await p.click('#lead-form button[type=submit]');
@@ -110,4 +121,15 @@ test('basic listing: no built page, shared noindex page loads details and sends 
   await p.goto(`${SITE}/vendor/?v=does-not-exist`);
   await p.locator('#bv-missing:has-text("Vendor not found")').waitFor();
   assert.deepEqual(p.errors, []);
+});
+
+test('a vendor added after the last build still opens (404 hands over to the shared page)', async () => {
+  await q(`insert into vendors (slug, name, category_id, city_id, phone, status, source) values ('brand-new-cakes-austin', 'Brand New Cakes',
+    (select id from categories where slug = 'wedding-cakes'), (select id from cities where name = 'Austin'), '+1 512-555-0199', 'unclaimed', 'overture')`);
+  const p = await page();
+  await p.goto(`${SITE}/vendor/brand-new-cakes-austin/`);
+  await p.waitForURL(/\/vendor\/\?v=brand-new-cakes-austin$/);
+  await p.locator('#bv-name:has-text("Brand New Cakes")').waitFor();
+  await p.locator('#bv-nearby-h:has-text("More wedding cakes near Austin")').waitFor();
+  await p.locator('#bv-team-h:has-text("Complete your wedding team in Austin")').waitFor();
 });

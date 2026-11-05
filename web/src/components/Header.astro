@@ -2,11 +2,20 @@
 import { SITE_NAME } from '../config';
 import { getData } from '../lib/data';
 const d = await getData();
-const top = d.categories.slice(0, 6);
+const top = d.categories.slice(0, 2);
 ---
 <header class="site-header">
   <div class="wrap">
     <a href="/" class="logo">{SITE_NAME}</a>
+    <form id="hsearch" class="hsearch" role="search" action="/search/" autocomplete="off">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input name="q" type="search" placeholder="Search vendors, venues or cities" aria-label="Search vendors, venues or cities"
+        role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="hsearch-list" enterkeyhint="search" />
+      <ul id="hsearch-list" class="hsearch-list" role="listbox" aria-label="Suggestions" hidden></ul>
+    </form>
+    <button type="button" id="hsearch-toggle" class="icon-btn hsearch-toggle" aria-label="Search" aria-expanded="false" aria-controls="hsearch">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    </button>
     <nav class="nav" aria-label="Categories">
       {top.map((c) => <a href={`/categories/${c.slug}/`}>{c.name.replace(/^Wedding /, '').replace(/^./, (s) => s.toUpperCase())}</a>)}
       <a href="/categories/">More</a>
@@ -16,23 +25,49 @@ const top = d.categories.slice(0, 6);
       <summary class="btn btn-outline" aria-label="Open menu">Menu</summary>
       <div class="mobile-panel">
         {d.categories.map((c) => <a href={`/categories/${c.slug}/`}>{c.name}</a>)}
+        <a href="/search/">Search</a>
         <a href="/blog/">Wedding planning blog</a>
         <a href="/for-vendors/">For vendors</a>
       </div>
     </details>
     <a href="/for-vendors/" class="hide-sm" style="font-size:15px;font-weight:500;text-decoration:none">For vendors</a>
-    <a href="/get-matched/" class="btn btn-primary">Get free quotes</a>
+    <a href="/get-matched/" class="btn btn-primary"><span class="hide-xs">Get free quotes</span><span class="show-xs">Get quotes</span></a>
   </div>
 </header>
+<script>
+  import { initSiteSearch } from '../scripts/site-search';
+  initSiteSearch();
+</script>
 <style>
+  .hsearch { position: relative; flex: 1 1 260px; max-width: 380px; display: flex; align-items: center; gap: 8px; border: 1px solid var(--line-2);
+    border-radius: 999px; padding: 0 14px; height: 44px; background: #fff; color: var(--ink-3); }
+  .hsearch:focus-within { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(31, 26, 46, .08); }
+  .hsearch input { border: 0; outline: 0; font: inherit; font-size: 15px; width: 100%; background: none; color: var(--ink); min-width: 0; }
+  .hsearch input::-webkit-search-cancel-button { cursor: pointer; }
+  .hsearch-list { position: absolute; top: 50px; left: 0; right: 0; z-index: 30; list-style: none; margin: 0; padding: 6px; background: #fff;
+    border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 16px 40px rgba(31, 26, 46, .14); max-height: min(70vh, 460px); overflow: auto; min-width: 300px; }
+  .hsearch-list :global(li a) { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; padding: 10px 10px; border-radius: 10px; text-decoration: none; color: var(--ink); font-size: 15px; }
+  .hsearch-list :global(li[aria-selected="true"] a), .hsearch-list :global(li a:hover) { background: var(--rose-soft); }
+  .hsearch-list :global(.hs-k) { flex-basis: 100%; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--rose-dark); }
+  .hsearch-list :global(.hs-all) { color: var(--rose-dark); font-weight: 600; }
+  .hsearch-toggle { display: none; }
+  @media (max-width: 960px) { .nav { display: none; } }
+  .nav { flex-wrap: nowrap; white-space: nowrap; flex: 0 1 auto; }
+  @media (max-width: 640px) {
+    .hsearch { display: none; order: 10; flex: 1 1 100%; max-width: none; margin-top: 8px; }
+    :global(body.search-open) .hsearch { display: flex; }
+    .hsearch-toggle { display: inline-flex; }
+    .hsearch input { font-size: 16px; }   /* stops iOS zooming in on focus */
+  }
   .mobile-menu { display: none; position: relative; }
   .mobile-menu summary { list-style: none; }
   .mobile-menu summary::-webkit-details-marker { display: none; }
   .mobile-panel { position: absolute; z-index: 20; top: 52px; right: 0; background: #fff; border: 1px solid var(--line); border-radius: 14px;
     padding: 12px; width: 260px; display: flex; flex-direction: column; box-shadow: 0 16px 40px rgba(31, 26, 46, .12); }
   .mobile-panel a { padding: 10px 8px; text-decoration: none; }
-  @media (max-width: 640px) {
-    .mobile-menu { display: block; }
-    .hide-sm { display: none; }
-  }
+  @media (max-width: 960px) { .mobile-menu { display: block; } }
+  @media (max-width: 640px) { .hide-sm { display: none; } }
+  .show-xs { display: none; }
+  @media (max-width: 420px) { .hide-xs { display: none; } .show-xs { display: inline; } }
+  @media (min-width: 961px) and (max-width: 1180px) { .hide-sm { display: none; } .hsearch { max-width: 300px; } }
 </style>

@@ -44,7 +44,7 @@ type Row = { id: string; slug: string; name: string; city: string; st: string; s
 const esc = (t: unknown) => String(t ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
 const usd = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
 export function rowHtml(v: Row, i: number, usesCapacity: boolean): string {
-  const url = v.has_page ? `/vendor/${v.slug}/` : `/vendor/?v=${v.slug}`;
+  const url = `/vendor/${v.slug}/`;
   return `<div class="item db-item"><article class="vrow" data-vendor="${esc(v.id)}">
   <a href="${url}" class="vrow-media ${v.photo ? '' : `ph ph-${i % 5}`}" aria-label="${esc(v.name)} photos">${v.photo ? `<img src="${esc(v.photo)}" alt="${esc(v.name)}" loading="lazy" decoding="async" width="480" height="320">` : ''}${v.featured ? '<span class="badge badge-white">Featured</span>' : ''}</a>
   <div class="vrow-body"><div class="vrow-top"><h3 style="margin:0"><a href="${url}" class="vrow-name">${esc(v.name)}</a></h3>${v.rating ? `<span style="font-size:14px"><b>★ ${Number(v.rating).toFixed(1)}</b> <span class="muted">(${v.review_count})</span></span>` : ''}</div>

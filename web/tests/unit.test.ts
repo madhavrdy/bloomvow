@@ -108,7 +108,7 @@ test('rows from the API are escaped and link to the right profile page', () => {
     rating: 4.8, review_count: 3, featured: false, description: 'A & B', photo: null, has_page: false };
   const html = rowHtml(v, 0, true);
   assert.ok(!html.includes('<img src=x'), 'name is escaped');
-  assert.match(html, /href="\/vendor\/\?v=x-y"/);
+  assert.match(html, /href="\/vendor\/x-y\/"/, 'every vendor has its own page');
   assert.match(html, /Up to <b>120<\/b> guests/);
   assert.match(html, /\$4,500/);
   assert.match(rowHtml({ ...v, has_page: true }, 0, false), /href="\/vendor\/x-y\/"/);
@@ -125,4 +125,22 @@ test('venue styles match names and settings', () => {
   assert.ok(by('vineyard').test({ name: 'Duchman Family Winery', setting: null }));
   assert.ok(by('outdoor').test({ name: 'Anything', setting: 'Indoor + outdoor' }));
   assert.ok(!by('waterfront').test({ name: 'Downtown Loft', setting: null }));
+});
+
+import { matchPages } from '../src/scripts/site-search';
+test('header search: every word must start a word in the title, common aliases work, bigger pages first', () => {
+  const idx = [
+    { t: 'Wedding venues in Austin, TX', u: '/a/', k: 'Listing', w: 40 },
+    { t: 'Wedding venues in Round Rock, TX', u: '/rr/', k: 'Vendors', w: 9 },
+    { t: 'Wedding photographers in Austin, TX', u: '/ap/', k: 'Vendors', w: 30 },
+    { t: 'Barn & ranch wedding venues in Austin', u: '/ab/', k: 'Venue style', w: 12 },
+    { t: 'New York City, NY', u: '/nyc/', k: 'City', w: 1500 },
+  ];
+  assert.deepEqual(matchPages(idx, 'venues austin').map((e) => e.u), ['/a/', '/ab/']);
+  assert.deepEqual(matchPages(idx, 'venue').map((e) => e.u), ['/a/', '/ab/', '/rr/'], 'singular finds plural');
+  assert.deepEqual(matchPages(idx, 'Photographer in Aus').map((e) => e.u), ['/ap/']);
+  assert.deepEqual(matchPages(idx, 'barn').map((e) => e.u), ['/ab/']);
+  assert.deepEqual(matchPages(idx, 'nyc').map((e) => e.u), ['/nyc/']);
+  assert.deepEqual(matchPages(idx, 'wedding'), [], 'filler words alone match nothing');
+  assert.deepEqual(matchPages(idx, 'xyz'), []);
 });

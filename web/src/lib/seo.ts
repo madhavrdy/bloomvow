@@ -76,9 +76,15 @@ export function vendorJsonLd(site: URL | undefined, d: SiteData, v: Vendor) {
   const region = d.regionById.get(city.region_id)!;
   const cat = d.categoryById.get(v.category_id)!;
   const photos = d.photosByVendor.get(v.id) ?? [];
-  const type = cat.slug === 'wedding-venues' ? 'EventVenue' : cat.slug === 'caterers' || cat.slug === 'wedding-cakes' ? 'FoodEstablishment' : 'LocalBusiness';
+  // The most specific schema.org type for each category (search engines use it to understand the business).
+  const type = ({ 'wedding-venues': 'EventVenue', caterers: 'FoodEstablishment', 'wedding-cakes': 'Bakery', florists: 'Florist',
+    'hair-makeup': 'BeautySalon', 'bridal-shops': 'ClothingStore', 'transportation': 'AutoRental', invitations: 'Store' } as Record<string, string>)[cat.slug] ?? 'LocalBusiness';
+  const page = new URL(d.urls.vendor(v), site).href;
   return {
-    '@context': 'https://schema.org', '@type': type, name: v.name, url: new URL(d.urls.vendor(v), site).href,
+    '@context': 'https://schema.org', '@type': type, '@id': `${page}#business`, name: v.name, url: page, mainEntityOfPage: page,
+    ...(v.website ? { sameAs: [v.website] } : {}),
+    areaServed: { '@type': 'City', name: `${city.name}, ${region.name}` },
+    knowsAbout: cat.name,
     ...(v.description ? { description: v.description } : {}),
     ...(v.phone ? { telephone: v.phone } : {}),
     ...(photos.length ? { image: photos.map((p) => p.url) } : {}),

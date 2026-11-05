@@ -21,7 +21,7 @@ export async function allUrls() {
   for (const p of d.posts) urls.push({ loc: d.urls.post(p), lastmod: p.updated_at.slice(0, 10) });
   for (const [name] of d.postsByAuthor) urls.push({ loc: d.urls.author(name) });
   for (const x of d.styleListings) urls.push({ loc: x.url, lastmod: x.vendors.reduce((m, v) => (v.updated_at > m ? v.updated_at : m), '').slice(0, 10) });
-  for (const v of d.richVendors) urls.push({ loc: d.urls.vendor(v), lastmod: v.updated_at.slice(0, 10) });
+  for (const v of d.vendors.filter(d.vendorIndexable)) urls.push({ loc: d.urls.vendor(v), lastmod: v.updated_at.slice(0, 10) });
 
   return urls;
 }

@@ -1,0 +1,45 @@
+---
+import Base from '../../layouts/Base.astro';
+---
+<Base title="Search" description="Search wedding vendors, venues, cities and planning guides." noindex>
+  <main class="wrap" style="padding:24px 0 64px;min-height:60vh">
+    <h1 class="serif" style="font-size:clamp(34px,5vw,48px);margin:8px 0 16px">Search</h1>
+    <form id="search-page" role="search" class="sp-form" action="/search/">
+      <input name="q" type="search" class="sp-input" placeholder="Try “barn venues Austin” or a vendor's name" aria-label="Search" enterkeyhint="search" />
+      <button class="btn btn-primary" type="submit">Search</button>
+    </form>
+    <p id="sp-status" class="muted" aria-live="polite"></p>
+    <section id="sp-pages" hidden><h2>Pages</h2><ul class="sp-list"></ul></section>
+    <section id="sp-vendors" hidden><h2>Vendors</h2><ul class="sp-list"></ul></section>
+    <p id="sp-empty" hidden>No matches. Try a city name (like “Nashville”) or a type of vendor (like “photographers”), or <a href="/get-matched/">tell us what you need</a> and we'll find vendors for you.</p>
+  </main>
+</Base>
+<script>
+  import { loadIndex, matchPages, findVendors } from '../../scripts/site-search';
+  const q = new URLSearchParams(location.search).get('q')?.trim() ?? '';
+  const form = document.getElementById('search-page') as HTMLFormElement;
+  (form.querySelector('input') as HTMLInputElement).value = q;
+  const esc = (t: string) => t.replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
+  if (q) {
+    document.title = `Search: ${q}`;
+    const status = document.getElementById('sp-status')!;
+    status.textContent = 'Searching…';
+    const [pages, vendors] = await Promise.all([loadIndex().then((i) => matchPages(i, q, 20)), findVendors(q, 30).catch(() => [])]);
+    const fill = (id: string, rows: string[]) => {
+      const sec = document.getElementById(id)!; sec.hidden = rows.length === 0;
+      sec.querySelector('ul')!.innerHTML = rows.join('');
+    };
+    fill('sp-pages', pages.map((p) => `<li><a href="${p.u}">${esc(p.t)}</a> <span class="muted">${esc(p.k)}${p.k === 'Listing' ? ` · ${p.w} vendors` : ''}</span></li>`));
+    fill('sp-vendors', vendors.map((v) => `<li><a href="/vendor/${esc(v.slug)}/">${esc(v.name)}</a> <span class="muted">${esc(v.cat)} · ${esc(v.city)}, ${esc(v.st)}</span></li>`));
+    status.textContent = `${pages.length + vendors.length} result${pages.length + vendors.length === 1 ? '' : 's'} for “${q}”`;
+    document.getElementById('sp-empty')!.hidden = pages.length + vendors.length > 0;
+  }
+</script>
+<style>
+  .sp-form { display: flex; gap: 10px; flex-wrap: wrap; max-width: 680px; }
+  .sp-input { flex: 1 1 260px; font: inherit; font-size: 16px; height: 52px; padding: 0 18px; border: 1px solid var(--line-2); border-radius: 999px; }
+  .sp-list { list-style: none; padding: 0; margin: 0 0 24px; display: flex; flex-direction: column; }
+  .sp-list :global(li) { padding: 12px 0; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+  .sp-list :global(a) { font-weight: 600; font-size: 17px; }
+  section h2 { font-size: 20px; margin: 24px 0 4px; }
+</style>

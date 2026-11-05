@@ -8,3 +8,7 @@ import Base from '../layouts/Base.astro';
     <p style="display:flex;gap:12px;flex-wrap:wrap"><a class="btn btn-primary" href="/">Search vendors</a><a class="btn btn-outline" href="/get-matched/">Get matched</a></p>
   </main>
 </Base>
+<script is:inline>
+  // A vendor added since the last site build has no page yet: show it on the shared vendor page.
+  (function () { var m = location.pathname.match(/^\/vendor\/([a-z0-9-]+)\/?$/); if (m) location.replace('/vendor/?v=' + m[1]); })();
+</script>
