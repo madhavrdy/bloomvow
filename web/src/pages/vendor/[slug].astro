@@ -3,7 +3,7 @@ import { fmtDay } from '../../lib/content';
 import Base from '../../layouts/Base.astro';
 import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import VendorCard from '../../components/VendorCard.astro';
-import { getData, money, replyLabel, rankVendors, type Vendor } from '../../lib/data';
+import { getData, money, replyLabel, rankVendors, telHref, type Vendor } from '../../lib/data';
 import { vendorJsonLd, breadcrumbJsonLd, faqJsonLd } from '../../lib/seo';
 
 export async function getStaticPaths() {
@@ -86,7 +86,7 @@ const facts = [
             <span><a href={listing.url}>{cat.singular}</a> in <a href={d.urls.city(city)}>{city.name}, {st}</a></span>
           </div>
           <div class="contact">
-            {v.phone && <a class="btn btn-outline" href={`tel:${v.phone.replace(/[^\d+]/g, '')}`} data-track="click_phone">Call {v.phone}</a>}
+            {v.phone && <a class="btn btn-outline" href={telHref(v.phone)} data-track="click_phone">Call {v.phone}</a>}
             {v.website && <a class="btn btn-outline" href={v.website} target="_blank" rel="noopener nofollow" data-track="click_website">Website ↗</a>}
             {v.address && <a class="btn btn-outline" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${v.name} ${v.address} ${city.name} ${st}`)}`} target="_blank" rel="noopener" data-track="click_directions">Directions</a>}
             <button type="button" class="icon-btn" data-shortlist={v.id} data-name={v.name} data-url={d.urls.vendor(v)} aria-pressed="false" aria-label="Save to shortlist">
@@ -112,7 +112,7 @@ const facts = [
           <address class="nap">
             <b>{v.name}</b>
             <span>{v.address && <>{v.address}<br /></>}{city.name}, {region.name}{v.zip && ` ${v.zip}`}</span>
-            {v.phone && <span>Phone: <a href={`tel:${v.phone.replace(/[^\d+]/g, '')}`} data-track="click_phone">{v.phone}</a></span>}
+            {v.phone && <span>Phone: <a href={telHref(v.phone)} data-track="click_phone">{v.phone}</a></span>}
             {webHost && <span>Website: <a href={v.website!} target="_blank" rel="noopener nofollow" data-track="click_website">{webHost}</a></span>}
           </address>
           <p class="updated">Listing last updated <time datetime={updated}>{fmtDay(updated)}</time></p>
@@ -205,7 +205,7 @@ const facts = [
     </div>
   </main>
   <div class="mbar">
-    {v.phone && <a class="icon-btn" href={`tel:${v.phone.replace(/[^\d+]/g, '')}`} data-track="click_phone" aria-label={`Call ${v.name}`}>
+    {v.phone && <a class="icon-btn" href={telHref(v.phone)} data-track="click_phone" aria-label={`Call ${v.name}`}>
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg></a>}
     <a href="#lead" class="btn btn-primary btn-lg" style="flex:1">Request pricing</a>
   </div>

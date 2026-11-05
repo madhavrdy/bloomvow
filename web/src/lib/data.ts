@@ -62,6 +62,11 @@ export function kmBetween(a: { lat: number | null; lng: number | null }, b: { la
   return 12742 * Math.asin(Math.sqrt(h));
 }
 
+export { formatPhone, telHref } from './phone';
+import { formatPhone } from './phone';
+// Small stable hash, used to vary the order of equally popular vendors from page to page.
+const hash = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
+
 export function rankVendors(list: Vendor[]): Vendor[] {
   return [...list].sort((a, b) =>
     Number(b.featured) - Number(a.featured) ||
@@ -120,6 +125,7 @@ function build(d: Awaited<ReturnType<typeof load>>) {
   const hiddenIn = new Set(d.hidden.map((h) => `${h.country_code}:${h.category_id}`));
   const countryOfCity = (cityId: number) => regionById.get(cityById.get(cityId)!.region_id)!.country_code;
   const shownIn = (cityId: number, catId: number) => !hiddenIn.has(`${countryOfCity(cityId)}:${catId}`);
+  for (const v of d.vendors) v.phone = formatPhone(v.phone);
   const vendors = d.vendors.filter((v) => cityById.has(v.city_id) && categoryById.has(v.category_id) && shownIn(v.city_id, v.category_id));
   const vendorById = new Map(vendors.map((v) => [v.id, v]));
   // Every vendor gets its own static, crawlable page at /vendor/<slug>/. A page is
@@ -203,14 +209,18 @@ function build(d: Awaited<ReturnType<typeof load>>) {
     const bands: Vendor[][] = [[], [], []];
     for (const c of nearOf(v.city_id)) {
       const band = c.km === 0 ? 0 : c.km <= 30 ? 1 : 2;
-      for (const x of (ranked.get(`${c.id}:${v.category_id}`) ?? []).slice(0, n + 1)) if (x.id !== v.id) bands[band].push(x);
+      for (const x of ranked.get(`${c.id}:${v.category_id}`) ?? []) if (x.id !== v.id) bands[band].push(x);
     }
-    return bands.flatMap((b) => b.sort(byScore)).slice(0, n);
+    // Equally popular vendors are shuffled per page (stable between builds), so links spread across all vendors.
+    const tie = (a: Vendor, b: Vendor) => score(b) - score(a) || hash(v.id + a.id) - hash(v.id + b.id);
+    return bands.flatMap((b) => b.sort(tie)).slice(0, n);
   };
   const kmFrom = (from: number, to: number) => (from === to ? 0 : kmBetween(cityById.get(from)!, cityById.get(to)!));
   // "Complete your team in <city>": the most popular vendor of each other category in the same city.
   const teamFor = (v: Vendor, n = 6) => d.categories.filter((c) => c.id !== v.category_id && categoryById.has(c.id))
-    .map((c) => ranked.get(`${v.city_id}:${c.id}`)?.[0]).filter(Boolean).slice(0, n) as Vendor[];
+    .map((c) => { const list = ranked.get(`${v.city_id}:${c.id}`) ?? []; const top = list.length ? score(list[0]) : 0;
+      return list.filter((x) => score(x) === top).sort((a, b) => hash(v.id + a.id) - hash(v.id + b.id))[0]; })
+    .filter(Boolean).slice(0, n) as Vendor[];
   const listingsByCategory = group(listings, (l) => l.category.id);
 
   const packagesByVendor = group(d.packages, (p) => p.vendor_id);

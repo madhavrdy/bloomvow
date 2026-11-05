@@ -1,7 +1,7 @@
 // Text and structured data generated from real listing data, so every
 // city x category page has unique, factual content.
 import type { ListingPage, SiteData, Vendor } from './data';
-import { money, median, replyLabel, rankVendors } from './data';
+import { money, median, replyLabel, rankVendors, telHref } from './data';
 
 export type Faq = { q: string; a: string };
 
@@ -86,7 +86,7 @@ export function vendorJsonLd(site: URL | undefined, d: SiteData, v: Vendor) {
     areaServed: { '@type': 'City', name: `${city.name}, ${region.name}` },
     knowsAbout: cat.name,
     ...(v.description ? { description: v.description } : {}),
-    ...(v.phone ? { telephone: v.phone } : {}),
+    ...(v.phone ? { telephone: telHref(v.phone).slice(4) } : {}),
     ...(photos.length ? { image: photos.map((p) => p.url) } : {}),
     address: { '@type': 'PostalAddress', ...(v.address ? { streetAddress: v.address } : {}), addressLocality: city.name, addressRegion: region.code.toUpperCase(), ...(v.zip ? { postalCode: v.zip } : {}), addressCountry: region.country_code.toUpperCase() },
     ...(city.lat != null ? { geo: { '@type': 'GeoCoordinates', latitude: city.lat, longitude: city.lng } } : {}),

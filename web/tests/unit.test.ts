@@ -144,3 +144,14 @@ test('header search: every word must start a word in the title, common aliases w
   assert.deepEqual(matchPages(idx, 'wedding'), [], 'filler words alone match nothing');
   assert.deepEqual(matchPages(idx, 'xyz'), []);
 });
+
+import { formatPhone, telHref } from '../src/lib/phone';
+test('phone numbers: US format for display, international tel: links', () => {
+  assert.equal(formatPhone('12124230172'), '(212) 423-0172');
+  assert.equal(formatPhone('+1 512-555-0142'), '(512) 555-0142');
+  assert.equal(formatPhone('512.555.0142'), '(512) 555-0142');
+  assert.equal(formatPhone('+44 20 7946 0958'), '+44 20 7946 0958', 'non-US numbers are left alone');
+  assert.equal(formatPhone(null), null);
+  assert.equal(telHref('(212) 423-0172'), 'tel:+12124230172');
+  assert.equal(telHref('+44 20 7946 0958'), 'tel:+442079460958');
+});

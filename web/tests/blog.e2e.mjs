@@ -99,7 +99,8 @@ test('basic listing: its own static, indexable page with business schema and FAQ
   assert.match(h, /<h1[^>]*>Open Data Florals<\/h1>/);
   const ld = [...h.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
   const biz = ld.find((j) => j['@type'] === 'Florist');
-  assert.equal(biz.telephone, '+1 512-555-0142');
+  assert.equal(biz.telephone, '+15125550142');
+  assert.match(h, /Call \(512\) 555-0142/, 'phone shown in US format');
   assert.deepEqual(biz.sameAs, ['https://opendataflorals.example']);
   assert.equal(biz.address.streetAddress, '200 Congress Ave');
   assert.ok(ld.some((j) => j['@type'] === 'FAQPage' && j.mainEntity[0].name === 'Where is Open Data Florals located?'));

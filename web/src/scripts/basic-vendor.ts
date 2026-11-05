@@ -1,3 +1,4 @@
+import { formatPhone, telHref } from '../lib/phone';
 // Fills the shared /vendor/?v=<slug> page for basic (not pre-built) listings.
 import { initVendorPage } from './vendor-page';
 
@@ -31,7 +32,7 @@ export async function initBasicVendor() {
     const listing = $('bv-listing') as HTMLAnchorElement;
     listing.href = `/${city.regions.country_code}/${city.regions.slug}/${city.slug}/${cat.slug}/`;
     listing.textContent = `${city.name} ${cat.name.toLowerCase()}`;
-    if (v.phone) { const a = $('bv-phone') as HTMLAnchorElement; a.href = `tel:${v.phone.replace(/[^\d+]/g, '')}`; a.textContent = `Call ${v.phone}`; a.hidden = false; }
+    if (v.phone) { const a = $('bv-phone') as HTMLAnchorElement; const ph = formatPhone(v.phone)!; a.href = telHref(ph); a.textContent = `Call ${ph}`; a.hidden = false; }
     if (v.website && /^https?:\/\//i.test(v.website)) { const a = $('bv-web') as HTMLAnchorElement; a.href = v.website; a.hidden = false; }
     if (v.address) {
       const a = $('bv-dir') as HTMLAnchorElement;
