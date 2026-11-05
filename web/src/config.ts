@@ -8,3 +8,5 @@ export const CONTACT_EMAIL = env.PUBLIC_CONTACT_EMAIL || 'hello@example.com';
 export const TAGLINE = 'Find, compare and book wedding vendors';
 // Official profiles for Organization schema (comma-separated URLs), e.g. Instagram, Pinterest, Facebook.
 export const SOCIAL_LINKS = (env.PUBLIC_SOCIAL_LINKS || '').split(',').map((s) => s.trim()).filter(Boolean);
+// Preview builds (e.g. on a temporary domain) are hidden from every search engine.
+export const PREVIEW = env.PUBLIC_PREVIEW === '1';

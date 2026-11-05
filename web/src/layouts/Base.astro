@@ -5,7 +5,7 @@ import '@fontsource-variable/plus-jakarta-sans';
 import '../styles/global.css';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
-import { SITE_NAME, SUPABASE_URL, SUPABASE_ANON_KEY, CONTACT_EMAIL } from '../config';
+import { SITE_NAME, SUPABASE_URL, SUPABASE_ANON_KEY, CONTACT_EMAIL, PREVIEW } from '../config';
 import { getData } from '../lib/data';
 
 interface Props {
@@ -37,7 +37,7 @@ const langs: { lang: string; href: string }[] = Astro.url.pathname === '/'
   <title>{fullTitle}</title>
   <meta name="description" content={description} />
   <link rel="canonical" href={canonical} />
-  {noindex && <meta name="robots" content="noindex, follow" />}
+  {PREVIEW ? <meta name="robots" content="noindex, nofollow, noarchive, nosnippet" /> : noindex && <meta name="robots" content="noindex, follow" />}
   <meta property="og:type" content={ogType} />
   <meta property="og:site_name" content={SITE_NAME} />
   <meta property="og:title" content={fullTitle} />
