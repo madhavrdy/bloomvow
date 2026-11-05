@@ -44,9 +44,13 @@ jobs:
         run: |
           SIZE=$(stat -c%s site.zip)
           echo "::notice::site.zip is $SIZE bytes"
-          call() {   # prints the HTTP status; on failure shows Hostinger's answer on the run page
-            code=$(curl -s -o resp.txt -D head.txt -w '%{http_code}' "$@")
-            if [ "${code:0:1}" != "2" ]; then echo "::error::$1 $code $(tr -d '\r' < head.txt | grep -i -E '^(upload-|tus-|content-length)' | tr '\n' ' ') $(head -c 300 resp.txt)"; exit 1; fi
+          call() {   # up to 4 tries; on final failure shows Hostinger's answer on the run page
+            for try in 1 2 3 4; do
+              code=$(curl -s --connect-timeout 30 --max-time 900 -o resp.txt -D head.txt -w '%{http_code}' "$@" || echo "curl-$?")
+              [ "${code:0:1}" = "2" ] && return 0
+              echo "try $try: $code"; sleep $((try * 20))
+            done
+            echo "::error::$1 $code $(tr -d '\r' < head.txt 2>/dev/null | grep -i -E '^(upload-|tus-|content-length)' | tr '\n' ' ') $(head -c 300 resp.txt 2>/dev/null)"; exit 1
           }
           call -X POST "$U/site.zip?override=true" -H "X-Auth: $A" -H "X-Auth-Rest: $R" -H "Tus-Resumable: 1.0.0" -H "Upload-Length: $SIZE" -H "Upload-Offset: 0"
           # Upload in 40 MB pieces (large single requests can be refused).
