@@ -1,11 +1,15 @@
-# Builds a PREVIEW of the site (hidden from all search engines) and uploads it as
-# site.zip to a Hostinger website, using a short-lived upload link from Hostinger.
-# Claude then unpacks it with Hostinger's "deploy static site archive".
+# Builds the site and uploads it as site.zip to a Hostinger website, using a
+# short-lived upload link from Hostinger; Claude then unpacks it with Hostinger's
+# "deploy static site archive". mode=preview hides it from all search engines;
+# mode=live is the real, indexable site.
 name: Preview deploy
 on:
   workflow_dispatch:
     inputs:
-      site_url: { description: 'Preview address, e.g. https://janatajobs.in', required: true }
+      site_url: { description: 'Site address, e.g. https://celebrateio.com', required: true }
+      mode: { description: 'preview (hidden from search engines) or live', default: preview, type: choice, options: [preview, live] }
+      site_name: { description: 'Brand name', default: Celebrateio }
+      contact_email: { description: 'Public contact email', default: hello@celebrateio.com }
       upload_url: { description: 'Hostinger upload URL', required: true }
       auth_key: { description: 'Hostinger X-Auth key', required: true }
       rest_auth_key: { description: 'Hostinger X-Auth-Rest key', required: true }
@@ -24,17 +28,25 @@ jobs:
         with: { node-version: 22, cache: npm, cache-dependency-path: '**/package-lock.json' }
       - run: npm ci
         working-directory: web
-      - name: Build (preview, noindex)
+      - name: Build
         working-directory: web
         env:
           SITE_URL: ${{ inputs.site_url }}
-          PUBLIC_PREVIEW: '1'
+          PUBLIC_SITE_NAME: ${{ inputs.site_name }}
+          PUBLIC_CONTACT_EMAIL: ${{ inputs.contact_email }}
+          PUBLIC_PREVIEW: ${{ inputs.mode == 'preview' && '1' || '' }}
         run: |
           npm run build
-          # Belt and braces: tell crawlers not to index anything, even non-HTML files.
-          printf '\n<IfModule mod_headers.c>\n  Header always set X-Robots-Tag "noindex, nofollow, noarchive"\n</IfModule>\n' >> dist/.htaccess
-          grep -q 'Disallow: /$' dist/robots.txt
-          ! grep -L 'noindex' dist/index.html | grep -q .
+          if [ "${{ inputs.mode }}" = "preview" ]; then
+            # Belt and braces: tell crawlers not to index anything, even non-HTML files.
+            printf '\n<IfModule mod_headers.c>\n  Header always set X-Robots-Tag "noindex, nofollow, noarchive"\n</IfModule>\n' >> dist/.htaccess
+            grep -q 'Disallow: /$' dist/robots.txt
+            ! grep -L 'noindex' dist/index.html | grep -q .
+          else
+            ! grep -q 'Disallow: /$' dist/robots.txt
+            ! grep -q 'name="robots"' dist/index.html
+            grep -q "<link rel=\"canonical\" href=\"${{ inputs.site_url }}/\"" dist/index.html
+          fi
           echo "Pages: $(find dist -name '*.html' | wc -l), files: $(find dist -type f | wc -l)" >> "$GITHUB_STEP_SUMMARY"
           (cd dist && zip -qr ../site.zip .)
           ls -lh site.zip >> "$GITHUB_STEP_SUMMARY"

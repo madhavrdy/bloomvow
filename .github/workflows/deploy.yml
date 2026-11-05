@@ -24,9 +24,9 @@ jobs:
       - name: Build
         working-directory: web
         env:
-          SITE_URL: ${{ vars.SITE_URL }}
-          PUBLIC_SITE_NAME: ${{ vars.SITE_NAME }}
-          PUBLIC_CONTACT_EMAIL: ${{ vars.CONTACT_EMAIL }}
+          SITE_URL: ${{ vars.SITE_URL || 'https://celebrateio.com' }}
+          PUBLIC_SITE_NAME: ${{ vars.SITE_NAME || 'Celebrateio' }}
+          PUBLIC_CONTACT_EMAIL: ${{ vars.CONTACT_EMAIL || 'hello@celebrateio.com' }}
         run: |
           test -n "$SITE_URL" || echo "::warning::Set the SITE_URL variable (Settings > Secrets and variables > Actions > Variables) to your domain before launch."
           npm run build
@@ -43,5 +43,5 @@ jobs:
           dangerous-clean-slate: false
       - name: Notify search engines (IndexNow)
         if: env.HAS_FTP == 'true'
-        env: { SITE_URL: '${{ vars.SITE_URL }}' }
+        env: { SITE_URL: "${{ vars.SITE_URL || 'https://celebrateio.com' }}" }
         run: node scripts/indexnow.mjs web/dist
