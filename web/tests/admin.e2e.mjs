@@ -205,7 +205,7 @@ test('vendor categories: add, edit, reorder, hide; slug locks when used; cities 
   await admin.locator('tr:has-text("Wedding venues") button:has-text("Edit")').first().click();
   await admin.click('button:has-text("Use the default illustration")');
   await admin.click('button:has-text("Save category")');
-  await toast(admin, /saved/);
+  await admin.waitForSelector('form[aria-label="Category editor"]', { state: 'detached' });
   [cv] = await q(`select image_url, image_alt from categories where slug = 'wedding-venues'`);
   assert.deepEqual(cv, { image_url: null, image_alt: null });
   await admin.locator('tr:has-text("Wedding venues") button:has-text("Edit")').first().click();

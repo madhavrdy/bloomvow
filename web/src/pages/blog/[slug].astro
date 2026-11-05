@@ -69,6 +69,7 @@ const article = {
 
     <section class="comments" id="comments" aria-labelledby="comments-h">
       <h2 id="comments-h" class="serif">{comments.length ? `${comments.length} comment${comments.length > 1 ? 's' : ''}` : 'Comments'}</h2>
+      <div id="cmt-list" data-post={p.id} data-open={p.comments_open ? '1' : ''} data-staff={`${SITE_NAME} team`}>
       {top.map((c) => (
         <div class="cmt" id={`c-${c.id}`}>
           <div class="cmt-head"><b>{c.author_name}</b>{c.is_staff && <span class="badge badge-green">{SITE_NAME} team</span>}<time class="muted" datetime={c.created_at}>{fmt(c.created_at)}</time></div>
@@ -82,6 +83,7 @@ const article = {
           ))}
         </div>
       ))}
+      </div>
       {p.comments_open ? (
         <form id="comment-form" class="cmt-form" data-post={p.id} novalidate>
           <h3 style="margin:0">Leave a comment</h3>
@@ -103,8 +105,9 @@ const article = {
   </main>
 </Base>
 <script>
-  import { initComments } from '../../scripts/comments';
+  import { initComments, refreshComments } from '../../scripts/comments';
   initComments();
+  refreshComments();
 </script>
 <style>
   .post { max-width: 1060px; }

@@ -1,5 +1,5 @@
 // Blog comment form: posts to submit_comment; every comment waits for moderation.
-import { rpc, ApiError } from './api';
+import { rpc, select, ApiError } from './api';
 
 const messages: Record<string, string> = {
   invalid_email: 'Please enter a valid email address.',
@@ -10,6 +10,51 @@ const messages: Record<string, string> = {
   rate_limited: "You've posted several comments recently. Please try again later.",
 };
 export const commentError = (e: unknown) => (e instanceof ApiError && messages[e.code]) || 'Something went wrong posting your comment. Please try again.';
+
+type C = { id: string; parent_id: string | null; author_name: string; body: string; is_staff: boolean; created_at: string };
+const fmt = (s: string) => new Date(s).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+
+function el(tag: string, cls?: string, text?: string) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text; // always text, never HTML
+  return e;
+}
+function card(c: C, staff: string, reply: boolean, open: boolean) {
+  const d = el('div', reply ? 'cmt cmt-reply' : 'cmt'); d.id = `c-${c.id}`;
+  const head = el('div', 'cmt-head');
+  head.append(el('b', undefined, c.author_name));
+  if (c.is_staff) head.append(el('span', 'badge badge-green', staff));
+  const t = el('time', 'muted', fmt(c.created_at)); t.setAttribute('datetime', c.created_at); head.append(t);
+  d.append(head, el('p', undefined, c.body));
+  if (!reply && open) {
+    const b = el('button', 'linkish', 'Reply') as HTMLButtonElement;
+    b.type = 'button'; b.dataset.reply = c.id; b.dataset.replyName = c.author_name; d.append(b);
+  }
+  return d;
+}
+
+// Comments are built into the page, then refreshed from the database so newly
+// approved comments and replies show without waiting for a site rebuild.
+export async function refreshComments(): Promise<void> {
+  const list = document.querySelector<HTMLElement>('#cmt-list');
+  if (!list?.dataset.post) return;
+  let rows: C[];
+  try {
+    rows = await select<C>('public_comments', `select=id,parent_id,author_name,body,is_staff,created_at&post_id=eq.${encodeURIComponent(list.dataset.post)}&order=created_at,id`);
+  } catch { return; } // keep the built-in comments
+  const open = list.dataset.open === '1', staff = list.dataset.staff ?? 'Team';
+  const frag = document.createDocumentFragment();
+  for (const c of rows.filter((r) => !r.parent_id)) {
+    const d = card(c, staff, false, open);
+    for (const r of rows.filter((x) => x.parent_id === c.id)) d.append(card(r, staff, true, open));
+    frag.append(d);
+  }
+  list.replaceChildren(frag);
+  const h = document.querySelector('#comments-h');
+  if (h) h.textContent = rows.length ? `${rows.length} comment${rows.length > 1 ? 's' : ''}` : 'Comments';
+  if (location.hash.startsWith('#c-')) document.querySelector(location.hash)?.scrollIntoView();
+}
 
 export function initComments() {
   const form = document.querySelector<HTMLFormElement>('#comment-form');
@@ -23,7 +68,11 @@ export function initComments() {
     replying.querySelector('b')!.textContent = name;
     if (id) { form.scrollIntoView({ behavior: 'smooth', block: 'center' }); form.querySelector<HTMLTextAreaElement>('textarea')!.focus(); }
   };
-  document.querySelectorAll<HTMLButtonElement>('[data-reply]').forEach((b) => b.addEventListener('click', () => setReply(b.dataset.reply!, b.dataset.replyName)));
+  // Delegated, so it also works for comments loaded after the page was built.
+  document.querySelector('#cmt-list')?.addEventListener('click', (ev) => {
+    const b = (ev.target as HTMLElement).closest<HTMLButtonElement>('[data-reply]');
+    if (b) setReply(b.dataset.reply!, b.dataset.replyName);
+  });
   form.querySelector('#cancel-reply')!.addEventListener('click', () => setReply(null));
 
   form.addEventListener('submit', async (ev) => {

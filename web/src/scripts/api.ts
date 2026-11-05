@@ -21,6 +21,15 @@ export async function rpc<T = unknown>(fn: string, args: Record<string, unknown>
   return body as T;
 }
 
+// Read a public view, e.g. select('public_comments', 'post_id=eq.…').
+export async function select<T = unknown>(view: string, query: string): Promise<T[]> {
+  const m = meta();
+  const key = m?.dataset.key ?? '';
+  const res = await fetch(`${m?.content ?? ''}/rest/v1/${view}?${query}`, { headers: { apikey: key, authorization: `Bearer ${key}` } });
+  if (!res.ok) throw new ApiError('error', `Request failed (${res.status})`);
+  return res.json();
+}
+
 // Fire-and-forget analytics: never let tracking break the page.
 export function track(vendorId: string | null, kind: string) {
   rpc('track_event', { p_vendor: vendorId, p_kind: kind, p_path: location.pathname }).catch(() => {});
