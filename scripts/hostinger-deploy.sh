@@ -5,7 +5,9 @@
 # Needs HOSTINGER_API_TOKEN, HOSTINGER_USERNAME (e.g. u123456789), HOSTINGER_DOMAIN, SITE_URL.
 # Takes a few minutes whatever changed, unlike FTP, which sends thousands of files one by one.
 set -euo pipefail
+trap 'echo "::error::Publish stopped at line $LINENO: $BASH_COMMAND (exit $?)"' ERR
 DIST=${1:?dist dir}
+command -v zip >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq zip; } >/dev/null 2>&1
 : "${HOSTINGER_API_TOKEN:?}" "${HOSTINGER_USERNAME:?}" "${HOSTINGER_DOMAIN:?}" "${SITE_URL:?}"
 API=${HOSTINGER_API:-https://developers.hostinger.com}
 WORK=$(mktemp -d); trap 'rm -rf "$WORK"' EXIT
