@@ -16,6 +16,10 @@ test('misfit rules: clear non-wedding businesses are flagged, real wedding vendo
     ['Buzz City Bounce', 'rentals'], ['Insomnia Cookies', 'wedding-cakes'], ['Fancy Funnel Cake', 'wedding-cakes'],
     ['Town Taxi', 'transportation'], ['Opus Music Academy', 'djs-bands'], ['Colorado Global Film Festival', 'videographers'],
     ["Oskar's Pizza", 'caterers'], ['Garden Gate Nursery', 'florists'], ['City College of San Francisco', 'photographers'],
+    ['A-1 Mini Storage', 'wedding-venues'], ['Xcel Talent Agency', 'wedding-venues'], ['Outer Limitz Trampoline Arena', 'wedding-venues'],
+    ['Battle Axe San Diego', 'wedding-venues'], ['Crossfit Posse', 'wedding-venues'], ['Sylvan Learning Center', 'wedding-venues'],
+    ['Highland Manor Motel', 'wedding-venues'], ['Charlie Nunn Photography', 'wedding-venues'], ["Emily's Bridal Boutique", 'wedding-venues'],
+    ['Blue Moose - CLOSED - Reopened as Gravity!', 'wedding-venues'], ['ExpoTrade Exhibits', 'wedding-venues'],
   ]) assert.ok(await reason(name, cat), `${name} should be flagged`);
   for (const [name, cat] of [
     ['Slate Hair and Makeup', 'hair-makeup'], ['Glam by Jess - Makeup & Lashes', 'hair-makeup'], ['Bridal Brows & Lashes', 'hair-makeup'],
@@ -24,6 +28,9 @@ test('misfit rules: clear non-wedding businesses are flagged, real wedding vendo
     ['Amazing Jumps Tents & Events', 'rentals'], ['Chris\' Cakes And Donuts', 'wedding-cakes'], ['Smallcakes Cupcakery', 'wedding-cakes'],
     ['Wellesley Taxi and Limo', 'transportation'], ['San Diego DJ and Karaoke', 'djs-bands'], ['Hitched Productions', 'videographers'],
     ['Urbn Pizza Truck Catering', 'caterers'], ['West End Florist & Garden Center', 'florists'], ['University Village Florist', 'florists'],
+    ['Academy Ballroom Cumberland', 'wedding-venues'], ['Pennsylvania Convention Center', 'wedding-venues'], ['Knights Of Columbus', 'wedding-venues'],
+    ['Jefferson United Methodist Church', 'wedding-venues'], ['The Roxy Theatre', 'wedding-venues'], ["Gennaro's Catering Hall", 'wedding-venues'],
+    ['The Long Beach Wedding Center', 'wedding-venues'], ['Riverbend Sports and Events Center', 'wedding-venues'], ['Rolling Greens DTLA', 'wedding-venues'],
   ]) assert.equal(await reason(name, cat), null, `${name} should stay`);
 });
 
