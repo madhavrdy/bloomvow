@@ -18,7 +18,7 @@ const html = (f) => fs.readFileSync(path.join(DIST, f), 'utf8');
 const ld = (h, type) => [...h.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/g)].map((m) => JSON.parse(m[1])).filter((j) => j['@type'] === type);
 
 before(async () => {
-  browser = await chromium.launch();
+  browser = await chromium.launch({ args: ['--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE localhost'] });
   db = new pg.Client({ host: process.env.PGHOST, port: Number(process.env.PGPORT), user: 'postgres', database: process.env.DB });
   await db.connect();
 });

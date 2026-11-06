@@ -1,4 +1,4 @@
-import { rpc, friendlyError } from './api';
+import { rpc, conversion, friendlyError } from './api';
 import { leadPayload } from './lead';
 
 // Map "Austin, TX" -> city id via the build-time city list.
@@ -81,6 +81,7 @@ export function initQuote() {
     try {
       const payload = leadPayload(fd, { source: bulk && cats.length === 1 ? 'bulk' : 'matched', city_id: cityId, category_ids: cats });
       const res = await rpc<{ matched: number }>('submit_lead', { payload });
+      conversion('lead', { form: bulk ? 'request_pricing' : 'get_matched', vendors: res.matched });
       const city = cities.find((c) => c.id === cityId)!;
       form.hidden = true;
       document.getElementById('progress')!.hidden = true;

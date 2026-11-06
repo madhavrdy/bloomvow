@@ -155,3 +155,18 @@ test('phone numbers: US format for display, international tel: links', () => {
   assert.equal(telHref('(212) 423-0172'), 'tel:+12124230172');
   assert.equal(telHref('+44 20 7946 0958'), 'tel:+442079460958');
 });
+
+import { cleanTracking, extractId } from '../src/lib/tracking';
+test('tracking: IDs are pulled out of pasted snippets; anything else is dropped', () => {
+  assert.equal(extractId('ga4', `<script async src="https://www.googletagmanager.com/gtag/js?id=G-AB12CD34EF"></script>`), 'G-AB12CD34EF');
+  assert.equal(extractId('ga4', ' g-ab12cd34ef '), 'G-AB12CD34EF');
+  assert.equal(extractId('google_ads', `gtag('config', 'AW-123456789');`), 'AW-123456789');
+  assert.equal(extractId('google_ads_lead_label', `gtag('event', 'conversion', {'send_to': 'AW-123456789/AbC-dEf_123'});`), 'AbC-dEf_123');
+  assert.equal(extractId('meta_pixel', `fbq('init', '1234567890123456');`), '1234567890123456');
+  assert.equal(extractId('gsc', `<meta name="google-site-verification" content="x1Yz_ABCdef-ghiJKL" />`), 'x1Yz_ABCdef-ghiJKL');
+  assert.equal(extractId('gsc', 'google-site-verification=x1Yz_ABCdef-ghiJKL'), 'x1Yz_ABCdef-ghiJKL');
+  assert.equal(extractId('bing', `<meta name="msvalidate.01" content="0123456789ABCDEF0123456789ABCDEF" />`), '0123456789ABCDEF0123456789ABCDEF');
+  assert.equal(extractId('gtm', `GTM-K9X2PQ`), 'GTM-K9X2PQ');
+  assert.deepEqual(cleanTracking({ ga4: 'G-AB12CD34EF', meta_pixel: '12"><script>', gsc: '<meta>', other: 'x' }), { ga4: 'G-AB12CD34EF' });
+  assert.deepEqual(cleanTracking(null), {});
+});

@@ -26,7 +26,7 @@ async function asAdmin(sql, params) {
 }
 
 before(async () => {
-  browser = await chromium.launch();
+  browser = await chromium.launch({ args: ['--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE localhost'] });
   db = new pg.Client({ host: process.env.PGHOST, port: Number(process.env.PGPORT), user: 'postgres', database: process.env.DB });
   await db.connect();
 });

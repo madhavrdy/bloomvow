@@ -1,0 +1,8 @@
+---
+// No-JavaScript fallbacks that belong right after <body>.
+import type { Tracking } from '../lib/tracking';
+interface Props { t: Tracking }
+const { t } = Astro.props;
+---
+{t.gtm && <noscript><iframe src={`https://www.googletagmanager.com/ns.html?id=${t.gtm}`} height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>}
+{t.meta_pixel && <noscript><img height="1" width="1" style="display:none" alt="" src={`https://www.facebook.com/tr?id=${t.meta_pixel}&ev=PageView&noscript=1`} /></noscript>}

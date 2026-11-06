@@ -33,6 +33,25 @@ export async function select<T = unknown>(view: string, query: string): Promise<
 // Fire-and-forget analytics: never let tracking break the page.
 export function track(vendorId: string | null, kind: string) {
   rpc('track_event', { p_vendor: vendorId, p_kind: kind, p_path: location.pathname }).catch(() => {});
+  if (kind.startsWith('click_')) conversion('contact', { method: kind.slice(6) });
+}
+
+// Conversion events for the ad and analytics tags set in Admin > Tracking (when present).
+type W = Window & { gtag?: (...a: unknown[]) => void; fbq?: (...a: unknown[]) => void; dataLayer?: unknown[] };
+export function conversion(name: 'lead' | 'contact', params: Record<string, string | number> = {}) {
+  try {
+    const w = window as W;
+    if (name === 'lead') {
+      w.gtag?.('event', 'generate_lead', params);
+      const sendTo = document.querySelector<HTMLMetaElement>('meta[name="bv-track"]')?.dataset.adsLead;
+      if (sendTo) w.gtag?.('event', 'conversion', { send_to: sendTo });
+      w.fbq?.('track', 'Lead', params);
+    } else {
+      w.gtag?.('event', 'contact', params);
+      w.fbq?.('track', 'Contact', params);
+    }
+    w.dataLayer?.push({ event: name === 'lead' ? 'generate_lead' : 'contact', ...params });
+  } catch { /* never break the page */ }
 }
 
 export const friendlyError = (e: unknown) => {

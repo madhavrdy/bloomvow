@@ -1,0 +1,32 @@
+---
+// Analytics and ad tags from Admin > Tracking. Not used on preview builds or in the dashboards.
+import type { Tracking } from '../lib/tracking';
+interface Props { t: Tracking }
+const { t } = Astro.props;
+const gtagIds = [t.ga4, t.google_ads].filter(Boolean) as string[];
+const leadSendTo = t.google_ads && t.google_ads_lead_label ? `${t.google_ads}/${t.google_ads_lead_label}` : '';
+const gtm = t.gtm ?? '', pixel = t.meta_pixel ?? '';
+---
+{t.gsc && <meta name="google-site-verification" content={t.gsc} />}
+{t.bing && <meta name="msvalidate.01" content={t.bing} />}
+<meta name="bv-track" data-ads-lead={leadSendTo} />
+{gtm && (
+  <script is:inline define:vars={{ gtm }}>
+    (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer',gtm);
+  </script>
+)}
+{gtagIds.length > 0 && <script async src={`https://www.googletagmanager.com/gtag/js?id=${gtagIds[0]}`}></script>}
+{gtagIds.length > 0 && (
+  <script is:inline define:vars={{ gtagIds }}>
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function () { window.dataLayer.push(arguments); };
+    gtag('js', new Date());
+    gtagIds.forEach(function (id) { gtag('config', id); });
+  </script>
+)}
+{pixel && (
+  <script is:inline define:vars={{ pixel }}>
+    !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', pixel); fbq('track', 'PageView');
+  </script>
+)}

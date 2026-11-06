@@ -1,4 +1,4 @@
-import { rpc, track, friendlyError } from './api';
+import { rpc, track, conversion, friendlyError } from './api';
 import { leadPayload, showSent } from './lead';
 
 export function initVendorPage() {
@@ -19,6 +19,7 @@ export function initVendorPage() {
     try {
       const payload = leadPayload(new FormData(form), { source: 'profile', vendor_id: vendorId, city_id: Number(form.dataset.city) });
       const res = await rpc<{ matched: number }>('submit_lead', { payload });
+      conversion('lead', { form: 'vendor_profile', vendors: res.matched });
       showSent(form, res.matched);
     } catch (ex) {
       err.textContent = friendlyError(ex);

@@ -13,6 +13,7 @@ import { BlogCategories } from './BlogCategories';
 import { Comments } from './Comments';
 import { Team } from './Team';
 import { PageContent } from './PageContent';
+import { Tracking } from './Tracking';
 
 export type Role = 'admin' | 'editor';
 type Counts = { claims: number; reviews: number; comments: number };
@@ -28,6 +29,7 @@ const NAV: { r: string; label: string; roles: Role[] }[] = [
   { r: 'posts', label: 'Blog posts', roles: ['admin', 'editor'] },
   { r: 'blog-categories', label: 'Blog categories', roles: ['admin', 'editor'] },
   { r: 'comments', label: 'Comments', roles: ['admin'] },
+  { r: 'tracking', label: 'Tracking & analytics', roles: ['admin'] },
   { r: 'team', label: 'Team', roles: ['admin'] },
 ];
 
@@ -105,6 +107,7 @@ function Gate({ session, siteName }: { session: Session; siteName: string }) {
         {current === 'pages' && <PageContent />}
         {current === 'blog-categories' && <BlogCategories />}
         {current === 'comments' && <Comments onChange={refreshCounts} />}
+        {current === 'tracking' && <Tracking />}
         {current === 'team' && <Team selfEmail={session.user.email ?? ''} />}
       </main>
     </div>

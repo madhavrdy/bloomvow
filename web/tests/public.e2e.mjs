@@ -16,7 +16,7 @@ let browser, db;
 const q = async (sql, params) => (await db.query(sql, params)).rows;
 
 before(async () => {
-  browser = await chromium.launch();
+  browser = await chromium.launch({ args: ['--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE localhost'] });
   db = new pg.Client({ host: process.env.PGHOST, port: Number(process.env.PGPORT), user: 'postgres', database: process.env.DB });
   await db.connect();
 });
@@ -27,7 +27,7 @@ async function page(opts = {}) {
   const p = await ctx.newPage();
   const errors = [];
   p.on('pageerror', (e) => errors.push(e.message));
-  p.on('console', (m) => { if (m.type() === 'error' && !/favicon|ERR_UNKNOWN_URL_SCHEME/.test(m.text())) errors.push(m.text()); });
+  p.on('console', (m) => { if (m.type() === 'error' && !/favicon|ERR_UNKNOWN_URL_SCHEME|ERR_NAME_NOT_RESOLVED/.test(m.text())) errors.push(m.text()); });
   p.errors = errors;
   return p;
 }
@@ -309,4 +309,34 @@ test('header search: suggestions for pages and vendor names, keyboard and Enter,
   const list = await m.locator('#hsearch-list').boundingBox();
   assert.ok(list.x >= 0 && list.x + list.width <= 390, 'suggestions fit on screen');
   assert.ok(await m.evaluate(() => document.documentElement.scrollWidth <= 390), 'no sideways scrolling');
+});
+
+test('tracking: tags from Admin > Tracking on public pages only; lead and contact events fire', async () => {
+  const read = (f) => fs.readFileSync(path.join(DIST, f), 'utf8');
+  const home = read('index.html');
+  assert.match(home, /<meta name="google-site-verification" content="gsc-test-token-123">/);
+  assert.match(home, /googletagmanager\.com\/gtag\/js\?id=G-TEST12345/);
+  assert.match(home, /"G-TEST12345","AW-111222333"/);
+  assert.match(home, /fbq\('init', pixel\)/);
+  assert.match(home, /facebook\.com\/tr\?id=1234567890&amp;ev=PageView/);
+  assert.ok(!/bing|msvalidate|gtm\.js/.test(home), 'tools that are not set add nothing');
+  for (const f of ['back-end/index.html', 'vendor-dashboard/index.html']) assert.ok(!/gtag|fbq|google-site-verification/.test(read(f)), `${f}: no tags`);
+  assert.match(read('get-matched/index.html'), /fbq\('init'/, 'quote flow is tracked');
+
+  const [v] = await q(`select slug from vendors where owner_id = '00000000-0000-0000-0000-00000000b001'`);
+  const p = await page();
+  await p.goto(`${SITE}/vendor/${v.slug}/`);
+  assert.deepEqual(await p.evaluate(() => window.fbq.queue.map((a) => [...a])), [['init', '1234567890'], ['track', 'PageView']]);
+  await p.evaluate(() => document.querySelectorAll('a[href^="tel:"]').forEach((a) => a.addEventListener('click', (e) => e.preventDefault())));
+  await p.locator('.contact a[data-track=click_phone]').click();
+  await p.fill('#lead-form [name=wedding_date]', '2027-06-12');
+  await p.fill('#lead-form [name=guests]', '120');
+  await p.fill('#lead-form [name=couple_name]', 'Pixel Couple');
+  await p.fill('#lead-form [name=email]', `e2e-pixel-${Date.now()}@example.com`);
+  await p.click('#lead-form button[type=submit]');
+  await p.locator('#lead-form .form-ok').waitFor();
+  const fb = await p.evaluate(() => window.fbq.queue.map((a) => [a[0], a[1]]));
+  assert.deepEqual(fb.slice(2), [['track', 'Contact'], ['track', 'Lead']]);
+  const g = await p.evaluate(() => window.dataLayer.filter((a) => a[0] === 'event').map((a) => [a[1], a[2]?.send_to ?? a[2]?.method ?? a[2]?.form]));
+  assert.deepEqual(g, [['contact', 'phone'], ['generate_lead', 'vendor_profile'], ['conversion', 'AW-111222333/LeadLabel1']]);
 });
