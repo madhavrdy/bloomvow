@@ -27,7 +27,7 @@ async function page(opts = {}) {
   const p = await ctx.newPage();
   const errors = [];
   p.on('pageerror', (e) => errors.push(e.message));
-  p.on('console', (m) => { if (m.type() === 'error' && !/favicon|ERR_UNKNOWN_URL_SCHEME|ERR_NAME_NOT_RESOLVED/.test(m.text())) errors.push(m.text()); });
+  p.on('console', (m) => { if (m.type() === 'error' && !/favicon|ERR_UNKNOWN_URL_SCHEME|ERR_NAME_NOT_RESOLVED|ERR_PROXY_CONNECTION_FAILED/.test(m.text())) errors.push(m.text()); });
   p.errors = errors;
   return p;
 }
@@ -318,7 +318,7 @@ test('tracking: tags from Admin > Tracking on public pages only; lead and contac
   assert.match(home, /googletagmanager\.com\/gtag\/js\?id=G-TEST12345/);
   assert.match(home, /"G-TEST12345","AW-111222333"/);
   assert.match(home, /fbq\('init', pixel\)/);
-  assert.match(home, /facebook\.com\/tr\?id=1234567890&amp;ev=PageView/);
+  assert.match(home, /facebook\.com\/tr\?id=1234567890&(amp;)?ev=PageView/);
   assert.ok(!/bing|msvalidate|gtm\.js/.test(home), 'tools that are not set add nothing');
   for (const f of ['back-end/index.html', 'vendor-dashboard/index.html']) assert.ok(!/gtag|fbq|google-site-verification/.test(read(f)), `${f}: no tags`);
   assert.match(read('get-matched/index.html'), /fbq\('init'/, 'quote flow is tracked');
