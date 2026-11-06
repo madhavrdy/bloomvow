@@ -6,6 +6,7 @@
 # lftp reconnects and retries on its own, so a dropped connection doesn't end the run, and
 # the new manifest is only written after the whole upload succeeds (a failed run is redone next time).
 set -euo pipefail
+command -v lftp >/dev/null || { echo "::error::lftp is not installed"; exit 1; }
 DIST=${1:?dist dir}; OLD=${2:-}; NEW=${3:?new manifest path}
 : "${FTP_HOST:?}" "${FTP_USER:?}" "${FTP_PASS:?}"
 DIR=${FTP_DIR:-public_html}; DIR=${DIR%/}; PAR=${FTP_PARALLEL:-4}
@@ -33,7 +34,8 @@ if (( n > 0 )); then
     set xfer:clobber on; set mirror:set-permissions off
     open --env-password -u \"$FTP_USER\" \"$FTP_HOST\"
     mirror --reverse --parallel=$PAR --no-perms --no-umask --overwrite --verbose=1 \"$WORK/stage/\" \"$DIR\"
-  " </dev/null
+  " </dev/null 2> >(tee "$WORK/err" >&2) || {
+    echo "::error::FTP upload failed: $(grep -v '^$' "$WORK/err" | tail -3 | tr '\n' ' ' | sed "s/$FTP_PASS/***/g")"; exit 1; }
 fi
 cp "$WORK/manifest" "$NEW"
 echo "Done."

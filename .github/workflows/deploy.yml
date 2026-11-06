@@ -45,7 +45,7 @@ jobs:
           FTP_PASS: ${{ secrets.FTP_PASS }}
           FTP_DIR: ${{ vars.FTP_DIR || 'public_html' }}
         run: |
-          sudo apt-get install -y -qq lftp >/dev/null
+          command -v lftp || { sudo apt-get update -qq && sudo apt-get install -y -qq lftp; } >/dev/null 2>&1 || echo "::error::Could not install lftp"
           scripts/ftp-sync.sh web/dist "$( [ -f .ftp-manifest ] && echo .ftp-manifest )" .ftp-manifest.new
           mv .ftp-manifest.new .ftp-manifest
       - name: Remember this upload's file list
