@@ -56,11 +56,15 @@ jobs:
           FTP_PASS: ${{ secrets.FTP_PASS }}
           FTP_DIR: ${{ vars.FTP_DIR || 'domains/celebrateio.com/public_html' }}
         run: |
+          if [ ! -f .ftp-manifest ] && [ "${{ vars.FTP_FULL_UPLOAD }}" != "true" ]; then
+            echo "::warning::Not uploading: a full FTP upload takes over 3 hours. Add the HOSTINGER_API_TOKEN secret to publish in minutes."
+            exit 0
+          fi
           command -v lftp || { sudo apt-get update -qq && sudo apt-get install -y -qq lftp; } >/dev/null 2>&1 || echo "::error::Could not install lftp"
           scripts/ftp-sync.sh web/dist "$( [ -f .ftp-manifest ] && echo .ftp-manifest )" .ftp-manifest.new
           mv .ftp-manifest.new .ftp-manifest
       - name: Remember this upload's file list
-        if: env.HAS_FTP == 'true'
+        if: env.HAS_FTP == 'true' && hashFiles('.ftp-manifest') != ''
         uses: actions/cache/save@v4
         with: { path: .ftp-manifest, key: 'ftp-manifest-${{ github.run_id }}' }
       - name: Notify search engines (IndexNow)
