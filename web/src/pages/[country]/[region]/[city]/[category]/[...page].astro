@@ -4,6 +4,7 @@ import Breadcrumbs from '../../../../../components/Breadcrumbs.astro';
 import VendorRow from '../../../../../components/VendorRow.astro';
 import { getData, money, type ListingPage } from '../../../../../lib/data';
 import Guides from '../../../../../components/Guides.astro';
+import { venueFaqs } from '../../../../../lib/venueFaqs';
 import { listingFaqs, listingIntro, faqJsonLd, breadcrumbJsonLd, itemListJsonLd } from '../../../../../lib/seo';
 import { kmBetween, niceRound } from '../../../../../lib/geo';
 import { PAGE_SIZE } from '../../../../../lib/constants';
@@ -43,7 +44,6 @@ const title = c.seoTitle ?? `${heading}${pageNo > 1 ? ` (page ${pageNo})` : ''}`
 const autoIntro = style
   ? `${all.length} ${style.label.toLowerCase()} ${cat.name.toLowerCase()} in and around ${city.name}. Compare pricing and capacity, then request quotes from several at once.`
   : listingIntro(l);
-const faqs = pageNo === 1 ? mergeFaqs(c.faqs, style ? [] : listingFaqs(l)) : [];
 const glance = pageNo === 1 ? listingSummary(d, l, all, style?.label) : [];
 const updated = latest(all.reduce((m, v) => (v.updated_at > m ? v.updated_at : m), ''), c.updatedAt);
 
@@ -66,6 +66,12 @@ const nearby = (d.listingsByCategory.get(cat.id) ?? [])
   .filter((x) => x.city.id !== city.id && x.country.code === l.country.code && city.lat != null && x.city.lat != null)
   .map((x) => ({ x, km: kmBetween(city.lat!, city.lng!, x.city.lat!, x.city.lng!) }))
   .filter((o) => o.km < 160).sort((a, b) => a.km - b.km).slice(0, 6).map((o) => o.x);
+
+// FAQs (first page only). Venue pages get the 8 location FAQs built from this city's own listings.
+const autoFaqs = style ? [] : cat.slug === 'wedding-venues'
+  ? venueFaqs({ l, top: l.vendors.filter((v) => v.featured || v.status === 'claimed' || (v.rating ?? 0) > 0).slice(0, 3), styles: styles.map((x) => ({ style: x.style, url: x.url, count: x.vendors.length })), nearby, otherCats, vendorUrl: d.urls.vendor })
+  : listingFaqs(l);
+const faqs = pageNo === 1 ? mergeFaqs(c.faqs, autoFaqs) : [];
 
 const jsonld = [breadcrumbJsonLd(Astro.site, crumbs), itemListJsonLd(Astro.site, d, vendors), ...(faqs.length ? [faqJsonLd(faqs)] : []),
   { '@context': 'https://schema.org', '@type': 'CollectionPage', name: heading, url: new URL(path, Astro.site).href, ...(updated ? { dateModified: updated } : {}) }];
@@ -158,7 +164,11 @@ const pageUrl = (n: number) => (n === 1 ? l.url : `${l.url}page/${n}/`);
       {faqs.length > 0 && (
         <div style="flex:2 1 520px">
           <h2 class="serif" style="font-size:36px;margin:0 0 8px">{style ? heading : `${city.name} ${cat.name.toLowerCase()}`}: FAQs</h2>
-          {faqs.map((f, i) => <details class="faq" open={i === 0}><summary>{f.q}</summary><p>{f.a}</p></details>)}
+          {faqs.map((f, i) => (
+            <details class="faq" open={i === 0}><summary>{f.q}</summary><p>{f.a}</p>
+              {f.links && f.links.length > 0 && <p class="faq-links">{f.links.map((x) => <a href={x.href}>{x.label}</a>)}</p>}
+            </details>
+          ))}
         </div>
       )}
       <div style="flex:1 1 260px;display:flex;flex-direction:column;gap:28px;font-size:15px">
@@ -196,6 +206,8 @@ const pageUrl = (n: number) => (n === 1 ? l.url : `${l.url}page/${n}/`);
   .pager a { min-width: 44px; min-height: 44px; border-radius: 12px; border: 1px solid var(--line-2); display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
   .pager a[aria-current] { background: var(--ink); color: #fff; border-color: var(--ink); }
   .bg2 { background: var(--bg-2); }
+  .faq-links { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 14px; margin-top: 8px !important; }
+  .faq-links a { color: var(--rose-dark); font-weight: 600; }
   .faqwrap { display: flex; flex-wrap: wrap; gap: 48px; padding-top: 56px; padding-bottom: 56px; }
   .rel { display: flex; flex-direction: column; gap: 10px; } .rel b { font-size: 17px; }
   @media (max-width: 640px) { .filters { max-width: none; } }

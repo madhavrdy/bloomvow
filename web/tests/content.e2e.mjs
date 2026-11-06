@@ -37,7 +37,7 @@ test('page content: SEO title, short intro on top, guide below the listings, cus
   assert.ok(intro > 0 && intro < list && list < guide && guide < faq, 'intro, listings, guide, FAQs in that order');
   assert.match(h, /href="#guide"[^>]*>Read the full guide ↓/);
   assert.match(h, /<nav class="toc" aria-label="In this guide">[\s\S]*How much do Austin venues cost\?[\s\S]*When to book[\s\S]*Questions to ask/);
-  assert.ok(h.indexOf('Are Austin venues cheaper on Fridays?') < h.indexOf('How many wedding venues are there in Austin?'), 'custom FAQ first');
+  assert.ok(h.indexOf('Are Austin venues cheaper on Fridays?') < h.indexOf('What are the best wedding venues in Austin?'), 'custom FAQ first');
   const faqLd = ld(h, 'FAQPage')[0];
   assert.equal(faqLd.mainEntity[0].name, 'Are Austin venues cheaper on Fridays?');
   assert.ok(faqLd.mainEntity.length > 1, 'automatic FAQs still included');
@@ -181,4 +181,38 @@ test('category images: home page and /categories/ show the same image cards with
   for (const slug of cards) assert.ok(fs.existsSync(path.join(DIST, 'img/categories', `${slug}.svg`)), `illustration for ${slug}`);
   assert.match(cats, /class="muted cat-count"[^>]*>[\d,]+ vendors · \d+ cit(y|ies)</);
   assert.equal(ld(cats, 'ItemList')[0].itemListElement.length, cards.length);
+});
+
+test('venue location FAQs: 8 questions, short direct answers built from local listings, unique per city, linked', () => {
+  const faqsOf = (f) => ld(html(f), 'FAQPage')[0].mainEntity.map((q) => ({ q: q.name, a: q.acceptedAnswer.text }));
+  const austin = faqsOf('us/texas/austin/wedding-venues/index.html').filter((f) => !/Fridays/.test(f.q));
+  assert.deepEqual(austin.map((f) => f.q), [
+    'What are the best wedding venues in Austin?',
+    'How much does it cost to book a wedding venue in Austin?',
+    'Where can I find small wedding venues in Austin for an intimate celebration?',
+    'What are the best outdoor wedding venues in Austin?',
+    'How do I find a wedding reception venue in Austin that fits my guest count and budget?',
+    'Are there all-inclusive wedding venues in Austin that offer catering and other services?',
+    'How can I compare and choose the right wedding venue in Austin?',
+    'How far in advance should I book a wedding venue in Austin?',
+  ]);
+  for (const f of austin) {
+    const words = f.a.split(/\s+/).length;
+    assert.ok(words >= 25 && words <= 90, `${f.q}: ${words} words`);
+  }
+  assert.match(austin[0].a, /We list \d+ wedding venues and reception locations in and around Austin\./);
+  assert.match(austin[7].a, /spring and fall/, 'Texas: hot-summer season advice');
+  const h = html('us/texas/austin/wedding-venues/index.html');
+  assert.match(h, /<p class="faq-links"[^>]*>(?:(?!<\/p>)[\s\S])*?href="\/vendor\//, 'answers link to listed venues');
+  assert.equal(ld(h, 'FAQPage')[0].mainEntity.length, austin.length + 1, 'one FAQPage, custom FAQ included');
+  // Another city gets its own answers, not a copy.
+  const other = fs.readdirSync(path.join(DIST, 'us'), { withFileTypes: true }).filter((r) => r.isDirectory()).map((r) => r.name).flatMap((r) => fs.readdirSync(path.join(DIST, 'us', r), { withFileTypes: true })
+    .filter((x) => x.isDirectory()).map((x) => `us/${r}/${x.name}/wedding-venues/index.html`))
+    .find((f) => !f.includes('/austin/') && fs.existsSync(path.join(DIST, f)));
+  const o = faqsOf(other);
+  assert.notEqual(o[0].a, austin[0].a);
+  assert.ok(!o.some((f) => /Austin/.test(f.q)), 'questions name their own city');
+  // Page 2 has no FAQs (they live on page 1 only).
+  const p2 = path.join(DIST, 'us/texas/austin/wedding-venues/page/2/index.html');
+  if (fs.existsSync(p2)) assert.ok(!fs.readFileSync(p2, 'utf8').includes('FAQPage'));
 });

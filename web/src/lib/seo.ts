@@ -3,7 +3,7 @@
 import type { ListingPage, SiteData, Vendor } from './data';
 import { money, median, replyLabel, rankVendors, telHref } from './data';
 
-export type Faq = { q: string; a: string };
+export type Faq = { q: string; a: string; links?: { href: string; label: string }[] };
 
 export function listingFaqs(l: ListingPage): Faq[] {
   const { city, category: cat, vendors } = l;
