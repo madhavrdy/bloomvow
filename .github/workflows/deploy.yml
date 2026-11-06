@@ -12,8 +12,11 @@ permissions: { contents: read }
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 180   # the first FTP upload sends every file once; later runs send only changes
-    env: { HAS_FTP: "${{ secrets.FTP_HOST != '' }}" }
+    timeout-minutes: 180   # an FTP upload of every file is slow; the Hostinger API route takes minutes
+    env:
+      HAS_API: "${{ secrets.HOSTINGER_API_TOKEN != '' }}"
+      HAS_FTP: "${{ secrets.HOSTINGER_API_TOKEN == '' && secrets.FTP_HOST != '' }}"
+      SITE_URL: ${{ vars.SITE_URL || 'https://celebrateio.com' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -31,7 +34,15 @@ jobs:
           test -n "$SITE_URL" || echo "::warning::Set the SITE_URL variable (Settings > Secrets and variables > Actions > Variables) to your domain before launch."
           npm run build
           echo "Pages: $(find dist -name '*.html' | wc -l), files: $(find dist -type f | wc -l)" >> "$GITHUB_STEP_SUMMARY"
-      # Uploads only files that changed since the last successful upload (tracked by a
+      # Preferred: one zip, unpacked by Hostinger (needs the HOSTINGER_API_TOKEN secret).
+      - name: Publish to Hostinger
+        if: env.HAS_API == 'true'
+        env:
+          HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
+          HOSTINGER_USERNAME: ${{ vars.HOSTINGER_USERNAME || 'u895082831' }}
+          HOSTINGER_DOMAIN: ${{ vars.HOSTINGER_DOMAIN || 'celebrateio.com' }}
+        run: scripts/hostinger-deploy.sh web/dist
+      # Fallback: uploads only files that changed since the last successful upload (tracked by a
       # file-hash list kept in the Actions cache). Reconnects on its own if Hostinger drops FTP.
       - name: Restore last upload's file list
         if: env.HAS_FTP == 'true'
@@ -53,6 +64,5 @@ jobs:
         uses: actions/cache/save@v4
         with: { path: .ftp-manifest, key: 'ftp-manifest-${{ github.run_id }}' }
       - name: Notify search engines (IndexNow)
-        if: env.HAS_FTP == 'true'
-        env: { SITE_URL: "${{ vars.SITE_URL || 'https://celebrateio.com' }}" }
+        if: env.HAS_FTP == 'true' || env.HAS_API == 'true'
         run: node scripts/indexnow.mjs web/dist
