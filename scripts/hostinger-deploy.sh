@@ -41,7 +41,7 @@ call -X POST "$U/site.zip?override=true" -H "X-Auth: $A" -H "X-Auth-Rest: $R" -H
 CHUNK=$((40*1024*1024)); OFF=0
 while [ "$OFF" -lt "$SIZE" ]; do
   LEN=$(( SIZE-OFF < CHUNK ? SIZE-OFF : CHUNK ))
-  tail -c +$((OFF+1)) "$WORK/site.zip" | head -c $LEN > "$WORK/part"
+  dd if="$WORK/site.zip" of="$WORK/part" iflag=skip_bytes,count_bytes skip=$OFF count=$LEN bs=4M status=none
   call -X PATCH "$U/site.zip?override=true" -H "X-Auth: $A" -H "X-Auth-Rest: $R" -H "Tus-Resumable: 1.0.0" \
     -H "Content-Type: application/offset+octet-stream" -H "Upload-Offset: $OFF" --data-binary @"$WORK/part"
   OFF=$((OFF+LEN)); echo "uploaded $OFF / $SIZE"
