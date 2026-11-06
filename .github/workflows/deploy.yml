@@ -12,7 +12,7 @@ permissions: { contents: read }
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 180   # the first FTP upload sends every file once; later runs send only changes
     env: { HAS_FTP: "${{ secrets.FTP_HOST != '' }}" }
     steps:
       - uses: actions/checkout@v4
