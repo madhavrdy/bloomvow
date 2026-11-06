@@ -40,7 +40,7 @@ if (( n > 0 )); then
     echo "::error::FTP upload failed: $(grep -v '^$' "$WORK/err" | tail -3 | tr '\n' ' ' | sed "s/$FTP_PASS/***/g")"
     # Show where the FTP login lands (folder names only) to help set FTP_DIR.
     seen=$(LFTP_PASSWORD="$FTP_PASS" lftp -c "set ftp:ssl-allow ${FTP_SSL:-yes}; set ssl:verify-certificate no; set net:max-retries 2
-      open --env-password -u \"$FTP_USER\" \"$FTP_HOST\"; pwd; cls -1 --sort=name; cls -1d */*/ */*/*/" </dev/null 2>/dev/null | head -40 | tr '\n' ' ')
+      open --env-password -u \"$FTP_USER\" \"$FTP_HOST\"; pwd; cls -1 --sort=name; cls -1d */*/ */*/*/" </dev/null 2>/dev/null | head -40 | tr '\n' ' ' || true)
     echo "::error::FTP folder view: $seen"; exit 1; }
 fi
 cp "$WORK/manifest" "$NEW"
