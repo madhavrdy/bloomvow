@@ -18,6 +18,7 @@ const base = d.urls.blogCategory(c);
 const crumbs = [{ name: 'Home', url: '/' }, { name: 'Blog', url: '/blog/' }, { name: c.name, url: base }];
 const desc = c.seo_description || c.description || `${c.name}: wedding planning articles and guides.`;
 ---
-<Base title={`${c.seo_title || c.name}${pageNo > 1 ? ` (page ${pageNo})` : ''}`} description={desc} jsonld={[breadcrumbJsonLd(Astro.site, crumbs)]} rss>
+<Base title={`${c.seo_title || c.name}${pageNo > 1 ? ` (page ${pageNo})` : ''}`} description={pageNo > 1 ? `Page ${pageNo}: ${desc}` : desc} jsonld={[breadcrumbJsonLd(Astro.site, crumbs)]} rss
+  prev={pageNo > 1 ? (pageNo === 2 ? base : `${base}page/${pageNo - 1}/`) : undefined} next={pageNo < pageCount(posts.length) ? `${base}page/${pageNo + 1}/` : undefined}>
   <BlogList posts={pageSlice(posts, pageNo)} pageNo={pageNo} pages={pageCount(posts.length)} base={base} heading={c.name} intro={c.description || desc} current={c} crumbs={crumbs} />
 </Base>

@@ -152,3 +152,16 @@ test('a vendor added after the last build still opens (404 hands over to the sha
   await p.locator('#bv-nearby-h:has-text("More wedding cakes near Austin")').waitFor();
   await p.locator('#bv-team-h:has-text("Complete your wedding team in Austin")').waitFor();
 });
+
+test('paginated lists: each page is self-canonical, with prev/next links and its own description', () => {
+  const base = 'us/texas/san-marcos/wedding-venues/';
+  const p1 = html(`${base}index.html`), p2 = html(`${base}page/2/index.html`);
+  const tag = (h, re) => h.match(re)?.[1];
+  assert.equal(tag(p1, /<link rel="canonical" href="([^"]+)"/), `${SITE}/${base}`);
+  assert.equal(tag(p2, /<link rel="canonical" href="([^"]+)"/), `${SITE}/${base}page/2/`, 'page 2 points to itself, not page 1');
+  assert.ok(!/rel="prev"/.test(p1));
+  assert.equal(tag(p1, /<link rel="next" href="([^"]+)"/), `${SITE}/${base}page/2/`);
+  assert.equal(tag(p2, /<link rel="prev" href="([^"]+)"/), `${SITE}/${base}`);
+  assert.match(tag(p2, /<meta name="description" content="([^"]+)"/), /^Page 2 of \d+: /);
+  assert.notEqual(tag(p1, /<meta name="description" content="([^"]+)"/), tag(p2, /<meta name="description" content="([^"]+)"/));
+});

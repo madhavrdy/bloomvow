@@ -14,7 +14,8 @@ const d = await getData();
 const pageNo = Number(Astro.params.page?.split('/')[1] ?? 1);
 const crumbs = [{ name: 'Home', url: '/' }, { name: 'Blog', url: '/blog/' }];
 ---
-<Base title={`Wedding planning blog${pageNo > 1 ? ` (page ${pageNo})` : ''}`} description={`Wedding planning advice, real costs and checklists from ${SITE_NAME}: venues, budgets, vendors and more.`} jsonld={[breadcrumbJsonLd(Astro.site, crumbs)]} rss>
+<Base title={`Wedding planning blog${pageNo > 1 ? ` (page ${pageNo})` : ''}`} description={`${pageNo > 1 ? `Page ${pageNo}: ` : ''}Wedding planning advice, real costs and checklists from ${SITE_NAME}: venues, budgets, vendors and more.`} jsonld={[breadcrumbJsonLd(Astro.site, crumbs)]} rss
+  prev={pageNo > 1 ? (pageNo === 2 ? '/blog/' : `/blog/page/${pageNo - 1}/`) : undefined} next={pageNo < pageCount(d.posts.length) ? `/blog/page/${pageNo + 1}/` : undefined}>
   <BlogList posts={pageSlice(d.posts, pageNo)} pageNo={pageNo} pages={pageCount(d.posts.length)} base="/blog/" heading="Wedding planning blog"
     intro="Practical advice for planning your wedding: what things really cost, how to choose vendors, and checklists to keep you on track." crumbs={crumbs} />
 </Base>

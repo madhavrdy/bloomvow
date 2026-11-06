@@ -72,7 +72,9 @@ const jsonld = [breadcrumbJsonLd(Astro.site, crumbs), itemListJsonLd(Astro.site,
 const ogImage = c.hero?.url ?? vendors.map((v) => d.photosByVendor.get(v.id)?.[0]?.url).find(Boolean);
 const pageUrl = (n: number) => (n === 1 ? l.url : `${l.url}page/${n}/`);
 ---
-<Base title={title} description={c.seoDescription ?? autoIntro.slice(0, 158)} noindex={style ? false : !l.indexable} jsonld={jsonld} image={ogImage}>
+<Base title={title} description={pageNo > 1 ? `Page ${pageNo} of ${pages}: ${heading}. ${autoIntro}`.slice(0, 158) : c.seoDescription ?? autoIntro.slice(0, 158)}
+  noindex={style ? false : !l.indexable} jsonld={jsonld} image={ogImage}
+  prev={!style && pageNo > 1 ? pageUrl(pageNo - 1) : undefined} next={!style && pageNo < pages ? pageUrl(pageNo + 1) : undefined}>
   <main class="wrap" style="padding-top:24px">
     <Breadcrumbs items={crumbs} />
     <h1 class="serif" style="font-size:clamp(36px,5vw,52px);margin:16px 0 8px">{heading}</h1>
