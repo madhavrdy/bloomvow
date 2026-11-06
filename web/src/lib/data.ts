@@ -132,13 +132,17 @@ function build(d: Awaited<ReturnType<typeof load>>) {
   for (const v of d.vendors) v.phone = formatPhone(v.phone);
   const vendors = d.vendors.filter((v) => cityById.has(v.city_id) && categoryById.has(v.category_id) && shownIn(v.city_id, v.category_id));
   const vendorById = new Map(vendors.map((v) => [v.id, v]));
-  // Every vendor gets its own static, crawlable page at /vendor/<slug>/. A page is
-  // indexed when it has something useful beyond a name (a phone, website, address,
-  // description, photos or reviews); bare name-only listings stay noindex.
+  // Every vendor gets its own static page at /vendor/<slug>/, visible to everyone and linked
+  // from the city pages. Search engines are only asked to index it (and it only goes in the
+  // sitemap) once it has original content: claimed, featured, a description, photos, packages
+  // or reviews. Imported listings with just contact details stay "noindex, follow", so tens of
+  // thousands of near-identical pages don't make the whole site look thin to Google.
+  // The setting index_basic_vendors = true switches back to indexing those too.
   const hasPhotos = new Set(d.photos.map((p) => p.vendor_id));
   const hasPackages = new Set(d.packages.map((p) => p.vendor_id));
   const isRich = (v: Vendor) => v.status === 'claimed' || v.featured || !!v.description?.trim() || v.review_count > 0 || hasPhotos.has(v.id) || hasPackages.has(v.id);
-  const vendorIndexable = (v: Vendor) => isRich(v) || !!(v.phone || v.website || v.address);
+  const indexBasic = setting('index_basic_vendors') === true;
+  const vendorIndexable = (v: Vendor) => isRich(v) || (indexBasic && !!(v.phone || v.website || v.address));
   const vendorBySlug = new Map(vendors.map((v) => [v.slug, v]));
 
   const urls = {
