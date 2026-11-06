@@ -31,16 +31,27 @@ jobs:
           test -n "$SITE_URL" || echo "::warning::Set the SITE_URL variable (Settings > Secrets and variables > Actions > Variables) to your domain before launch."
           npm run build
           echo "Pages: $(find dist -name '*.html' | wc -l), files: $(find dist -type f | wc -l)" >> "$GITHUB_STEP_SUMMARY"
+      # Uploads only files that changed since the last successful upload (tracked by a
+      # file-hash list kept in the Actions cache). Reconnects on its own if Hostinger drops FTP.
+      - name: Restore last upload's file list
+        if: env.HAS_FTP == 'true'
+        uses: actions/cache/restore@v4
+        with: { path: .ftp-manifest, key: 'ftp-manifest-${{ github.run_id }}', restore-keys: 'ftp-manifest-' }
       - name: Upload changed files to Hostinger
         if: env.HAS_FTP == 'true'
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_HOST }}
-          username: ${{ secrets.FTP_USER }}
-          password: ${{ secrets.FTP_PASS }}
-          local-dir: web/dist/
-          server-dir: ${{ vars.FTP_DIR || 'public_html/' }}
-          dangerous-clean-slate: false
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+          FTP_DIR: ${{ vars.FTP_DIR || 'public_html' }}
+        run: |
+          sudo apt-get install -y -qq lftp >/dev/null
+          scripts/ftp-sync.sh web/dist "$( [ -f .ftp-manifest ] && echo .ftp-manifest )" .ftp-manifest.new
+          mv .ftp-manifest.new .ftp-manifest
+      - name: Remember this upload's file list
+        if: env.HAS_FTP == 'true'
+        uses: actions/cache/save@v4
+        with: { path: .ftp-manifest, key: 'ftp-manifest-${{ github.run_id }}' }
       - name: Notify search engines (IndexNow)
         if: env.HAS_FTP == 'true'
         env: { SITE_URL: "${{ vars.SITE_URL || 'https://celebrateio.com' }}" }
