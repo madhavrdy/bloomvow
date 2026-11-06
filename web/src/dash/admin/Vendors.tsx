@@ -7,6 +7,7 @@ type V = {
   id: string; slug: string; name: string; category_id: number; city_id: number; status: string; plan: string; plan_renews_at: string | null;
   email: string | null; phone: string | null; website: string | null; description: string | null; price_from: number | null;
   capacity_max: number | null; rating: number | null; review_count: number; owner_id: string | null; source: string | null; updated_at: string;
+  hidden_reason: string | null;
 };
 type Claim = { id: string; vendor_id: string; email: string; phone: string | null; note: string | null; created_at: string; vendors: { name: string; status: string; website: string | null; website_domain: string | null; city_id: number; category_id: number } };
 type ImportResult = { rows: number; inserted: number; merged: number; needs_review: { row: number; name?: string; reason: string }[] };
@@ -52,7 +53,7 @@ function VendorList({ ref_, toast }: { ref_: Ref; toast: (t: string) => void }) 
   const [edit, setEdit] = useState<V | null>(null);
 
   async function load() {
-    let query = sb().from('vendors').select('id,slug,name,category_id,city_id,status,plan,plan_renews_at,email,phone,website,description,price_from,capacity_max,rating,review_count,owner_id,source,updated_at', { count: 'exact' });
+    let query = sb().from('vendors').select('id,slug,name,category_id,city_id,status,plan,plan_renews_at,email,phone,website,description,price_from,capacity_max,rating,review_count,owner_id,source,updated_at,hidden_reason', { count: 'exact' });
     const t = q.trim().replace(/[%_,()]/g, ' ');
     if (t) query = query.or(`name.ilike.%${t}%,email.ilike.%${t}%,slug.ilike.%${t}%`);
     if (status !== 'all') query = query.eq('status', status);
@@ -87,7 +88,8 @@ function VendorList({ ref_, toast }: { ref_: Ref; toast: (t: string) => void }) 
                 <td style="padding-left:16px"><b>{v.name}</b><span class="muted" style="display:block;font-size:12px">{v.source ?? ''} · updated {ago(v.updated_at)}</span></td>
                 <td>{ref_.catById.get(v.category_id)?.singular}</td>
                 <td>{ref_.cityById.get(v.city_id)?.label}</td>
-                <td><span class={`chip-s ${v.status === 'claimed' ? 's-tour' : v.status === 'hidden' ? 's-pending' : 's-lost'}`}>{v.status}</span></td>
+                <td><span class={`chip-s ${v.status === 'claimed' ? 's-tour' : v.status === 'hidden' ? 's-pending' : 's-lost'}`}>{v.status}</span>
+                  {v.status === 'hidden' && v.hidden_reason && <span class="muted" style="display:block;font-size:12px;max-width:200px">{v.hidden_reason}</span>}</td>
                 <td>{v.plan === 'featured' ? <span class="chip-s s-new">Featured</span> : 'Free'}</td>
                 <td style="font-size:13px">{v.email ?? <span class="form-error" style="font-size:13px">missing</span>}</td>
                 <td>{v.rating ? `${Number(v.rating).toFixed(1)} (${v.review_count})` : '–'}</td>
@@ -129,6 +131,7 @@ function EditVendor({ v, ref_, onClose, onSaved }: { v: V; ref_: Ref; onClose: (
         <span class="muted" style="font-size:13px">{ref_.catById.get(v.category_id)?.singular} · {ref_.cityById.get(v.city_id)?.label} · <a href={`/vendor/${v.slug}/`} target="_blank" rel="noopener">public page ↗</a></span>
         <div class="grid2">
           <label class="field span2">Name<input value={f.name} onInput={set('name')} required minLength={2} /></label>
+          {v.status === 'hidden' && v.hidden_reason && <p class="span2 muted" style="margin:0;font-size:13px">Hidden: {v.hidden_reason}. Set the status to Unclaimed to show it on the site again.</p>}
           <label class="field">Status<select value={f.status} onChange={set('status')}><option value="unclaimed">Unclaimed</option><option value="claimed">Claimed</option><option value="hidden">Hidden</option></select></label>
           <label class="field">Plan<select value={f.plan} onChange={set('plan')}><option value="free">Free</option><option value="featured">Featured</option></select></label>
           {f.plan === 'featured' && <label class="field span2">Plan renews on<input type="date" value={f.renews} onInput={set('renews')} /></label>}
