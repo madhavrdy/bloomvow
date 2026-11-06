@@ -202,6 +202,25 @@ test('edit listing: details, packages, service-area cities and photos are saved'
   const pk = await q(`select name, price from packages where vendor_id = $1 and name = 'Sunday brunch'`, [v.id]);
   assert.deepEqual(pk.map((x) => ({ ...x })), [{ name: 'Sunday brunch', price: 5200 }]);
 
+  // Details & amenities: venue options, grouped; saved as structured details.
+  // The first group ("Venue") starts open; the others open on click.
+  await p.click('.det-field:has-text("Setting & venue type") button:has-text("Barn")');
+  await p.fill('input[aria-label="Seated dinner capacity"]', '180');
+  await p.click('.det-head:has-text("Amenities")');
+  await p.click('.det-field:has-text("Amenities") button:has-text("Dance floor")');
+  await p.click('.det-field:has-text("Amenities") button:has-text("Wheelchair accessible")');
+  await p.click('.det-head:has-text("Services & policies")');
+  await p.click('.det-field:has-text("Catering") button:has-text("In-house catering only")');
+  assert.equal(await p.getAttribute('.det-field:has-text("Catering") button:has-text("In-house catering only")', 'aria-checked'), 'true');
+  await p.click('button:has-text("Save changes")');
+  await p.waitForSelector('.toast');
+  const [dd] = await q(`select details from vendors where id = $1`, [v.id]);
+  assert.deepEqual(dd.details.amenities, ['Dance floor', 'Wheelchair accessible'], 'kept in the defined order');
+  assert.equal(dd.details.catering_policy, 'In-house catering only');
+  assert.equal(dd.details.capacity_seated, 180);
+  assert.deepEqual(dd.details.venue_type, ['Barn']);
+  assert.ok(await p.isVisible('.checklist .ok:has-text("Details & amenities")') || await p.isVisible('.checklist :text("detail question")'));
+
   // Featured plan: extra city pages allowed.
   await p.fill('input[list=ed-cities]', 'Round Rock, TX');
   await p.click('button:has-text("Add city")');

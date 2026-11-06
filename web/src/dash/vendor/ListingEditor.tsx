@@ -3,6 +3,8 @@ import { useEffect, useState } from 'preact/hooks';
 import { sb, must, friendly } from '../supabase';
 import { Toast, useToast, type Category, type City, type Ref } from '../shared';
 import { listingChecks, strength, words } from './completeness';
+import { DetailsEditor } from '../DetailsEditor';
+import { cleanDetails, type Details } from '../../lib/details';
 import type { Listing } from './VendorApp';
 
 type Pkg = { id?: string; name: string; description: string; price: string; sort: number };
@@ -17,6 +19,7 @@ export function ListingEditor({ listing, category, city, ref_, onSaved }: { list
     price_from: listing.price_from?.toString() ?? '', capacity_max: listing.capacity_max?.toString() ?? '',
     setting: listing.setting ?? '', amenities: listing.amenities.join(', '),
   });
+  const [details, setDetails] = useState<Details>(cleanDetails(category.slug, listing.details));
   const [pkgs, setPkgs] = useState<Pkg[]>([]);
   const [removedPkgs, setRemovedPkgs] = useState<string[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -63,6 +66,7 @@ export function ListingEditor({ listing, category, city, ref_, onSaved }: { list
         address: f.address.trim() || null, zip: f.zip.trim() || null, description: f.description.trim() || null,
         price_from: toInt(f.price_from), capacity_max: toInt(f.capacity_max), setting: f.setting || null,
         amenities: f.amenities.split(',').map((a) => a.trim()).filter(Boolean).slice(0, 30),
+        details: cleanDetails(category.slug, details),
       }).eq('id', listing.id) as never);
       if (removedPkgs.length) await must(sb().from('packages').delete().in('id', removedPkgs) as never);
       for (const [i, p] of pkgs.entries()) {
@@ -130,6 +134,7 @@ export function ListingEditor({ listing, category, city, ref_, onSaved }: { list
   const checks = listingChecks({
     description: f.description, price_from: toInt(f.price_from), capacity_max: toInt(f.capacity_max), usesCapacity: category.uses_capacity,
     phone: f.phone, website: f.website, photos: photos.length, packages: pkgs.map((p) => ({ price: toInt(p.price) })),
+    details: Object.keys(details).length,
   });
   const pct = strength(checks);
   const cityLimit = listing.plan === 'featured' ? 5 : 1;
@@ -178,7 +183,7 @@ export function ListingEditor({ listing, category, city, ref_, onSaved }: { list
             <label class="field">Starting price ($)<input inputMode="numeric" value={f.price_from} onInput={set('price_from')} placeholder="e.g. 6500" /></label>
             {isVenue && <label class="field">Setting<select value={f.setting} onChange={set('setting')}><option value="">Choose…</option>{SETTINGS.map((s) => <option>{s}</option>)}</select></label>}
           </div>
-          {isVenue && <label class="field">Amenities (comma separated)<input value={f.amenities} onInput={set('amenities')} placeholder="Bridal suite, On-site lodging, Ample parking" /></label>}
+          {isVenue && <label class="field">Other amenities not in the list below (comma separated)<input value={f.amenities} onInput={set('amenities')} placeholder="e.g. Koi pond, Vintage bar cart" /></label>}
           {pkgs.map((p, i) => (
             <div class="pkg-row">
               <label class="field">Package name<input value={p.name} onInput={setPkg(i, 'name')} maxLength={80} /></label>
@@ -189,6 +194,10 @@ export function ListingEditor({ listing, category, city, ref_, onSaved }: { list
           ))}
           <button type="button" class="btn btn-outline" style="align-self:flex-start" onClick={() => { setPkgs([...pkgs, { name: '', description: '', price: '', sort: pkgs.length }]); setDirty(true); }}>+ Add package</button>
         </section>
+
+        <div class="dhead" id="details" style="margin-top:4px"><h2 style="margin:0;font-size:20px">Details, amenities &amp; services</h2>
+          <span class="muted" style="font-size:13px">Tick everything that applies. Couples filter and compare on these, and they show on your page.</span></div>
+        <DetailsEditor category={category.slug} value={details} onChange={(d) => { setDetails(d); setDirty(true); }} />
 
         <section class="panel" id="photos"><div class="dhead"><h2>Photos ({photos.length} of 30)</h2><span class="muted" style="font-size:13px">The first photo is your cover. JPG, PNG or WebP up to 5 MB.</span></div>
           <div class="photos">

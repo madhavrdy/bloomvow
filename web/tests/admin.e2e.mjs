@@ -111,10 +111,16 @@ test('vendors: search, edit details, set Featured with renewal date', async () =
   await admin.click('[role=dialog] button:has-text("Save vendor")');
   await admin.waitForSelector('[role=dialog] .form-error:has-text("renewal date")');
   await admin.fill('[role=dialog] input[type=date]', '2027-01-15');
+  // Admins can fill in the category's details too.
+  await admin.click('[role=dialog] .det-group >> nth=0 >> .det-head');
+  const opt = admin.locator('[role=dialog] .det-group >> nth=0 >> .seg button').first();
+  const label = (await opt.textContent()).trim();
+  await opt.click();
   await admin.click('[role=dialog] button:has-text("Save vendor")');
   await toast(admin, /saved/);
-  const [row] = await q(`select email, plan, plan_renews_at::text from vendors where id = $1`, [v.id]);
-  assert.deepEqual({ ...row }, { email: 'leads@newowner.example', plan: 'featured', plan_renews_at: '2027-01-15' });
+  const [row] = await q(`select email, plan, plan_renews_at::text, details from vendors where id = $1`, [v.id]);
+  assert.deepEqual({ email: row.email, plan: row.plan, plan_renews_at: row.plan_renews_at }, { email: 'leads@newowner.example', plan: 'featured', plan_renews_at: '2027-01-15' });
+  assert.ok(Object.values(row.details).some((x) => Array.isArray(x) && x.includes(label)), `saved ${label}`);
 });
 
 test('claims: approve transfers ownership and the queue empties', async () => {

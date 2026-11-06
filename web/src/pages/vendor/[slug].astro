@@ -5,6 +5,7 @@ import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import VendorCard from '../../components/VendorCard.astro';
 import { getData, money, replyLabel, rankVendors, telHref, type Vendor } from '../../lib/data';
 import { vendorJsonLd, breadcrumbJsonLd, faqJsonLd } from '../../lib/seo';
+import { cleanDetails, filledGroups, showValue } from '../../lib/details';
 
 export async function getStaticPaths() {
   const d = await getData();
@@ -47,11 +48,20 @@ const about = v.description?.trim() || [
   `Couples planning a wedding in ${city.name} can contact them directly${v.phone ? ` on ${v.phone}` : ''}${webHost ? ` or through their website, ${webHost}` : ''}, or send one request here to check pricing and availability for their date.`,
   others > 0 ? `To compare options, browse ${others} other ${plural} in ${city.name}.` : '',
 ].filter(Boolean).join(' ');
+const det = cleanDetails(cat.slug, v.details);
+const detGroups = filledGroups(cat.slug, det);
+const detList = (k: string) => (Array.isArray(det[k]) ? (det[k] as string[]) : []);
 const faqs = [
   { q: `Where is ${v.name} located?`, a: v.address ? `${v.name} is at ${v.address}, ${city.name}, ${st}${v.zip ? ` ${v.zip}` : ''}.` : `${v.name} is based in ${city.name}, ${region.name}.` },
   ...(v.phone || webHost ? [{ q: `How do I contact ${v.name}?`, a: [v.phone && `Call ${v.phone}`, webHost && `visit ${webHost}`].filter(Boolean).join(' or ') + `, or use the "Check availability & pricing" form on this page to send your date and guest count.` }] : []),
   { q: `How much does ${v.name} cost?`, a: v.price_from != null ? `Pricing starts from ${money(v.price_from)}. Final prices depend on your date, guest count and package; request a quote for an exact price.` : `${v.name} hasn't published prices yet. Send a free request with your date and guest count to get a quote.` },
-  ...(cat.uses_capacity && v.capacity_max ? [{ q: `How many guests can ${v.name} host?`, a: `Up to ${v.capacity_max} guests.` }] : []),
+  ...(cat.uses_capacity && (v.capacity_max || det.capacity_seated) ? [{ q: `How many guests can ${v.name} host?`, a: [
+    v.capacity_max && `Up to ${v.capacity_max} guests.`, det.capacity_seated && `${det.capacity_seated} for a seated dinner.`,
+    det.capacity_standing && `${det.capacity_standing} cocktail-style.`, det.capacity_min && `Minimum ${det.capacity_min} guests.`].filter(Boolean).join(' ') }] : []),
+  ...(det.catering_policy ? [{ q: `Can we bring our own caterer to ${v.name}?`, a: `${det.catering_policy}.${det.alcohol_policy ? ` Alcohol: ${String(det.alcohol_policy).toLowerCase()}.` : ''}` }] : []),
+  ...(detList('services').length ? [{ q: `What services does ${v.name} offer?`, a: `${detList('services').join(', ')}.` }] : []),
+  ...(detList('amenities').includes('Wheelchair accessible') ? [{ q: `Is ${v.name} wheelchair accessible?`, a: `Yes, ${v.name} lists the venue as wheelchair accessible. Ask about specific needs when you request pricing.` }] : []),
+  ...(detList('languages').length > 1 ? [{ q: `What languages does ${v.name} speak?`, a: `${detList('languages').join(', ')}.` }] : []),
 ];
 const updated = v.updated_at;
 const fmtDate = (s: string | null) => (s ? new Date(s).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '');
@@ -60,6 +70,8 @@ const facts = [
   v.price_from != null && ['Starting price', money(v.price_from)],
   cat.uses_capacity && v.capacity_max && ['Guest capacity', `Up to ${v.capacity_max}`],
   v.setting && ['Setting', v.setting],
+  !v.capacity_max && typeof det.capacity_seated === 'number' && ['Seated capacity', `${det.capacity_seated} guests`],
+  typeof det.years_in_business === 'number' && ['In business', `${det.years_in_business} years`],
   reply && ['Typical reply', `Within ${reply}`],
 ].filter(Boolean) as [string, string][];
 ---
@@ -98,7 +110,7 @@ const facts = [
         {facts.length > 0 && <div class="facts">{facts.map(([k, val]) => <div><span>{k}</span><b>{val}</b></div>)}</div>}
 
         <nav class="tabs" aria-label="Profile sections">
-          <a href="#about">About</a><a href="#location">Location</a>{packages.length > 0 && <a href="#pricing">Pricing</a>}<a href="#reviews">Reviews</a><a href="#faqs">FAQs</a>
+          <a href="#about">About</a>{detGroups.length > 0 && <a href="#details">Details</a>}<a href="#location">Location</a>{packages.length > 0 && <a href="#pricing">Pricing</a>}<a href="#reviews">Reviews</a><a href="#faqs">FAQs</a>
         </nav>
 
         <section id="about">
@@ -106,6 +118,20 @@ const facts = [
           <p style="font-size:16px;line-height:1.65;color:#3a3447;white-space:pre-line">{about}</p>
           {v.amenities.length > 0 && <ul class="amen">{v.amenities.map((a) => <li>{a}</li>)}</ul>}
         </section>
+
+        {detGroups.length > 0 && (
+          <section id="details">
+            <h2 class="serif">Details &amp; amenities</h2>
+            {detGroups.map((g) => (
+              <div class="det-group">
+                <h3>{g.title}</h3>
+                {g.fields.map(({ field, value }) => Array.isArray(value)
+                  ? <div class="det-row"><b>{field.label}</b><ul class="amen">{value.map((x) => <li>{x}</li>)}</ul></div>
+                  : <div class="det-row det-inline"><b>{field.label}</b><span>{showValue(field, value)}</span></div>)}
+              </div>
+            ))}
+          </section>
+        )}
 
         <section id="location">
           <h2 class="serif">Location &amp; contact</h2>
@@ -233,6 +259,12 @@ const facts = [
   .tabs a { text-decoration: none; padding: 12px 0; }
   .amen { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px 24px; font-size: 15px; }
   .amen li::before { content: '✓'; color: var(--green); font-weight: 700; margin-right: 10px; }
+  .det-group { border-top: 1px solid var(--line); padding: 16px 0 4px; display: flex; flex-direction: column; gap: 14px; }
+  .det-group h3 { margin: 0; font-size: 18px; }
+  .det-row { display: flex; flex-direction: column; gap: 8px; }
+  .det-row b { font-size: 14px; color: var(--ink-2); }
+  .det-row .amen { margin: 0; }
+  .det-inline { flex-direction: row; flex-wrap: wrap; gap: 4px 12px; font-size: 15px; }
   .pkgs { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
   .pkg { border: 1px solid var(--line); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 8px; }
   .review { border-bottom: 1px solid var(--line); padding: 16px 0; }

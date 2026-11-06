@@ -6,6 +6,7 @@ import { validateStep } from '../src/scripts/quote';
 import { leadPayload } from '../src/scripts/lead';
 import { niceRound, kmBetween } from '../src/lib/geo';
 import { rankVendors, median, money, replyLabel, type Vendor } from '../src/lib/data';
+import { cleanDetails, filledGroups, groupsFor } from '../src/lib/details';
 
 const none: Filters = { guests: 0, prices: [], settings: [], minRating: 0 };
 
@@ -82,7 +83,7 @@ test('helpers', () => {
 });
 
 test('vendor ranking matches the database order', () => {
-  const v = (o: Partial<Vendor>): Vendor => ({ id: o.slug!, slug: o.slug!, name: o.slug!, category_id: 1, city_id: 1, address: null, zip: null, phone: null, website: null, description: null, price_from: null, capacity_max: null, setting: null, amenities: [], status: 'unclaimed', featured: false, rating: null, review_count: 0, avg_reply_minutes: null, updated_at: '', ...o });
+  const v = (o: Partial<Vendor>): Vendor => ({ id: o.slug!, slug: o.slug!, name: o.slug!, category_id: 1, city_id: 1, address: null, zip: null, phone: null, website: null, description: null, price_from: null, capacity_max: null, setting: null, amenities: [], status: 'unclaimed', featured: false, rating: null, review_count: 0, avg_reply_minutes: null, updated_at: '', details: {}, ...o });
   const out = rankVendors([v({ slug: 'a', rating: 5 }), v({ slug: 'b', featured: true, rating: 3 }), v({ slug: 'c', status: 'claimed', rating: 4 }), v({ slug: 'd', rating: 5, review_count: 9 })]);
   assert.deepEqual(out.map((x) => x.slug), ['b', 'c', 'd', 'a']);
 });
@@ -169,4 +170,25 @@ test('tracking: IDs are pulled out of pasted snippets; anything else is dropped'
   assert.equal(extractId('gtm', `GTM-K9X2PQ`), 'GTM-K9X2PQ');
   assert.deepEqual(cleanTracking({ ga4: 'G-AB12CD34EF', meta_pixel: '12"><script>', gsc: '<meta>', other: 'x' }), { ga4: 'G-AB12CD34EF' });
   assert.deepEqual(cleanTracking(null), {});
+});
+
+test('vendor details: only known keys and options for the category are kept', () => {
+  const d = cleanDetails('wedding-venues', {
+    amenities: ['Dance floor', 'Made-up option', 'Wheelchair accessible'], catering_policy: 'In-house catering only',
+    capacity_seated: '180', capacity_min: -3, cuisines: ['Italian'], unknown_key: 'x', languages: [],
+  });
+  assert.deepEqual(d, { amenities: ['Dance floor', 'Wheelchair accessible'], catering_policy: 'In-house catering only', capacity_seated: 180 });
+  assert.deepEqual(cleanDetails('caterers', { cuisines: ['Italian', 'Indian'] }), { cuisines: ['Italian', 'Indian'] });
+  assert.deepEqual(cleanDetails('wedding-venues', null), {});
+  assert.deepEqual(filledGroups('wedding-venues', d).map((g) => g.title), ['Venue', 'Amenities', 'Services & policies']);
+  for (const slug of ['wedding-venues', 'photographers', 'hair-makeup', 'caterers', 'wedding-cakes', 'florists', 'djs-bands', 'videographers',
+    'planners', 'officiants', 'bridal-shops', 'invitations', 'rentals', 'transportation', 'photo-booths']) {
+    const keys = groupsFor(slug).flatMap((g) => g.fields.map((f) => f.key));
+    assert.ok(keys.length >= 8, `${slug} has options`);
+    assert.equal(new Set(keys).size, keys.length, `${slug}: no duplicate keys`);
+    for (const f of groupsFor(slug).flatMap((g) => g.fields)) {
+      assert.match(f.key, /^[a-z][a-z_]{0,39}$/, 'key fits the database check');
+      if (f.type !== 'number') for (const o of f.options) assert.ok(o.length >= 1 && o.length <= 80, `${slug}.${f.key}: ${o}`);
+    }
+  }
 });

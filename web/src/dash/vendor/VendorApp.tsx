@@ -13,6 +13,7 @@ export type Listing = {
   phone: string | null; website: string | null; email: string | null; description: string | null; price_from: number | null;
   capacity_max: number | null; setting: string | null; amenities: string[]; status: string; plan: string; plan_renews_at: string | null;
   rating: number | null; review_count: number; avg_reply_minutes: number | null;
+  details: Record<string, string[] | string | number>;
 };
 export type Claim = { claim_id: string; claim_status: string; vendor_id: string; name: string; vendor_status: string; created_at: string };
 

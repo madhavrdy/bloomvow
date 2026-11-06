@@ -34,6 +34,10 @@ const pg = (await import('pg')).default;
 const c = new pg.Client({ host: '/tmp', port: 54329, user: 'postgres', database: DB });
 await c.connect();
 await c.query(`update settings set value = $1 where key = 'tracking'`, [JSON.stringify({ ga4: 'G-TEST12345', google_ads: 'AW-111222333', google_ads_lead_label: 'LeadLabel1', meta_pixel: '1234567890', gsc: 'gsc-test-token-123' })]);
+await c.query(`update vendors set details = $1 where slug = 'harbor-garden-estate-austin'`, [JSON.stringify({
+  venue_type: ['Garden', 'Mansion & estate'], amenities: ['Bridal suite & dressing room', 'Dance floor', 'Wheelchair accessible'],
+  catering_policy: 'In-house or approved caterers', services: ['Food & catering', 'Bar & drinks'], capacity_seated: 160,
+  languages: ['English', 'Spanish'], years_in_business: 12, not_a_field: 'ignored' })]);
 await c.end();
 
 console.log('2/5 api gateway');

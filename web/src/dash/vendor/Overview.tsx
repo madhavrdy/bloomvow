@@ -26,7 +26,7 @@ export function Overview({ listing, category, city, userName }: { listing: Listi
     Promise.all([
       sb().from('photos').select('id', { count: 'exact', head: true }).eq('vendor_id', listing.id),
       must<{ price: number | null }[]>(sb().from('packages').select('price').eq('vendor_id', listing.id) as never),
-    ]).then(([ph, pk]) => setChecks(listingChecks({ ...listing, usesCapacity: category.uses_capacity, photos: ph.count ?? 0, packages: pk })));
+    ]).then(([ph, pk]) => setChecks(listingChecks({ ...listing, usesCapacity: category.uses_capacity, photos: ph.count ?? 0, packages: pk, details: Object.keys(listing.details ?? {}).length })));
   }, [listing]);
 
   const pct = checks ? strength(checks) : 100;

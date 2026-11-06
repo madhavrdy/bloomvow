@@ -2,6 +2,7 @@
 // city x category page has unique, factual content.
 import type { ListingPage, SiteData, Vendor } from './data';
 import { money, median, replyLabel, rankVendors, telHref } from './data';
+import { cleanDetails } from './details';
 
 export type Faq = { q: string; a: string; links?: { href: string; label: string }[] };
 
@@ -94,6 +95,21 @@ export function vendorJsonLd(site: URL | undefined, d: SiteData, v: Vendor) {
     // Only real, approved reviews from this site are marked up.
     ...(v.rating && v.review_count ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: Number(v.rating), reviewCount: v.review_count, bestRating: 5, worstRating: 1 } } : {}),
     ...(cat.uses_capacity && v.capacity_max && type === 'EventVenue' ? { maximumAttendeeCapacity: v.capacity_max } : {}),
+    ...detailsJsonLd(cat.slug, v),
+  };
+}
+
+// Structured details as schema.org: amenities (venues), languages, and what the business offers.
+function detailsJsonLd(catSlug: string, v: Vendor) {
+  const d = cleanDetails(catSlug, v.details);
+  const list = (k: string) => (Array.isArray(d[k]) ? (d[k] as string[]) : []);
+  const amenities = [...list('amenities'), ...list('features')];
+  const offers = [...list('services'), ...list('products'), ...list('items'), ...list('vehicles'), ...list('booth_types')];
+  return {
+    ...(amenities.length ? { amenityFeature: amenities.map((name) => ({ '@type': 'LocationFeatureSpecification', name, value: true })) } : {}),
+    ...(list('languages').length ? { knowsLanguage: list('languages') } : {}),
+    ...(offers.length ? { hasOfferCatalog: { '@type': 'OfferCatalog', name: 'Services', itemListElement: offers.map((name) => ({ '@type': 'Offer', itemOffered: { '@type': 'Service', name } })) } } : {}),
+    ...(typeof d.capacity_seated === 'number' && !v.capacity_max ? { maximumAttendeeCapacity: d.capacity_seated } : {}),
   };
 }
 

@@ -15,6 +15,7 @@ export type Vendor = {
   phone: string | null; website: string | null; description: string | null; price_from: number | null; capacity_max: number | null;
   setting: string | null; amenities: string[]; status: 'unclaimed' | 'claimed'; featured: boolean; rating: number | null;
   review_count: number; avg_reply_minutes: number | null; updated_at: string;
+  details: Record<string, string[] | string | number>;
 };
 export type Pkg = { id: string; vendor_id: string; name: string; description: string | null; price: number | null; sort: number };
 export type Photo = { id: string; vendor_id: string; url: string; alt: string | null; sort: number };
@@ -140,7 +141,8 @@ function build(d: Awaited<ReturnType<typeof load>>) {
   // The setting index_basic_vendors = true switches back to indexing those too.
   const hasPhotos = new Set(d.photos.map((p) => p.vendor_id));
   const hasPackages = new Set(d.packages.map((p) => p.vendor_id));
-  const isRich = (v: Vendor) => v.status === 'claimed' || v.featured || !!v.description?.trim() || v.review_count > 0 || hasPhotos.has(v.id) || hasPackages.has(v.id);
+  const isRich = (v: Vendor) => v.status === 'claimed' || v.featured || !!v.description?.trim() || v.review_count > 0 || hasPhotos.has(v.id) || hasPackages.has(v.id)
+    || Object.keys(v.details ?? {}).length >= 3;
   const indexBasic = setting('index_basic_vendors') === true;
   const vendorIndexable = (v: Vendor) => isRich(v) || (indexBasic && !!(v.phone || v.website || v.address));
   const vendorBySlug = new Map(vendors.map((v) => [v.slug, v]));

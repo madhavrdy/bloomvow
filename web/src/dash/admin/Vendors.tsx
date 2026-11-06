@@ -2,12 +2,14 @@ import { useEffect, useState } from 'preact/hooks';
 import { sb, must, friendly } from '../supabase';
 import { ago, fmtNum, Toast, useToast, type Ref } from '../shared';
 import { csvToObjects } from './csv';
+import { DetailsEditor } from '../DetailsEditor';
+import { cleanDetails, type Details } from '../../lib/details';
 
 type V = {
   id: string; slug: string; name: string; category_id: number; city_id: number; status: string; plan: string; plan_renews_at: string | null;
   email: string | null; phone: string | null; website: string | null; description: string | null; price_from: number | null;
   capacity_max: number | null; rating: number | null; review_count: number; owner_id: string | null; source: string | null; updated_at: string;
-  hidden_reason: string | null;
+  hidden_reason: string | null; details: Details;
 };
 type Claim = { id: string; vendor_id: string; email: string; phone: string | null; note: string | null; created_at: string; vendors: { name: string; status: string; website: string | null; website_domain: string | null; city_id: number; category_id: number } };
 type ImportResult = { rows: number; inserted: number; merged: number; needs_review: { row: number; name?: string; reason: string }[] };
@@ -53,7 +55,7 @@ function VendorList({ ref_, toast }: { ref_: Ref; toast: (t: string) => void }) 
   const [edit, setEdit] = useState<V | null>(null);
 
   async function load() {
-    let query = sb().from('vendors').select('id,slug,name,category_id,city_id,status,plan,plan_renews_at,email,phone,website,description,price_from,capacity_max,rating,review_count,owner_id,source,updated_at,hidden_reason', { count: 'exact' });
+    let query = sb().from('vendors').select('id,slug,name,category_id,city_id,status,plan,plan_renews_at,email,phone,website,description,price_from,capacity_max,rating,review_count,owner_id,source,updated_at,hidden_reason,details', { count: 'exact' });
     const t = q.trim().replace(/[%_,()]/g, ' ');
     if (t) query = query.or(`name.ilike.%${t}%,email.ilike.%${t}%,slug.ilike.%${t}%`);
     if (status !== 'all') query = query.eq('status', status);
@@ -111,6 +113,8 @@ function EditVendor({ v, ref_, onClose, onSaved }: { v: V; ref_: Ref; onClose: (
   const [f, setF] = useState({ name: v.name, email: v.email ?? '', phone: v.phone ?? '', website: v.website ?? '', description: v.description ?? '',
     price_from: v.price_from?.toString() ?? '', capacity_max: v.capacity_max?.toString() ?? '', status: v.status, plan: v.plan, renews: v.plan_renews_at ?? '' });
   const [err, setErr] = useState('');
+  const catSlug = ref_.catById.get(v.category_id)?.slug ?? '';
+  const [details, setDetails] = useState<Details>(cleanDetails(catSlug, v.details));
   const set = (k: keyof typeof f) => (e: Event) => setF({ ...f, [k]: (e.currentTarget as HTMLInputElement).value });
   const num = (s: string) => (s.trim() ? Math.round(Number(s.replace(/[^\d.]/g, ''))) : null);
   async function save(e: Event) {
@@ -118,7 +122,7 @@ function EditVendor({ v, ref_, onClose, onSaved }: { v: V; ref_: Ref; onClose: (
     if (f.plan === 'featured' && !f.renews) return setErr('Featured plans need a renewal date.');
     try {
       await must(sb().from('vendors').update({ name: f.name.trim(), email: f.email.trim().toLowerCase() || null, phone: f.phone.trim() || null,
-        website: f.website.trim() || null, description: f.description.trim() || null, price_from: num(f.price_from), capacity_max: num(f.capacity_max) }).eq('id', v.id) as never);
+        website: f.website.trim() || null, description: f.description.trim() || null, price_from: num(f.price_from), capacity_max: num(f.capacity_max), details: cleanDetails(catSlug, details) }).eq('id', v.id) as never);
       const { error } = await sb().rpc('admin_set_vendor', { p_vendor: v.id, p_status: f.status, p_plan: f.plan, p_renews: f.renews || null });
       if (error) throw error;
       onSaved(`${f.name} saved`);
@@ -142,6 +146,8 @@ function EditVendor({ v, ref_, onClose, onSaved }: { v: V; ref_: Ref; onClose: (
           <label class="field">Max guests<input inputMode="numeric" value={f.capacity_max} onInput={set('capacity_max')} /></label>
           <label class="field span2">Description<textarea rows={6} value={f.description} onInput={set('description')} /></label>
         </div>
+        <b style="font-size:15px">Details, amenities &amp; services</b>
+        <DetailsEditor category={catSlug} value={details} onChange={setDetails} compact />
         {err && <p class="form-error" role="alert">{err}</p>}
         <button class="btn btn-acc btn-lg">Save vendor</button>
       </form>

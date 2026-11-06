@@ -165,3 +165,19 @@ test('paginated lists: each page is self-canonical, with prev/next links and its
   assert.match(tag(p2, /<meta name="description" content="([^"]+)"/), /^Page 2 of \d+: /);
   assert.notEqual(tag(p1, /<meta name="description" content="([^"]+)"/), tag(p2, /<meta name="description" content="([^"]+)"/));
 });
+
+test('vendor details on the public page: grouped lists, facts, FAQs and schema', () => {
+  const h = html('vendor/harbor-garden-estate-austin/index.html');
+  assert.match(h, /<section id="details"[^>]*>[\s\S]*Details &amp; amenities[\s\S]*Dance floor[\s\S]*Wheelchair accessible/);
+  assert.match(h, /href="#details"/);
+  assert.ok(!h.includes('not_a_field') && !h.includes('ignored'), 'unknown keys are not shown');
+  assert.match(h, /In business<\/span><b[^>]*>12 years/);
+  const ld = [...h.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
+  const biz = ld.find((j) => j['@type'] === 'EventVenue');
+  assert.deepEqual(biz.amenityFeature.map((a) => a.name), ['Bridal suite & dressing room', 'Dance floor', 'Wheelchair accessible']);
+  assert.deepEqual(biz.knowsLanguage, ['English', 'Spanish']);
+  assert.deepEqual(biz.hasOfferCatalog.itemListElement.map((o) => o.itemOffered.name), ['Food & catering', 'Bar & drinks']);
+  const faq = ld.find((j) => j['@type'] === 'FAQPage').mainEntity.map((q) => q.name);
+  assert.ok(faq.includes('Can we bring our own caterer to Harbor Garden Estate?'));
+  assert.ok(faq.includes('Is Harbor Garden Estate wheelchair accessible?'));
+});
