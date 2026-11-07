@@ -66,14 +66,35 @@ const faqs = [
 const updated = v.updated_at;
 const fmtDate = (s: string | null) => (s ? new Date(s).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '');
 const today = new Date().toISOString().slice(0, 10);
-const facts = [
-  v.price_from != null && ['Starting price', money(v.price_from)],
-  cat.uses_capacity && v.capacity_max && ['Guest capacity', `Up to ${v.capacity_max}`],
-  v.setting && ['Setting', v.setting],
-  !v.capacity_max && typeof det.capacity_seated === 'number' && ['Seated capacity', `${det.capacity_seated} guests`],
-  typeof det.years_in_business === 'number' && ['In business', `${det.years_in_business} years`],
-  reply && ['Typical reply', `Within ${reply}`],
-].filter(Boolean) as [string, string][];
+// "At a glance": the key facts in one box near the top, one short line each (same idea as the listing pages).
+const listOf = (k: string) => (Array.isArray(det[k]) ? (det[k] as string[]) : []);
+const lc = (x: string) => x.charAt(0).toLowerCase() + x.slice(1);
+const joinList = (xs: string[], max = 4, keepCase = false) => {
+  const a = xs.slice(0, max).map((x) => (keepCase ? x : lc(x)));
+  const more = xs.length > max ? ` +${xs.length - max} more` : '';
+  return a.join(', ') + more;   // commas, not "and": many option names already contain "&" 
+};
+const minPkg = packages.map((p) => p.price).filter((x): x is number => x != null).sort((a, b) => a - b)[0];
+const kindList = [...listOf('venue_type'), ...listOf('styles'), ...listOf('act_type'), ...listOf('products'), ...listOf('cuisines'), ...listOf('vehicles'), ...listOf('booth_types')];
+const offerList = [...listOf('services'), ...listOf('items'), ...listOf('features')];
+const glanceRows = [
+  ['Price', v.price_from != null ? `From ${money(v.price_from)}` : minPkg != null ? `Packages from ${money(minPkg)}` : 'Prices on request',
+    typeof det.spend_peak === 'number' ? `couples usually spend about ${money(det.spend_peak)}` : ''],
+  cat.uses_capacity && (v.capacity_max || det.capacity_seated) && ['Guests', [v.capacity_max && `Up to ${v.capacity_max}`,
+    det.capacity_seated && `${det.capacity_seated} seated`, det.capacity_min && `minimum ${det.capacity_min}`].filter(Boolean).join(' · '), ''],
+  (kindList.length || v.setting) && ['Style', [joinList(kindList, 3), v.setting].filter(Boolean).join(' · ').replace(/^./, (x) => x.toUpperCase()), ''],
+  offerList.length > 0 && ['Offers', joinList(offerList).replace(/^./, (x) => x.toUpperCase()), ''],
+  (det.catering_policy || det.alcohol_policy) && ['Food & drink', [det.catering_policy, det.alcohol_policy].filter(Boolean).join(' · '), ''],
+  (det.coverage || det.turnaround || det.hours) && ['Booking', [det.coverage || det.hours, det.turnaround && `delivery ${lc(String(det.turnaround))}`].filter(Boolean).join(' · '), ''],
+  det.travel && ['Travel', String(det.travel), ''],
+  v.rating && ['Reviews', `★ ${Number(v.rating).toFixed(1)} from ${v.review_count} review${v.review_count === 1 ? '' : 's'}`, ''],
+  reply && ['Replies', `Usually within ${reply}`, ''],
+  (typeof det.years_in_business === 'number' || listOf('languages').length > 1) && ['Business', [typeof det.years_in_business === 'number' && `${det.years_in_business} years in business`,
+    listOf('languages').length > 1 && `speaks ${joinList(listOf('languages'), 3, true)}`].filter(Boolean).join(' · '), ''],
+].filter(Boolean) as [string, string, string][];
+// Old free-text amenities: only show the ones the structured details don't already list.
+const detAmen = new Set([...listOf('amenities'), ...offerList].map((x) => x.toLowerCase()));
+const extraAmenities = v.amenities.filter((a) => !detAmen.has(a.toLowerCase()));
 ---
 <Base title={`${v.name} – ${cat.singular} in ${city.name}, ${st}`} description={desc} noindex={!d.vendorIndexable(v)} image={photos[0]?.url}
   jsonld={[vendorJsonLd(Astro.site, d, v), breadcrumbJsonLd(Astro.site, crumbs), faqJsonLd(faqs)]}>
@@ -117,7 +138,11 @@ const facts = [
           </div>
         </div>
 
-        {facts.length > 0 && <div class="facts">{facts.map(([k, val]) => <div><span>{k}</span><b>{val}</b></div>)}</div>}
+        <section class="vglance" aria-labelledby="vglance-h">
+          <h2 id="vglance-h">At a glance</h2>
+          <dl>{glanceRows.map(([k, val, sub]) => <div><dt>{k}</dt><dd>{val}{sub && <span class="muted">, {sub}</span>}</dd></div>)}</dl>
+          {v.status === 'unclaimed' && <p class="vglance-note">Details come from public business listings. <a href={`/for-vendors/?claim=${v.id}`}>Own {v.name}? Claim it</a> to add prices, capacity and photos.</p>}
+        </section>
 
         <nav class="tabs" aria-label="Profile sections">
           <a href="#about">About</a>{detGroups.length > 0 && <a href="#details">Details</a>}<a href="#location">Location</a>{packages.length > 0 && <a href="#pricing">Pricing</a>}<a href="#reviews">Reviews</a><a href="#faqs">FAQs</a>
@@ -126,7 +151,7 @@ const facts = [
         <section id="about">
           <h2 class="serif">About {v.name}</h2>
           <p style="font-size:16px;line-height:1.65;color:#3a3447;white-space:pre-line">{about}</p>
-          {v.amenities.length > 0 && <ul class="amen">{v.amenities.map((a) => <li>{a}</li>)}</ul>}
+          {extraAmenities.length > 0 && <ul class="amen">{extraAmenities.map((a) => <li>{a}</li>)}</ul>}
         </section>
 
         {detGroups.length > 0 && (
@@ -302,6 +327,15 @@ const facts = [
   .claim { background: var(--green-soft); border-radius: 14px; padding: 16px; margin: 0; }
   .lead { flex: 1 1 340px; max-width: 400px; position: sticky; top: calc(var(--header-h) + 16px); }
   .lead-close { display: none; }
+  .vglance { border: 1px solid var(--line); border-radius: 18px; background: var(--bg-2); padding: 18px 22px; display: flex; flex-direction: column; gap: 10px; }
+  .vglance h2 { font-size: 15px; font-weight: 700; margin: 0; font-family: inherit; }
+  .vglance dl { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 10px 28px; }
+  .vglance dl > div { display: grid; grid-template-columns: 104px 1fr; gap: 12px; font-size: 15px; align-items: baseline; }
+  .vglance dt { color: var(--ink-3); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  .vglance dd { margin: 0; color: var(--ink); line-height: 1.45; }
+  .vglance-note { margin: 2px 0 0; font-size: 13px; color: var(--ink-3); }
+  .vglance-note a { color: var(--rose-dark); font-weight: 600; }
+  .det-row .amen { grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr)); gap: 6px 18px; }
   .banner-ill { margin-top: 16px; border-radius: 20px; overflow: hidden; display: flex; align-items: stretch; background: var(--bg-2); border: 1px solid var(--line); }
   .banner-ill img { width: 300px; aspect-ratio: 3 / 2; height: auto; object-fit: cover; flex: 0 0 auto; }
   .banner-note { display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 20px 28px; font-size: 15px; color: var(--ink-2); }
@@ -331,6 +365,10 @@ const facts = [
     .gallery > :nth-child(n+2) { display: none; }
     .gallery .big { grid-column: auto; grid-row: auto; }
     .banner-ill { border-radius: 16px; }
+    .vglance { padding: 14px 16px; border-radius: 14px; }
+    .vglance dl > div { grid-template-columns: 88px 1fr; gap: 10px; font-size: 14px; }
+    .vglance dt { font-size: 11px; }
+    .det-row .amen { grid-template-columns: 1fr 1fr; font-size: 14px; }
     .banner-ill img { width: 120px; aspect-ratio: 1; }
     .banner-note { padding: 12px 16px; font-size: 13px; gap: 2px; }
     .banner-note b { font-size: 15px; }

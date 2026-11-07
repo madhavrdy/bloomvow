@@ -1,5 +1,6 @@
 ---
-// Category tile with image, used on the home page and /categories/.
+// Compact category tile (picture, name, count), used on the home page and /categories/.
+// Same "details at a glance" idea as the listing pages: many fit on one screen, even on phones.
 import { categoryImage, type Category } from '../lib/data';
 interface Props { c: Category; count?: string; eager?: boolean }
 const { c, count, eager = false } = Astro.props;
@@ -8,19 +9,31 @@ const img = categoryImage(c);
 ---
 <a href={`/categories/${c.slug}/`} class="cat">
   <span class="cat-img">
-    <img src={img} alt={c.image_alt ?? ''} width="600" height="400" loading={eager ? 'eager' : 'lazy'} decoding="async"
+    <img src={img} alt={c.image_alt ?? ''} width="96" height="96" loading={eager ? 'eager' : 'lazy'} decoding="async"
       onerror={img !== fallback ? `this.onerror=null;this.src='${fallback}'` : undefined} />
   </span>
-  <b>{c.name}</b>
-  {count && <span class="muted cat-count">{count}</span>}
+  <span class="cat-t">
+    <b>{c.name}</b>
+    {count && <span class="cat-count">{count}</span>}
+  </span>
+  <span class="cat-go" aria-hidden="true">→</span>
 </a>
 <style>
-  .cat { text-decoration: none; display: flex; flex-direction: column; gap: 8px; color: var(--ink); }
-  .cat-img { display: block; aspect-ratio: 3 / 2; border-radius: 16px; overflow: hidden; background: var(--rose-soft); }
-  .cat-img img { width: 100%; height: 100%; object-fit: cover; transition: transform .3s ease; }
-  .cat:hover .cat-img img { transform: scale(1.04); }
-  .cat b { font-size: 16px; }
+  .cat { text-decoration: none; display: flex; align-items: center; gap: 14px; color: var(--ink); border: 1px solid var(--line); border-radius: 16px;
+    padding: 10px 14px 10px 10px; background: #fff; min-height: 76px; transition: border-color .15s, box-shadow .15s; }
+  .cat:hover { border-color: var(--rose-tint); box-shadow: var(--shadow-sm); color: var(--ink); }
+  .cat-img { flex: 0 0 auto; width: 56px; height: 56px; border-radius: 12px; overflow: hidden; background: var(--rose-soft); }
+  .cat-img img { width: 100%; height: 100%; object-fit: cover; }
+  .cat-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+  .cat b { font-size: 15px; line-height: 1.25; }
   .cat:hover b { color: var(--rose-dark); }
-  .cat-count { font-size: 13px; margin-top: -4px; }
-  @media (prefers-reduced-motion: reduce) { .cat-img img { transition: none; } }
+  .cat-count { font-size: 13px; color: var(--ink-3); }
+  .cat-go { color: var(--ink-3); font-size: 18px; }
+  .cat:hover .cat-go { color: var(--rose-dark); }
+  @media (max-width: 640px) {
+    .cat { gap: 10px; padding: 8px 10px 8px 8px; min-height: 64px; border-radius: 14px; }
+    .cat-img { width: 46px; height: 46px; border-radius: 10px; }
+    .cat b { font-size: 14px; }
+    .cat-go { display: none; }
+  }
 </style>

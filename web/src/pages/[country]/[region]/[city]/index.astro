@@ -6,9 +6,9 @@ import { contentFor, latest, fmtDay } from '../../../../lib/content';
 import { faqJsonLd } from '../../../../lib/seo';
 import Base from '../../../../layouts/Base.astro';
 import Breadcrumbs from '../../../../components/Breadcrumbs.astro';
-import VendorCard from '../../../../components/VendorCard.astro';
+import VendorRow from '../../../../components/VendorRow.astro';
 import Guides from '../../../../components/Guides.astro';
-import { getData, rankVendors, type City, categoryImage } from '../../../../lib/data';
+import { getData, rankVendors, type City, categoryImage, money, median, replyLabel } from '../../../../lib/data';
 import { breadcrumbJsonLd } from '../../../../lib/seo';
 
 export async function getStaticPaths() {
@@ -28,21 +28,58 @@ const top = rankVendors(listings.flatMap((l) => l.vendors).filter((v) => v.ratin
 const crumbs = [{ name: 'Home', url: '/' }, { name: region.name, url: d.urls.region(region) }, { name: city.name }];
 const indexable = listings.some((l) => l.indexable);
 const c = contentFor(d, d.urls.city(city), Astro.site?.host);
+
+// "At a glance" for the city: built only from listed vendors, one short line each.
+const all = listings.flatMap((l) => l.vendors);
+const byCount = [...listings].sort((a, b) => b.vendors.length - a.vendors.length);
+const venues = listings.find((l) => l.category.slug === 'wedding-venues');
+const vPrices = (venues?.vendors ?? []).map((v) => v.price_from).filter((p): p is number => p != null);
+const vCaps = (venues?.vendors ?? []).map((v) => v.capacity_max).filter((p): p is number => p != null);
+const replies = all.map((v) => v.avg_reply_minutes).filter((x): x is number => x != null);
+const glance = [
+  `${total.toLocaleString('en-US')} wedding vendors across ${listings.length} categories.`,
+  byCount.length > 0 && `Most listed: ${byCount.slice(0, 3).map((l) => `${l.category.name.toLowerCase()} (${l.vendors.length})`).join(', ')}.`,
+  vPrices.length >= 3 && `Wedding venues start from ${money(Math.min(...vPrices))}; a typical starting price is about ${money(median(vPrices))}.`,
+  vCaps.length >= 3 && `The largest venue hosts up to ${Math.max(...vCaps)} guests; ${vCaps.filter((x) => x >= 150).length} take 150 or more.`,
+  top.length > 0 && `Highly rated: ${top.slice(0, 3).map((v) => `${v.name} (${Number(v.rating).toFixed(1)}★)`).join(', ')}.`,
+  replies.length >= 3 && `Vendors who reply through this site typically answer within ${replyLabel(median(replies))}.`,
+].filter(Boolean) as string[];
 ---
 <Base title={c.seoTitle ?? `Wedding vendors in ${city.name}, ${region.code.toUpperCase()}`} image={c.hero?.url} description={c.seoDescription ?? `Find ${total} wedding vendors in ${city.name}, ${region.name}: ${listings.slice(0, 4).map((l) => l.category.name.toLowerCase()).join(', ')} and more. Compare pricing and request quotes for free.`} noindex={!indexable} jsonld={[breadcrumbJsonLd(Astro.site, crumbs), ...(c.faqs.length ? [faqJsonLd(c.faqs)] : [])]}>
   <main class="wrap" style="padding-top:24px">
     <Breadcrumbs items={crumbs} />
     <h1 class="serif" style="font-size:clamp(36px,5vw,52px);margin:16px 0 8px">Wedding vendors in {city.name}, {region.code.toUpperCase()}</h1>
     <Intro c={c} auto={`Browse ${total} wedding professionals in ${city.name} across ${listings.length} categories, or tell us what you need and we'll match you.`} />
-    <section class="section">
+    {glance.length > 1 && (
+      <details class="glance" id="glance" open>
+        <summary><h2 id="glance-h">At a glance</h2><span class="glance-sub">{glance[0]}</span></summary>
+        <ul>{glance.map((g) => <li>{g}</li>)}</ul>
+      </details>
+    )}
+    <section class="section" style="padding-top:32px">
+      <h2 style="font-size:clamp(26px,3vw,34px);margin-bottom:16px">Browse by category</h2>
       <div class="tile-grid">
         {listings.map((l) => <a class="tile tile-img" href={l.url}><img src={categoryImage(l.category)} alt="" width="56" height="56" loading="lazy" /><span class="tile-t"><b>{l.category.name}</b><span>{l.vendors.length} in {city.name}</span></span></a>)}
       </div>
       <p style="margin-top:24px"><a class="btn btn-primary btn-lg" href={`/get-matched/?city=${city.id}`}>Get matched with {city.name} vendors</a></p>
     </section>
-    {top.length > 0 && <section class="section"><h2>Top-rated in {city.name}</h2><div class="card-grid">{top.map((v, i) => <VendorCard v={v} index={i} />)}</div></section>}
+    {top.length > 0 && <section class="section"><h2>Top-rated in {city.name}</h2><div class="row-list">{top.map((v, i) => <VendorRow v={v} index={i} />)}</div></section>}
   </main>
   <Guide c={c} title={`Planning a wedding in ${city.name}`} />
+  <style>
+    .row-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 540px), 1fr)); gap: 16px; }
+    .tile-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); }
+    @media (max-width: 640px) {
+      .tile-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .tile-grid :global(.tile-img) { min-width: 0; padding: 8px; gap: 8px; }
+      .tile-grid :global(.tile-img img) { width: 44px; height: 44px; }
+      .tile-grid :global(.tile-t b) { font-size: 14px; }
+    }
+  </style>
+  <script>
+    const g = document.getElementById('glance') as HTMLDetailsElement | null;
+    if (g && matchMedia('(max-width: 900px)').matches) g.open = false;
+  </script>
   <FaqBlock faqs={c.faqs} title={`${city.name} weddings: FAQs`} />
   <main class="wrap"><Guides cityId={city.id} categoryId={null} title={`${city.name} planning guides`} /></main>
 </Base>

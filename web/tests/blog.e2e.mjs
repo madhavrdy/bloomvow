@@ -171,7 +171,9 @@ test('vendor details on the public page: grouped lists, facts, FAQs and schema',
   assert.match(h, /<section id="details"[^>]*>[\s\S]*Details &amp; amenities[\s\S]*Dance floor[\s\S]*Wheelchair accessible/);
   assert.match(h, /href="#details"/);
   assert.ok(!h.includes('not_a_field') && !h.includes('ignored'), 'unknown keys are not shown');
-  assert.match(h, /In business<\/span><b[^>]*>12 years/);
+  assert.match(h, /<section class="vglance"[\s\S]*?At a glance[\s\S]*?12 years in business · speaks English, Spanish[\s\S]*?<\/section>/);
+  assert.match(h, /Food &amp; drink<\/dt><dd[^>]*>In-house or approved caterers/);
+  assert.equal((h.match(/>Wheelchair accessible</g) ?? []).length, 1, 'amenities are not listed twice');
   const ld = [...h.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
   const biz = ld.find((j) => j['@type'] === 'EventVenue');
   assert.deepEqual(biz.amenityFeature.map((a) => a.name), ['Bridal suite & dressing room', 'Dance floor', 'Wheelchair accessible']);

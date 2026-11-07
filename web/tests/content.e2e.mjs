@@ -179,7 +179,7 @@ test('category images: home page and /categories/ show the same image cards with
   const cards = [...cats.matchAll(/<a href="\/categories\/([a-z-]+)\/" class="cat"/g)].map((m) => m[1]);
   assert.ok(cards.length >= 10, String(cards.length));
   for (const slug of cards) assert.ok(fs.existsSync(path.join(DIST, 'img/categories', `${slug}.svg`)), `illustration for ${slug}`);
-  assert.match(cats, /class="muted cat-count"[^>]*>[\d,]+ vendors · \d+ cit(y|ies)</);
+  assert.match(cats, /class="cat-count"[^>]*>[\d,]+ vendors · \d+ cit(y|ies)</);
   assert.equal(ld(cats, 'ItemList')[0].itemListElement.length, cards.length);
 });
 

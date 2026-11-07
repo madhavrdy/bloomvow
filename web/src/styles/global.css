@@ -145,8 +145,12 @@ details.faq p { margin: 10px 0 0; color: var(--ink-2); }
   .wrap { padding: 0 16px; }
   .nav { display: none; }
   .site-header .wrap { flex-wrap: wrap; gap: 8px; padding-top: 10px; padding-bottom: 10px; }
-  .site-header .logo { font-size: 23px; margin-right: auto; gap: 7px; }
-  .site-header .logo .logo-mark { width: 28px; height: 28px; }
+  .site-header .logo { font-size: 21px; margin-right: auto; gap: 6px; }
+  .site-header .logo .logo-mark { width: 26px; height: 26px; }
+  /* One row on phones: logo · search · menu · quotes (the search box drops below only when opened). */
+  .site-header .wrap { flex-wrap: nowrap; gap: 6px; }
+  body.search-open .site-header .wrap { flex-wrap: wrap; }
+  .site-header .btn-primary { padding: 0 12px; font-size: 13px; box-shadow: none; }
   .site-header .btn { padding: 0 14px; font-size: 14px; white-space: nowrap; min-height: 40px; }
   .site-header .icon-btn { width: 40px; height: 40px; }
   .section { padding-top: 40px; }
