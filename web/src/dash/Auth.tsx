@@ -1,3 +1,4 @@
+import { logoHtml } from '../lib/brand';
 import { useState } from 'preact/hooks';
 import { sb, friendly } from './supabase';
 
@@ -46,7 +47,7 @@ export function Auth({ title, subtitle, allowSignup = true, siteName }: { title:
   return (
     <div class="auth-wrap">
       <form class="auth" onSubmit={submit}>
-        <a href="/" class="logo" style="font-size:28px">{siteName}</a>
+        <a href="/" class="logo" aria-label={`${siteName} home`} dangerouslySetInnerHTML={{ __html: logoHtml(siteName, 'dark', 30) }} />
         <div>
           <h1 style="margin:0 0 4px;font-size:24px">{mode === 'signup' ? 'Create your account' : mode === 'reset' ? 'Reset your password' : title}</h1>
           <p class="muted" style="margin:0;font-size:14px">{subtitle}</p>

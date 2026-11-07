@@ -46,6 +46,25 @@ async function signIn(p, email, password = 'password123') {
   await p.click('form.auth button.btn-acc');
 }
 
+test('sign in, new account and forgot password: main buttons have a solid colour', async () => {
+  const p = await newPage();
+  await p.goto(`${SITE}/vendor-dashboard/`);
+  const solid = async (sel) => {
+    const bg = await p.locator(sel).first().evaluate((el) => getComputedStyle(el).backgroundColor);
+    assert.ok(!/rgba\(0, 0, 0, 0\)|transparent/.test(bg), `${sel} background is ${bg}`);
+  };
+  await solid('form.auth button.btn-acc');
+  await solid('.auth .seg button[aria-pressed=true]');
+  await p.click('.auth .seg button:has-text("New account")');
+  await solid('form.auth button.btn-acc');
+  await p.click('.auth .seg button:has-text("Sign in")');
+  await p.click('text=Forgot password?');
+  await solid('form.auth button.btn-acc');
+  // Icons: tab icon, Apple touch icon and manifest are linked.
+  for (const sel of ['link[rel=icon][href="/favicon.svg"]', 'link[rel=icon][href="/favicon.ico"]', 'link[rel=apple-touch-icon]', 'link[rel=manifest]'])
+    assert.equal(await p.locator(sel).count(), 1, sel);
+});
+
 test('wrong password shows a clear message', async () => {
   const p = await newPage();
   await signIn(p, 'dana@vendor.local', 'wrong-password');

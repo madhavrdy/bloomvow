@@ -1,11 +1,12 @@
 ---
+import { logoHtml } from '../lib/brand';
 import { SITE_NAME, TAGLINE } from '../config';
 const year = new Date().getFullYear();
 ---
 <footer class="site-footer">
   <div class="wrap">
     <div class="foot-col" style="flex-basis:260px">
-      <span class="logo" style="color:#fff">{SITE_NAME}</span>
+      <span class="logo logo-light" set:html={logoHtml(SITE_NAME, 'light')} />
       <span>{TAGLINE} across the US.</span>
       <span style="color:#b7b0c4">United States · Canada, UK and Australia coming soon</span>
     </div>
@@ -13,5 +14,5 @@ const year = new Date().getFullYear();
     <div class="foot-col"><b>Vendors</b><a href="/for-vendors/">List your business</a><a href="/vendor-dashboard/">Vendor login</a></div>
     <div class="foot-col"><b>Company</b><a href="/about/">About</a><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a></div>
   </div>
-  <div class="wrap" style="padding-bottom:32px;font-size:13px;color:#b7b0c4">© {year} {SITE_NAME} · Business listings include <a href="https://overturemaps.org" rel="nofollow noopener" style="color:inherit;text-decoration:underline">Overture Maps Foundation</a> open data.</div>
+  <div class="wrap" style="display:block;padding-top:0;padding-bottom:32px;font-size:13px;color:#b7b0c4">© {year} {SITE_NAME} · Business listings include <a href="https://overturemaps.org" rel="nofollow noopener" style="color:inherit;text-decoration:underline">Overture Maps Foundation</a> open data.</div>
 </footer>

@@ -1,11 +1,14 @@
+/* Defaults for screens shown outside the dashboard shell (sign in, sign up, reset password):
+   without these the main buttons had no background and white text on white. */
+:root { --acc: #2f5d50; --acc-soft: #eaf1ee; --acc-ink: #1f3f36; --bgd: #f6f8f7; --ln: #e3eae7; }
 /* Shared dashboard styles (vendor + admin). Vendor area uses the green accent. */
 .dash { --acc: #2f5d50; --acc-soft: #eaf1ee; --acc-ink: #1f3f36; --bgd: #f6f8f7; --ln: #e3eae7;
   font-family: var(--sans); color: var(--ink); background: var(--bgd); min-height: 100vh; display: flex; flex-wrap: wrap; align-items: stretch; }
 .dash.admin { --acc: #b83260; --acc-soft: #fbf1f3; --acc-ink: #7c1f42; --bgd: #f7f5f6; --ln: #ece6e9; }
 .side { flex: 1 1 220px; max-width: 248px; background: #fff; border-right: 1px solid var(--ln); padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; font-size: 15px; }
 .admin .side { background: var(--ink); color: #d9d4e2; border: 0; }
-.side .logo { padding: 0 12px 2px; }
-.admin .side .logo { color: #fff; }
+.side .logo { padding: 0 12px 6px; font-size: 25px; }
+.admin .side .logo, .admin .side .logo:hover { color: #fff; }
 .side .tag { font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--acc); padding: 0 12px 14px; }
 .admin .side .tag { color: var(--rose-tint); }
 .side a, .side button.navbtn { text-decoration: none; border-radius: 10px; padding: 12px; display: flex; justify-content: space-between; align-items: center;
@@ -34,7 +37,8 @@
 .chip-s { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; white-space: nowrap; display: inline-block; }
 .s-new { background: #fbedef; color: #a3264f; } .s-replied { background: #eaf0fb; color: #2a4f8a; } .s-tour { background: #e6f2ec; color: #2f6b4f; }
 .s-booked { background: #1f3f36; color: #fff; } .s-lost { background: #f0eef2; color: #4a4458; } .s-pending { background: #fff3d6; color: #7a5300; }
-.btn-acc { background: var(--acc); color: #fff; } .btn-acc:hover { filter: brightness(.92); color: #fff; }
+.btn-acc { background: var(--acc); color: #fff; box-shadow: 0 6px 16px rgba(31, 26, 46, .14); } .btn-acc:hover { filter: brightness(.92); color: #fff; }
+.btn-acc[disabled] { background: var(--acc); color: #fff; opacity: .7; }
 .btn-sm { min-height: 36px; padding: 0 14px; font-size: 13px; }
 .seg { display: flex; flex-wrap: wrap; gap: 8px; }
 .seg button { font: inherit; font-size: 13px; font-weight: 600; border: 1.5px solid #d6e0dc; background: #fff; border-radius: 999px; padding: 0 14px; min-height: 40px; cursor: pointer; color: var(--ink); }
@@ -87,7 +91,8 @@
   .side { -webkit-mask-image: linear-gradient(to right, #000 82%, transparent); mask-image: linear-gradient(to right, #000 82%, transparent); padding-right: 48px; }
   .side .tag, .side .spacer, .side .mono { display: none; }
   .side .who:not(:has(select)) { display: none; }
-  .side .logo { font-size: 22px !important; padding: 0 8px 0 4px; flex: 0 0 auto; }
+  .side .logo { font-size: 20px !important; padding: 0 8px 0 4px; flex: 0 0 auto; gap: 6px; }
+  .side .logo .logo-mark { width: 24px; height: 24px; }
   .side .who { flex: 0 0 auto; padding: 0 8px; border-left: 1px solid var(--ln); border-right: 1px solid var(--ln); max-width: 170px; }
   .side .who b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
   .side a, .side button.navbtn { padding: 8px 12px; min-height: 40px; white-space: nowrap; flex: 0 0 auto; }

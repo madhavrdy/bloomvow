@@ -1,3 +1,4 @@
+import { logoHtml } from '../../lib/brand';
 import { useEffect, useState } from 'preact/hooks';
 import type { Session } from '@supabase/supabase-js';
 import { sb } from '../supabase';
@@ -86,7 +87,7 @@ function Gate({ session, siteName }: { session: Session; siteName: string }) {
   return (
     <div class="dash admin">
       <nav class="side" aria-label="Admin">
-        <a href="/" class="logo" style="font-size:28px">{siteName}</a>
+        <a href="/" class="logo" aria-label={`${siteName} home`} dangerouslySetInnerHTML={{ __html: logoHtml(siteName, 'light', 30) }} />
         <span class="tag">{r === 'admin' ? 'Admin' : 'Editor'}</span>
         {allowed.map((n) => (
           <a href={`#${n.r}`} aria-current={current === n.r ? 'page' : undefined}>

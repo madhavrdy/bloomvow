@@ -1,3 +1,4 @@
+import { logoHtml } from '../../lib/brand';
 import { useEffect, useState } from 'preact/hooks';
 import { sb, must, friendly } from '../supabase';
 import type { Ref } from '../shared';
@@ -72,7 +73,7 @@ export function Onboarding({ siteName, ref_, pending, email, hasListing, onDone,
     <div class="dash" style="justify-content:center">
       <main class="dmain" style="max-width:760px;margin:0 auto">
         <div class="dhead">
-          <a href="/" class="logo" style="font-size:28px">{siteName}</a>
+          <a href="/" class="logo" aria-label={`${siteName} home`} dangerouslySetInnerHTML={{ __html: logoHtml(siteName, 'dark', 30) }} />
           <div style="display:flex;gap:10px">
             {onCancel && <button class="btn btn-outline btn-sm" onClick={onCancel}>Back to dashboard</button>}
             <button class="btn btn-outline btn-sm" onClick={() => sb().auth.signOut()}>Sign out</button>

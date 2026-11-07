@@ -18,7 +18,7 @@ const art = ['wedding-venues', 'photographers', 'florists'].map((slug) => d.cate
 const org = new URL('/#organization', Astro.site).href;
 const jsonld = [
   { '@context': 'https://schema.org', '@type': 'Organization', '@id': org, name: SITE_NAME, url: Astro.site?.href,
-    logo: new URL('/favicon.svg', Astro.site).href, email: CONTACT_EMAIL, ...(SOCIAL_LINKS.length ? { sameAs: SOCIAL_LINKS } : {}) },
+    logo: new URL('/logo.png', Astro.site).href, email: CONTACT_EMAIL, ...(SOCIAL_LINKS.length ? { sameAs: SOCIAL_LINKS } : {}) },
   { '@context': 'https://schema.org', '@type': 'WebSite', name: SITE_NAME, url: Astro.site?.href, publisher: { '@id': org }, inLanguage: 'en-US' },
 ];
 ---

@@ -1,3 +1,4 @@
+import { logoHtml } from '../../lib/brand';
 import { useEffect, useState } from 'preact/hooks';
 import type { Session } from '@supabase/supabase-js';
 import { sb, must } from '../supabase';
@@ -73,7 +74,7 @@ function Signed({ session, siteName }: { session: Session; siteName: string }) {
   return (
     <div class="dash">
       <nav class="side" aria-label="Vendor">
-        <a href="/" class="logo" style="font-size:28px">{siteName}</a>
+        <a href="/" class="logo" aria-label={`${siteName} home`} dangerouslySetInnerHTML={{ __html: logoHtml(siteName, 'dark', 30) }} />
         <span class="tag">For vendors</span>
         <div class="who">
           <span class="mono" aria-hidden="true">{current.name.split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}</span>

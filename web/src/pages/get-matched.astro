@@ -1,4 +1,5 @@
 ---
+import { logoHtml } from '../lib/brand';
 import Base from '../layouts/Base.astro';
 import { getData } from '../lib/data';
 import { SITE_NAME } from '../config';
@@ -10,7 +11,7 @@ const today = new Date().toISOString().slice(0, 10);
 ---
 <Base title="Get matched with wedding vendors for free" description="Tell us your date, city, guest count and budget. We'll send your request to available vendors who fit, so you can compare quotes." bare>
   <div class="page">
-    <header class="wrap top"><a href="/" class="logo">{SITE_NAME}</a><a href="/" style="font-weight:500">Exit</a></header>
+    <header class="wrap top"><a href="/" class="logo" aria-label={`${SITE_NAME} home`} set:html={logoHtml(SITE_NAME)} /><a href="/" style="font-weight:500">Exit</a></header>
     <main class="flow">
       <div class="progress" id="progress"><span id="step-label">Step 1 of 4</span><div class="bar"><div id="bar-fill" style="width:25%"></div></div></div>
       <form id="quote" class="card" novalidate>

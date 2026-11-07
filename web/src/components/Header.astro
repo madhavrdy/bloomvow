@@ -1,4 +1,5 @@
 ---
+import { logoHtml } from '../lib/brand';
 import { SITE_NAME } from '../config';
 import { getData } from '../lib/data';
 const d = await getData();
@@ -6,7 +7,7 @@ const top = d.categories.slice(0, 2);
 ---
 <header class="site-header">
   <div class="wrap">
-    <a href="/" class="logo">{SITE_NAME}</a>
+    <a href="/" class="logo" aria-label={`${SITE_NAME} home`} set:html={logoHtml(SITE_NAME)} />
     <form id="hsearch" class="hsearch" role="search" action="/search/" autocomplete="off">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
       <input name="q" type="search" placeholder="Search vendors, venues or cities" aria-label="Search vendors, venues or cities"

@@ -48,7 +48,13 @@ h1, h2, h3 { line-height: 1.1; }
 .site-header { border-bottom: 1px solid var(--line); background: rgba(255, 255, 255, .94); position: sticky; top: 0; z-index: 40;
   -webkit-backdrop-filter: saturate(1.4) blur(10px); backdrop-filter: saturate(1.4) blur(10px); }
 .site-header .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding-top: 14px; padding-bottom: 14px; }
-.logo { font-family: var(--serif); font-size: 30px; text-decoration: none; color: var(--ink); }
+.logo { display: inline-flex; align-items: center; gap: 9px; font-family: 'Outfit', var(--sans); font-weight: 300; font-size: 27px; letter-spacing: .005em;
+  line-height: 1; color: #3A1D4A; text-decoration: none; white-space: nowrap; }
+.logo:hover { color: #3A1D4A; }
+.logo b { font-weight: 700; }
+.logo .logo-mark { flex: 0 0 auto; }
+.logo-light, .logo-light:hover { color: #fff; }
+.site-footer .logo b { display: inline; margin: 0; color: inherit; }
 .nav { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 15px; font-weight: 500; flex: 1 1 360px; }
 .nav a { text-decoration: none; padding: 6px 0; }
 .site-footer { background: var(--ink); color: #d9d4e2; margin-top: 64px; }
@@ -139,7 +145,8 @@ details.faq p { margin: 10px 0 0; color: var(--ink-2); }
   .wrap { padding: 0 16px; }
   .nav { display: none; }
   .site-header .wrap { flex-wrap: wrap; gap: 8px; padding-top: 10px; padding-bottom: 10px; }
-  .site-header .logo { font-size: 25px; margin-right: auto; }
+  .site-header .logo { font-size: 23px; margin-right: auto; gap: 7px; }
+  .site-header .logo .logo-mark { width: 28px; height: 28px; }
   .site-header .btn { padding: 0 14px; font-size: 14px; white-space: nowrap; min-height: 40px; }
   .site-header .icon-btn { width: 40px; height: 40px; }
   .section { padding-top: 40px; }
