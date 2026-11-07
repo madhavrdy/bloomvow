@@ -86,17 +86,23 @@ const pageUrl = (n: number) => (n === 1 ? l.url : `${l.url}page/${n}/`);
     <h1 class="serif" style="font-size:clamp(36px,5vw,52px);margin:16px 0 8px">{heading}</h1>
     <Intro c={c} auto={autoIntro} />
     {updated && <p class="updated">Last updated <time datetime={updated}>{fmtDay(updated)}</time></p>}
-    {glance.length > 0 && <aside class="glance" aria-labelledby="glance-h"><h2 id="glance-h">At a glance</h2><ul>{glance.map((g) => <li>{g}</li>)}</ul></aside>}
+    {glance.length > 0 && (
+      <details class="glance" id="glance" open>
+        <summary><h2 id="glance-h">At a glance</h2><span class="glance-sub">{glance[0]}</span></summary>
+        <ul>{glance.map((g) => <li>{g}</li>)}</ul>
+      </details>
+    )}
     {styles.length > 0 && (
       <nav class="styles-nav" aria-label="Venue styles"><a href={l.url} aria-current={!style ? 'page' : undefined}>All</a>
         {styles.map((x) => <a href={x.url} aria-current={style?.slug === x.style.slug ? 'page' : undefined}>{x.style.label} ({x.vendors.length})</a>)}</nav>
     )}
 
     <div class="layout">
-      <aside class="filters" aria-label="Filters">
+      <aside class="filters" id="filter-sheet" aria-label="Filters">
+        <div class="sheet-head"><b>Filters</b><span style="display:flex;gap:16px;align-items:center"><button type="reset" form="filters" class="linkish">Clear all</button><button type="button" class="icon-btn" data-close-filters aria-label="Close filters">✕</button></span></div>
         <form id="filters">
           {style && <input type="hidden" name="style" value={style.slug} />}
-          <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:17px">Filters</b><button type="reset" class="linkish">Clear all</button></div>
+          <div class="filters-title" style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:17px">Filters</b><button type="reset" class="linkish">Clear all</button></div>
           {cat.uses_capacity && (
             <fieldset><legend>Guest count</legend>
               {[[0, 'Any'], [50, 'Up to 50'], [100, '51–100'], [200, '101–200'], [201, '200+']].map(([v, t], i) => (
@@ -121,12 +127,18 @@ const pageUrl = (n: number) => (n === 1 ? l.url : `${l.url}page/${n}/`);
           <span>Send one request to the {cat.name.toLowerCase()} that fit your date and budget.</span>
           <a href={`/get-matched/?city=${city.id}&cat=${cat.slug}&mode=bulk`} class="btn btn-primary btn-block">Request pricing from several</a>
         </div>
+        <button type="button" class="btn btn-primary btn-block sheet-done" data-close-filters>Show results</button>
       </aside>
+      <div class="sheet-scrim" data-close-filters hidden></div>
 
       <section class="results" aria-label="Results">
         <div class="results-head">
-          <span class="muted" aria-live="polite"><b style="color:var(--ink)" id="count">{all.length}</b> {cat.name.toLowerCase()}{pages > 1 && ` · page ${pageNo} of ${pages}`}</span>
-          <label style="display:flex;gap:8px;align-items:center;font-size:15px">Sort by
+          <span class="muted" aria-live="polite"><b style="color:var(--ink)" id="count">{all.length}</b> <span class="cnt-long">{cat.name.toLowerCase()}{pages > 1 && ` · page ${pageNo} of ${pages}`}</span><span class="cnt-short">results</span></span>
+          <button type="button" class="btn btn-outline filter-btn" id="filters-open" aria-controls="filter-sheet" aria-expanded="false">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+            Filters<span class="fcount" id="fcount" hidden></span>
+          </button>
+          <label class="sort-wrap"><span class="sort-label">Sort by</span>
             <select id="sort" class="sort"><option value="rec">Recommended</option><option value="rating">Highest rated</option><option value="price">Price: low to high</option><option value="reviews">Most reviewed</option></select>
           </label>
         </div>
@@ -184,10 +196,43 @@ const pageUrl = (n: number) => (n === 1 ? l.url : `${l.url}page/${n}/`);
   import { initShortlist } from '../../../../../scripts/shortlist';
   initListing();
   initShortlist();
+
+  // Phones: "At a glance" starts collapsed so the results show first; filters open as a bottom sheet.
+  const small = matchMedia('(max-width: 900px)');
+  const glance = document.getElementById('glance') as HTMLDetailsElement | null;
+  if (glance && small.matches) glance.open = false;
+  const sheet = document.getElementById('filter-sheet');
+  const openBtn = document.getElementById('filters-open');
+  const scrim = document.querySelector<HTMLElement>('.sheet-scrim');
+  const setOpen = (on: boolean) => {
+    sheet?.classList.toggle('open', on);
+    if (scrim) scrim.hidden = !on;
+    openBtn?.setAttribute('aria-expanded', String(on));
+    document.body.classList.toggle('sheet-lock', on);
+    if (on) sheet?.querySelector<HTMLElement>('input, button')?.focus();
+    else openBtn?.focus({ preventScroll: true });
+  };
+  openBtn?.addEventListener('click', () => setOpen(true));
+  document.querySelectorAll('[data-close-filters]').forEach((b) => b.addEventListener('click', () => setOpen(false)));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && sheet?.classList.contains('open')) setOpen(false); });
+  // Count of active filters on the button.
+  const form = document.getElementById('filters') as HTMLFormElement | null;
+  const fcount = document.getElementById('fcount');
+  const count = () => {
+    if (!form || !fcount) return;
+    const n = [...form.querySelectorAll<HTMLInputElement>('input:checked')].filter((i) => !(i.type === 'radio' && i.value === '0')).length;
+    fcount.textContent = String(n); fcount.hidden = n === 0;
+  };
+  form?.addEventListener('change', count); form?.addEventListener('reset', () => setTimeout(count));
 </script>
 
 <style>
-  .layout { display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-start; padding: 32px 0 48px; }
+  .layout { display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-start; padding: 28px 0 48px; }
+  .filters { position: sticky; top: calc(var(--header-h) + 16px); }
+  .sheet-head, .sheet-done, .filter-btn { display: none; }
+  .sort-wrap { display: flex; gap: 8px; align-items: center; font-size: 15px; }
+  .cnt-short { display: none; }
+  .fcount { background: var(--rose); color: #fff; border-radius: 999px; font-size: 12px; min-width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; padding: 0 6px; }
   .filters { flex: 1 1 240px; max-width: 280px; display: flex; flex-direction: column; gap: 24px; font-size: 15px; }
   .filters form { display: flex; flex-direction: column; gap: 24px; }
   fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
@@ -210,5 +255,31 @@ const pageUrl = (n: number) => (n === 1 ? l.url : `${l.url}page/${n}/`);
   .faq-links a { color: var(--rose-dark); font-weight: 600; }
   .faqwrap { display: flex; flex-wrap: wrap; gap: 48px; padding-top: 56px; padding-bottom: 56px; }
   .rel { display: flex; flex-direction: column; gap: 10px; } .rel b { font-size: 17px; }
-  @media (max-width: 640px) { .filters { max-width: none; } }
+  @media (max-width: 900px) {
+    .layout { padding-top: 16px; gap: 0; }
+    .results { flex-basis: 100%; }
+    /* Filters become a bottom sheet. */
+    .filters { position: fixed; z-index: 60; left: 0; right: 0; bottom: 0; top: auto; max-width: none; max-height: 85vh; overflow: auto;
+      background: #fff; border-radius: 22px 22px 0 0; padding: 8px 20px 20px; box-shadow: 0 -20px 50px rgba(31, 26, 46, .2);
+      transform: translateY(105%); transition: transform .25s ease; visibility: hidden; }
+    .filters.open { transform: none; visibility: visible; }
+    .sheet-head { display: flex; justify-content: space-between; align-items: center; position: sticky; top: -8px; background: #fff; padding: 10px 0; z-index: 1; }
+    .sheet-head b { font-size: 18px; }
+    .filters-title { display: none !important; }
+    .cnt-long { display: none; } .cnt-short { display: inline; }
+    .sheet-done { display: inline-flex; position: sticky; bottom: 0; }
+    .sheet-scrim { position: fixed; inset: 0; z-index: 55; background: rgba(31, 26, 46, .4); }
+    :global(body.sheet-lock) { overflow: hidden; }
+    .filter-btn { display: inline-flex; min-height: 40px; padding: 0 14px; font-size: 14px; }
+    /* Sticky bar with count, Filters and Sort under the header. */
+    .results-head { position: sticky; top: var(--header-h); z-index: 20; background: rgba(255, 255, 255, .96); margin: 0 -16px; padding: 10px 16px;
+      border-bottom: 1px solid var(--line); flex-wrap: nowrap; }
+    .results-head > span { flex: 1; font-size: 14px; }
+    .sort-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    .sort { min-height: 40px; font-size: 14px; max-width: 150px; }
+    .list, .item { gap: 12px; }
+    .match-card { padding: 20px; border-radius: 16px; }
+    .match-card .serif { font-size: 24px !important; }
+    .faqwrap { padding-top: 40px; padding-bottom: 40px; gap: 32px; }
+  }
 </style>

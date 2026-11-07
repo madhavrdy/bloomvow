@@ -78,5 +78,10 @@ export function useHash(defaultRoute: string): [string, (r: string) => void] {
     addEventListener('hashchange', f);
     return () => removeEventListener('hashchange', f);
   }, []);
+  // On phones the menu is a sideways-scrolling row: keep the current section in view.
+  useEffect(() => {
+    const t = setTimeout(() => document.querySelector('.side a[aria-current="page"]')?.scrollIntoView({ inline: 'center', block: 'nearest' }), 50);
+    return () => clearTimeout(t);
+  }, [route]);
   return [route, (r) => { location.hash = r; }];
 }

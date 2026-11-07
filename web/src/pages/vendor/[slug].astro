@@ -3,7 +3,7 @@ import { fmtDay } from '../../lib/content';
 import Base from '../../layouts/Base.astro';
 import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import VendorCard from '../../components/VendorCard.astro';
-import { getData, money, replyLabel, rankVendors, telHref, type Vendor } from '../../lib/data';
+import { getData, money, replyLabel, rankVendors, telHref, categoryImage, type Vendor } from '../../lib/data';
 import { vendorJsonLd, breadcrumbJsonLd, faqJsonLd } from '../../lib/seo';
 import { cleanDetails, filledGroups, showValue } from '../../lib/details';
 
@@ -79,9 +79,19 @@ const facts = [
   jsonld={[vendorJsonLd(Astro.site, d, v), breadcrumbJsonLd(Astro.site, crumbs), faqJsonLd(faqs)]}>
   <main class="wrap" style="padding-top:20px" data-vendor-page={v.id}>
     <Breadcrumbs items={crumbs} />
-    {photos.length > 0 && (
-      <div class="gallery">
+    {photos.length > 0 ? (
+      <div class:list={['gallery', `n${Math.min(photos.length, 5)}`]}>
         {photos.slice(0, 5).map((p, i) => <img src={p.url} alt={p.alt ?? `${v.name} photo ${i + 1}`} class={i === 0 ? 'big' : ''} loading={i === 0 ? 'eager' : 'lazy'} width="600" height="400" />)}
+      </div>
+    ) : (
+      <div class="banner-ill">
+        <img src={categoryImage(cat)} alt="" width="600" height="400" fetchpriority="high" />
+        <div class="banner-note">
+          <b>Photos coming soon</b>
+          {v.status === 'unclaimed'
+            ? <span>Is this your business? <a href={`/for-vendors/?claim=${v.id}`}>Claim it free</a> to add photos, prices and reply to couples.</span>
+            : <span>Ask {v.name} for photos of past weddings when you request pricing.</span>}
+        </div>
       </div>
     )}
 
@@ -208,6 +218,7 @@ const facts = [
 
       <aside id="lead" class="lead" aria-label="Request pricing">
         <form id="lead-form" class="lead-card" data-source="profile" data-vendor={v.id} data-city={city.id}>
+          <button type="button" class="icon-btn lead-close" aria-label="Close" data-lead-close>✕</button>
           <div>
             <span class="serif" style="font-size:30px;line-height:1.1;display:block">Check availability &amp; pricing</span>
             <span style="font-size:14px;color:var(--green);font-weight:600">Free{reply && ` · usually replies within ${reply}`}</span>
@@ -233,8 +244,9 @@ const facts = [
   <div class="mbar">
     {v.phone && <a class="icon-btn" href={telHref(v.phone)} data-track="click_phone" aria-label={`Call ${v.name}`}>
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg></a>}
-    <a href="#lead" class="btn btn-primary btn-lg" style="flex:1">Request pricing</a>
+    <a href="#lead" class="btn btn-primary btn-lg" style="flex:1" data-lead-open>Request pricing</a>
   </div>
+  <div class="lead-scrim" data-lead-close hidden></div>
 </Base>
 
 <script>
@@ -242,6 +254,21 @@ const facts = [
   import { initShortlist } from '../../scripts/shortlist';
   initVendorPage();
   initShortlist();
+
+  // Phones: the request form opens as a bottom sheet from the sticky bar (and from "Request pricing" links to #lead).
+  const phone = matchMedia('(max-width: 900px)');
+  const lead = document.getElementById('lead');
+  const scrim = document.querySelector<HTMLElement>('.lead-scrim');
+  const setLead = (on: boolean) => {
+    lead?.classList.toggle('open', on);
+    if (scrim) scrim.hidden = !on;
+    document.body.classList.toggle('sheet-lock', on);
+    if (on) setTimeout(() => lead?.querySelector<HTMLElement>('.lead-close')?.focus({ preventScroll: true }), 260);
+  };
+  document.querySelectorAll('[data-lead-open]').forEach((a) => a.addEventListener('click', (e) => { if (phone.matches) { e.preventDefault(); setLead(true); } }));
+  document.querySelectorAll('[data-lead-close]').forEach((b) => b.addEventListener('click', () => setLead(false)));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && lead?.classList.contains('open')) setLead(false); });
+  if (location.hash === '#lead' && phone.matches) setLead(true);
 </script>
 
 <style>
@@ -252,7 +279,7 @@ const facts = [
   .main { flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 36px; }
   .main h2 { font-size: 34px; margin: 0 0 12px; }
   .contact { display: flex; flex-wrap: wrap; gap: 10px; }
-  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 12px; }
   .facts div { border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 4px; }
   .facts span { font-size: 13px; color: var(--ink-3); } .facts b { font-size: 18px; }
   .tabs { display: flex; gap: 28px; border-bottom: 1px solid var(--line); font-weight: 600; }
@@ -273,16 +300,43 @@ const facts = [
   .write-review summary { list-style: none; } .write-review summary::-webkit-details-marker { display: none; }
   .review-form { display: flex; flex-direction: column; gap: 12px; padding: 16px 0; min-width: min(420px, 85vw); }
   .claim { background: var(--green-soft); border-radius: 14px; padding: 16px; margin: 0; }
-  .lead { flex: 1 1 340px; max-width: 400px; position: sticky; top: 24px; }
+  .lead { flex: 1 1 340px; max-width: 400px; position: sticky; top: calc(var(--header-h) + 16px); }
+  .lead-close { display: none; }
+  .banner-ill { margin-top: 16px; border-radius: 20px; overflow: hidden; display: flex; align-items: stretch; background: var(--bg-2); border: 1px solid var(--line); }
+  .banner-ill img { width: 300px; aspect-ratio: 3 / 2; height: auto; object-fit: cover; flex: 0 0 auto; }
+  .banner-note { display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 20px 28px; font-size: 15px; color: var(--ink-2); }
+  .banner-note b { font-size: 17px; color: var(--ink); }
+  .banner-note a { color: var(--rose-dark); font-weight: 600; }
+  .gallery.n1 { grid-template-columns: 1fr; grid-template-rows: 380px; }
+  .gallery.n1 .big { grid-column: auto; grid-row: auto; }
+  .gallery.n2 { grid-template-rows: 380px; } .gallery.n2 > * { grid-column: span 2; grid-row: auto; }
+  .gallery.n3 .big { grid-row: span 2; } .gallery.n3 > :not(.big) { grid-column: span 2; }
   .lead-card { border: 1px solid var(--line-2); border-radius: 22px; padding: 24px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 16px 40px rgba(31,26,46,.10); background: #fff; }
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .similar { background: var(--rose-soft); border-radius: 12px; padding: 12px; }
-  .mbar { display: none; }
+  .mbar { display: none; gap: 10px; position: sticky; bottom: 0; background: rgba(255,255,255,.97); border-top: 1px solid var(--line);
+    padding: 10px 16px calc(12px + env(safe-area-inset-bottom)); z-index: 30; box-shadow: 0 -8px 24px rgba(31,26,46,.06); }
+  @media (max-width: 900px) {
+    .lead { position: fixed; z-index: 60; left: 0; right: 0; bottom: 0; top: auto; max-width: none; max-height: 92vh; overflow: auto;
+      transform: translateY(105%); transition: transform .25s ease; visibility: hidden; }
+    .lead.open { transform: none; visibility: visible; }
+    .lead .lead-card { border-radius: 22px 22px 0 0; border: 0; box-shadow: 0 -20px 50px rgba(31,26,46,.22); padding: 20px 20px calc(20px + env(safe-area-inset-bottom)); position: relative; }
+    .lead-close { display: inline-flex; position: absolute; top: 14px; right: 14px; }
+    .lead-scrim { position: fixed; inset: 0; z-index: 55; background: rgba(31,26,46,.4); }
+    :global(body.sheet-lock) { overflow: hidden; }
+    .mbar { display: flex; }
+  }
   @media (max-width: 640px) {
     .gallery { grid-template-columns: 1fr; grid-template-rows: 230px; }
     .gallery > :nth-child(n+2) { display: none; }
     .gallery .big { grid-column: auto; grid-row: auto; }
-    .lead { max-width: none; position: static; }
-    .mbar { display: flex; gap: 10px; position: sticky; bottom: 0; background: #fff; border-top: 1px solid var(--line); padding: 12px 16px 20px; z-index: 10; }
+    .banner-ill { border-radius: 16px; }
+    .banner-ill img { width: 120px; aspect-ratio: 1; }
+    .banner-note { padding: 12px 16px; font-size: 13px; gap: 2px; }
+    .banner-note b { font-size: 15px; }
+    .write-review { flex-basis: 100%; }
+    .tabs { gap: 22px; overflow-x: auto; white-space: nowrap; margin: 0 -16px; padding: 0 16px; scrollbar-width: none; position: sticky; top: var(--header-h); background: #fff; z-index: 5; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .review-form { min-width: 0; width: 100%; }
   }
 </style>

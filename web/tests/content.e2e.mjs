@@ -49,7 +49,7 @@ test('page content: SEO title, short intro on top, guide below the listings, cus
 
 test('AEO: at-a-glance summary, visible last-updated date, CollectionPage with dateModified', () => {
   const h = html('us/texas/austin/wedding-venues/index.html');
-  assert.match(h, /<aside class="glance"[\s\S]*At a glance[\s\S]*wedding venues serve Austin\./);
+  assert.match(h, /<details class="glance"[\s\S]*At a glance[\s\S]*wedding venues serve Austin\./);
   assert.match(h, /Last updated <time datetime="\d{4}-\d{2}-\d{2}/);
   const cp = ld(h, 'CollectionPage')[0];
   assert.equal(cp.name, 'Wedding venues in Austin, TX');

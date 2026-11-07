@@ -22,10 +22,15 @@ const top = d.categories.slice(0, 2);
       <a href="/blog/">Blog</a>
     </nav>
     <details class="mobile-menu">
-      <summary class="btn btn-outline" aria-label="Open menu">Menu</summary>
+      <summary class="icon-btn" aria-label="Open menu">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </summary>
       <div class="mobile-panel">
-        {d.categories.map((c) => <a href={`/categories/${c.slug}/`}>{c.name}</a>)}
-        <a href="/search/">Search</a>
+        <b class="mp-h">Browse vendors</b>
+        <div class="mp-grid">{d.categories.map((c) => <a href={`/categories/${c.slug}/`}>{c.name.replace(/^Wedding /, '').replace(/^./, (x) => x.toUpperCase())}</a>)}</div>
+        <b class="mp-h">More</b>
+        <a href="/get-matched/">Get matched with vendors</a>
+        <a href="/shortlist/">My shortlist</a>
         <a href="/blog/">Wedding planning blog</a>
         <a href="/for-vendors/">For vendors</a>
       </div>
@@ -62,9 +67,16 @@ const top = d.categories.slice(0, 2);
   .mobile-menu { display: none; position: relative; }
   .mobile-menu summary { list-style: none; }
   .mobile-menu summary::-webkit-details-marker { display: none; }
-  .mobile-panel { position: absolute; z-index: 20; top: 52px; right: 0; background: #fff; border: 1px solid var(--line); border-radius: 14px;
-    padding: 12px; width: 260px; display: flex; flex-direction: column; box-shadow: 0 16px 40px rgba(31, 26, 46, .12); }
-  .mobile-panel a { padding: 10px 8px; text-decoration: none; }
+  .mobile-menu[open] summary { background: var(--rose-soft); border-color: var(--rose); color: var(--rose-dark); }
+  .mobile-panel { position: absolute; z-index: 20; top: 52px; right: 0; background: #fff; border: 1px solid var(--line); border-radius: 18px;
+    padding: 14px; width: min(340px, calc(100vw - 32px)); max-height: calc(100vh - 90px); overflow: auto; display: flex; flex-direction: column;
+    box-shadow: 0 24px 60px rgba(31, 26, 46, .18); }
+  .mobile-panel a { padding: 11px 8px; text-decoration: none; border-radius: 10px; font-size: 15px; }
+  .mobile-panel a:hover { background: var(--rose-soft); }
+  .mp-h { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); padding: 8px 8px 4px; }
+  .mp-grid { display: grid; grid-template-columns: 1fr 1fr; }
+  .mp-grid a { font-size: 14px; }
+  @media (max-width: 640px) { .mobile-panel { position: fixed; top: calc(var(--header-h) + 4px); right: 16px; } }
   @media (max-width: 960px) { .mobile-menu { display: block; } }
   @media (max-width: 640px) { .hide-sm { display: none; } }
   .show-xs { display: none; }

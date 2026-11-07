@@ -79,10 +79,25 @@
 .scroll-x { overflow-x: auto; }
 .empty { color: var(--ink-3); padding: 24px; text-align: center; }
 @media (max-width: 760px) {
-  .side { max-width: none; flex-direction: row; flex-wrap: wrap; padding: 12px; gap: 4px; border-right: 0; border-bottom: 1px solid var(--ln); }
-  .side .tag, .side .spacer { display: none; }
-  .side .who { flex: 1 1 100%; padding: 4px 8px; }
-  .side a { padding: 8px 10px; }
+  /* Phones: the side menu becomes one sticky row you can swipe sideways. */
+  .side { max-width: none; flex: 1 1 100%; flex-direction: row; flex-wrap: nowrap; align-items: center; overflow-x: auto; padding: 8px 12px;
+    gap: 4px; border-right: 0; border-bottom: 1px solid var(--ln); position: sticky; top: 0; z-index: 30; scrollbar-width: none;
+    box-shadow: 0 4px 16px rgba(31, 26, 46, .06); }
+  .side::-webkit-scrollbar { display: none; }
+  .side { -webkit-mask-image: linear-gradient(to right, #000 82%, transparent); mask-image: linear-gradient(to right, #000 82%, transparent); padding-right: 48px; }
+  .side .tag, .side .spacer, .side .mono { display: none; }
+  .side .who:not(:has(select)) { display: none; }
+  .side .logo { font-size: 22px !important; padding: 0 8px 0 4px; flex: 0 0 auto; }
+  .side .who { flex: 0 0 auto; padding: 0 8px; border-left: 1px solid var(--ln); border-right: 1px solid var(--ln); max-width: 170px; }
+  .side .who b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  .side a, .side button.navbtn { padding: 8px 12px; min-height: 40px; white-space: nowrap; flex: 0 0 auto; }
+  .side > span { white-space: nowrap; flex: 0 0 auto; }
+  .admin .side .who { border-color: rgba(255, 255, 255, .15); }
+  .dhead h1 { font-size: 24px; }
+  .panel { padding: 18px; border-radius: 14px; }
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .kpi { padding: 14px; } .kpi b { font-size: 24px; }
+  .banner { padding: 18px; }
   .dmain { padding: 20px 16px 40px; }
   .grid2, .grid3 { grid-template-columns: 1fr; }
   .inbox-list { max-width: none; }

@@ -1,6 +1,6 @@
 ---
 import type { Vendor } from '../lib/data';
-import { getData, money, replyLabel } from '../lib/data';
+import { getData, money, replyLabel, categoryImage } from '../lib/data';
 interface Props { v: Vendor; index: number }
 const { v, index } = Astro.props;
 const d = await getData();
@@ -12,8 +12,9 @@ const reply = replyLabel(v.avg_reply_minutes);
 const url = d.urls.vendor(v);
 ---
 <article class="vrow" data-vendor={v.id}>
-  <a href={url} class:list={['vrow-media', !photo && `ph ph-${index % 5}`]} aria-label={`${v.name} photos`}>
-    {photo && <img src={photo.url} alt={photo.alt ?? v.name} loading={index < 2 ? 'eager' : 'lazy'} decoding="async" width="480" height="320" />}
+  <a href={url} class="vrow-media" aria-label={photo ? `${v.name} photos` : v.name} tabindex={photo ? undefined : -1}>
+    {photo ? <img src={photo.url} alt={photo.alt ?? v.name} loading={index < 2 ? 'eager' : 'lazy'} decoding="async" width="480" height="320" />
+      : <img src={categoryImage(cat)} alt="" class="ill" loading={index < 2 ? 'eager' : 'lazy'} decoding="async" width="480" height="320" />}
     {v.featured && <span class="badge badge-white">Featured</span>}
   </a>
   <div class="vrow-body">

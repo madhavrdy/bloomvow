@@ -64,7 +64,7 @@ test('listing filters, sorting and show more', async () => {
   const ratings = await p.locator('#list .item:not([hidden])').evaluateAll((els) => els.map((e) => Number(e.dataset.rating)));
   assert.ok(ratings.every((r) => r >= 4.5));
   assert.ok(Number(await p.locator('#count').innerText()) <= total);
-  await p.click('button[type=reset]');
+  await p.click('#filters button[type=reset]');
   await p.waitForFunction((t) => document.getElementById('count').textContent === String(t), total);
 
   await p.selectOption('#sort', 'price');
@@ -222,6 +222,28 @@ test('mobile: no sideways scrolling, sticky request bar on profiles', async () =
   }
   await p.goto(`${SITE}/vendor/${v.slug}/`);
   assert.ok(await p.locator('.mbar').isVisible(), 'sticky call + request bar shows on phones');
+  // The request form opens as a bottom sheet and closes again.
+  assert.equal(await p.locator('#lead-form').isVisible(), false, 'form starts tucked away on phones');
+  await p.click('.mbar [data-lead-open]');
+  await p.locator('#lead.open').waitFor();
+  await p.waitForTimeout(350);
+  assert.ok(await p.locator('#lead-form [name=couple_name]').isVisible());
+  await p.click('#lead .lead-close');
+  await p.waitForTimeout(350);
+  assert.equal(await p.locator('#lead-form').isVisible(), false);
+  // Listing: results show before "At a glance" details; filters open in a sheet and count what's ticked.
+  await p.goto(`${SITE}/us/texas/austin/wedding-venues/`);
+  assert.equal(await p.locator('#glance').evaluate((el) => el.open), false, 'at a glance starts collapsed on phones');
+  const first = await p.locator('.vrow').first().boundingBox();
+  assert.ok(first.y < 900, `first result near the top: ${first.y}`);
+  assert.equal(await p.locator('#filter-sheet').isVisible(), false);
+  await p.click('#filters-open');
+  await p.locator('#filter-sheet.open').waitFor();
+  await p.waitForTimeout(300);
+  await p.check('#filters input[name=guests][value="201"]');
+  await p.click('#filter-sheet .sheet-done');
+  assert.equal(await p.locator('#fcount').textContent(), '1');
+  assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= 390));
   await p.goto(`${SITE}/`);
   await p.click('.mobile-menu summary');
   assert.ok(await p.locator('.mobile-panel').isVisible(), 'mobile menu opens');

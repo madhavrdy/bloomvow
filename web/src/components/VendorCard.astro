@@ -1,6 +1,6 @@
 ---
 import type { Vendor } from '../lib/data';
-import { getData, money } from '../lib/data';
+import { getData, money, categoryImage } from '../lib/data';
 interface Props { v: Vendor; index: number; showCategory?: boolean }
 const { v, index, showCategory = false } = Astro.props;
 const d = await getData();
@@ -10,7 +10,8 @@ const cat = d.categoryById.get(v.category_id)!;
 const photo = d.photosByVendor.get(v.id)?.[0];
 ---
 <a href={d.urls.vendor(v)} class="vcard">
-  {photo ? <img src={photo.url} alt={photo.alt ?? v.name} loading="lazy" decoding="async" width="400" height="180" /> : <div class={`ph ph-${index % 5}`} />}
+  {photo ? <img src={photo.url} alt={photo.alt ?? v.name} loading="lazy" decoding="async" width="400" height="180" />
+    : <img src={categoryImage(cat)} alt="" class="ill" loading="lazy" decoding="async" width="400" height="180" />}
   <div class="vcard-body">
     {showCategory && <span class="vcard-cat">{cat.singular}</span>}
     <b>{v.name}</b>

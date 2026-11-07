@@ -8,7 +8,7 @@ import Base from '../../../../layouts/Base.astro';
 import Breadcrumbs from '../../../../components/Breadcrumbs.astro';
 import VendorCard from '../../../../components/VendorCard.astro';
 import Guides from '../../../../components/Guides.astro';
-import { getData, rankVendors, type City } from '../../../../lib/data';
+import { getData, rankVendors, type City, categoryImage } from '../../../../lib/data';
 import { breadcrumbJsonLd } from '../../../../lib/seo';
 
 export async function getStaticPaths() {
@@ -36,7 +36,7 @@ const c = contentFor(d, d.urls.city(city), Astro.site?.host);
     <Intro c={c} auto={`Browse ${total} wedding professionals in ${city.name} across ${listings.length} categories, or tell us what you need and we'll match you.`} />
     <section class="section">
       <div class="tile-grid">
-        {listings.map((l) => <a class="tile" href={l.url}><b>{l.category.name}</b><span>{l.vendors.length} in {city.name}</span></a>)}
+        {listings.map((l) => <a class="tile tile-img" href={l.url}><img src={categoryImage(l.category)} alt="" width="56" height="56" loading="lazy" /><span class="tile-t"><b>{l.category.name}</b><span>{l.vendors.length} in {city.name}</span></span></a>)}
       </div>
       <p style="margin-top:24px"><a class="btn btn-primary btn-lg" href={`/get-matched/?city=${city.id}`}>Get matched with {city.name} vendors</a></p>
     </section>

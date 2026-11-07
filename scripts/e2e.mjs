@@ -1,6 +1,7 @@
 // Full end-to-end run: fresh database -> local Supabase gateway -> site build
 // -> preview server -> browser tests.
-// Usage: POSTGREST_BIN=/path/postgrest AUTH_BIN=/path/auth node scripts/e2e.mjs
+// Usage: POSTGREST_BIN=/path/postgrest AUTH_BIN=/path/auth node scripts/e2e.mjs [test-file-filter]
+//        PREVIEW=1 ... node scripts/e2e.mjs   -> build and keep the local site running at :4329
 import { spawn, execFileSync } from 'node:child_process';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -53,6 +54,9 @@ execFileSync('npx', ['astro', 'build', '--silent'], { cwd: web, env: siteEnv, st
 console.log('4/5 preview server');
 kids.push(spawn('npx', ['astro', 'preview', '--port', String(SITE)], { cwd: web, env: siteEnv, stdio: 'ignore' }));
 await waitFor(`http://localhost:${SITE}/`);
+
+// PREVIEW=1: keep the local site running (for design checks) instead of running the tests.
+if (process.env.PREVIEW) { console.log(`Preview running at http://localhost:${SITE}/ (Ctrl+C to stop)`); await new Promise(() => {}); }
 
 console.log('5/5 browser tests');
 const only = process.argv[2];

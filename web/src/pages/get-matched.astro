@@ -18,7 +18,7 @@ const today = new Date().toISOString().slice(0, 10);
           <legend class="serif">Which vendors do you still need?</legend>
           <p class="muted">Pick all that apply. One request covers every category.</p>
           <div class="chips">
-            {d.categories.map((c) => <label class="chip"><input type="checkbox" name="category" value={c.id} data-slug={c.slug} /><span>{c.singular.replace(/^Wedding /, '')}</span></label>)}
+            {d.categories.map((c) => <label class="chip"><input type="checkbox" name="category" value={c.id} data-slug={c.slug} /><span>{c.singular.replace(/^Wedding /, '').replace(/^./, (x) => x.toUpperCase())}</span></label>)}
           </div>
         </fieldset>
         <fieldset data-step="2" hidden>
