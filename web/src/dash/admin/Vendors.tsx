@@ -51,21 +51,34 @@ function VendorList({ ref_, toast }: { ref_: Ref; toast: (t: string) => void }) 
   const [status, setStatus] = useState('all');
   const [plan, setPlan] = useState('all');
   const [cat, setCat] = useState('');
+  const [country, setCountry] = useState('');
+  const [region, setRegion] = useState('');
+  const [city, setCity] = useState('');
   const [page, setPage] = useState(0);
   const [edit, setEdit] = useState<V | null>(null);
 
   async function load() {
-    let query = sb().from('vendors').select('id,slug,name,category_id,city_id,status,plan,plan_renews_at,email,phone,website,description,price_from,capacity_max,rating,review_count,owner_id,source,updated_at,hidden_reason,details', { count: 'exact' });
+    let query = sb().from('vendors').select('id,slug,name,category_id,city_id,status,plan,plan_renews_at,email,phone,website,description,price_from,capacity_max,rating,review_count,owner_id,source,updated_at,hidden_reason,details,city:cities!vendors_city_id_fkey!inner(region_id,regions!inner(country_code))', { count: 'exact' });
     const t = q.trim().replace(/[%_,()]/g, ' ');
     if (t) query = query.or(`name.ilike.%${t}%,email.ilike.%${t}%,slug.ilike.%${t}%`);
     if (status !== 'all') query = query.eq('status', status);
     if (plan !== 'all') query = query.eq('plan', plan);
     if (cat) query = query.eq('category_id', Number(cat));
+    if (city) query = query.eq('city_id', Number(city));
+    else if (region) query = query.eq('city.region_id', Number(region));
+    else if (country) query = query.eq('city.regions.country_code', country);
     const { data, count, error } = await query.order('updated_at', { ascending: false }).range(page * PAGE, page * PAGE + PAGE - 1);
     if (error) return toast(friendly(error));
     setRows(data as V[]); setTotal(count ?? 0);
   }
-  useEffect(() => { load(); }, [status, plan, cat, page]);
+  useEffect(() => { load(); }, [status, plan, cat, country, region, city, page]);
+
+  // Location filters narrow each other: country -> its states -> their cities.
+  const usedCountries = ref_.countries.filter((c) => ref_.cities.some((x) => x.country_code === c.code));
+  const regionOpts = ref_.regions.filter((r) => (!country || r.country_code === country) && ref_.cities.some((x) => x.region_id === r.id));
+  const cityOpts = ref_.cities.filter((x) => (region ? x.region_id === Number(region) : !country || x.country_code === country));
+  const filtered = status !== 'all' || plan !== 'all' || cat || country || region || city;
+  const clearAll = () => { setStatus('all'); setPlan('all'); setCat(''); setCountry(''); setRegion(''); setCity(''); setPage(0); };
 
   const inp = 'font:inherit;font-size:14px;border:1px solid var(--ln);border-radius:10px;padding:0 12px;min-height:44px;background:#fff';
   return (
@@ -78,8 +91,18 @@ function VendorList({ ref_, toast }: { ref_: Ref; toast: (t: string) => void }) 
           <option value="all">All plans</option><option value="featured">Featured</option><option value="free">Free</option></select></label>
         <label><span class="sr-only">Category</span><select value={cat} onChange={(e) => { setPage(0); setCat(e.currentTarget.value); }} style={inp}>
           <option value="">All categories</option>{ref_.categories.map((c) => <option value={c.id}>{c.name}</option>)}</select></label>
+        {usedCountries.length > 0 && <label><span class="sr-only">Country</span><select value={country} onChange={(e) => { setPage(0); setCountry(e.currentTarget.value); setRegion(''); setCity(''); }} style={inp}>
+          <option value="">All countries</option>{usedCountries.map((c) => <option value={c.code}>{c.name}</option>)}</select></label>}
+        <label><span class="sr-only">State</span><select value={region} onChange={(e) => { setPage(0); setRegion(e.currentTarget.value); setCity(''); }} style={inp}>
+          <option value="">All states</option>{regionOpts.map((r) => <option value={r.id}>{r.name}</option>)}</select></label>
+        <label><span class="sr-only">City</span><select value={city} onChange={(e) => { setPage(0); setCity(e.currentTarget.value); }} style={inp}>
+          <option value="">All cities</option>{cityOpts.map((x) => <option value={x.id}>{region ? x.name : x.label}</option>)}</select></label>
         <button class="btn btn-outline">Search</button>
       </form>
+      <p class="muted" style="margin:0;font-size:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <span><b id="vcount" style="color:var(--ink)">{total.toLocaleString('en-US')}</b> vendor{total === 1 ? '' : 's'}</span>
+        {filtered && <button type="button" class="linkbtn" onClick={clearAll}>Clear filters</button>}
+      </p>
       <section class="panel" style="padding:0;overflow:hidden">
         <div class="scroll-x"><table class="tbl" style="min-width:820px">
           <thead><tr><th style="padding-left:16px">Vendor</th><th>Category</th><th>City</th><th>Status</th><th>Plan</th><th>Lead email</th><th>Rating</th><th /></tr></thead>

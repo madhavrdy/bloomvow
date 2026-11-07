@@ -3,7 +3,10 @@ import { sb, must } from './supabase';
 
 export type Category = { id: number; slug: string; name: string; singular: string; uses_capacity: boolean; sort: number; budget_share: number };
 export type City = { id: number; name: string; slug: string; region_id: number; label: string; region_slug: string; country_code: string };
-export type Ref = { categories: Category[]; cities: City[]; cityById: Map<number, City>; catById: Map<number, Category>; bands: number[] };
+export type Region = { id: number; code: string; name: string; slug: string; country_code: string };
+export type Country = { code: string; name: string };
+export type Ref = { categories: Category[]; cities: City[]; cityById: Map<number, City>; catById: Map<number, Category>; bands: number[];
+  regions: Region[]; countries: Country[] };
 
 // Load every row of a table/view, 1000 at a time (Supabase's default page limit).
 export async function loadAll<T>(table: string, select: string, order = 'id'): Promise<T[]> {
@@ -18,11 +21,12 @@ export async function loadAll<T>(table: string, select: string, order = 'id'): P
 let refCache: Promise<Ref> | null = null;
 export function loadRef(): Promise<Ref> {
   refCache ??= (async () => {
-    const [categories, regions, citiesRaw, settings] = await Promise.all([
+    const [categories, regions, citiesRaw, settings, countries] = await Promise.all([
       loadAll<Category & { active: boolean }>('categories', 'id,slug,name,singular,uses_capacity,sort,budget_share,active', 'sort'),
-      loadAll<{ id: number; code: string; slug: string; country_code: string }>('regions', 'id,code,slug,country_code'),
+      loadAll<Region>('regions', 'id,code,name,slug,country_code', 'name'),
       loadAll<{ id: number; name: string; slug: string; region_id: number }>('cities', 'id,name,slug,region_id', 'name'),
       loadAll<{ key: string; value: unknown }>('settings', 'key,value', 'key'),
+      loadAll<Country>('countries', 'code,name', 'name'),
     ]);
     const reg = new Map(regions.map((r) => [r.id, r]));
     const cities = citiesRaw.map((c) => {
@@ -30,7 +34,7 @@ export function loadRef(): Promise<Ref> {
       return { ...c, label: `${c.name}, ${r.code.toUpperCase()}`, region_slug: r.slug, country_code: r.country_code };
     });
     const bands = (settings.find((s) => s.key === 'budget_bands')?.value as number[]) ?? [15000, 30000, 50000, 80000, 150000];
-    return { categories, cities, cityById: new Map(cities.map((c) => [c.id, c])), catById: new Map(categories.map((c) => [c.id, c])), bands };
+    return { categories, cities, cityById: new Map(cities.map((c) => [c.id, c])), catById: new Map(categories.map((c) => [c.id, c])), bands, regions, countries };
   })();
   return refCache;
 }

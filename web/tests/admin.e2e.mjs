@@ -123,6 +123,41 @@ test('vendors: search, edit details, set Featured with renewal date', async () =
   assert.ok(Object.values(row.details).some((x) => Array.isArray(x) && x.includes(label)), `saved ${label}`);
 });
 
+test('vendors: filter by country, state and city alongside status, plan and category', async () => {
+  await go(admin, 'vendors');
+  const sel = (label) => admin.locator(`form label:has(span.sr-only:text-is("${label}")) select`);
+  await admin.fill('input[type=search]', '');            // the previous test left a search in the box
+  await admin.click('form button:has-text("Search")');
+  await admin.waitForSelector('tbody tr td');
+  const [{ n: all }] = await q(`select count(*)::int n from vendors`);
+  await admin.waitForFunction((n) => document.querySelector('#vcount')?.textContent?.replace(/,/g, '') === String(n), all);
+  const [{ n: tx }] = await q(`select count(*)::int n from vendors v join cities c on c.id = v.city_id join regions r on r.id = c.region_id where r.code = 'tx'`);
+  const [{ id: texas }] = await q(`select id from regions where code = 'tx' and country_code = 'us'`);
+  await sel('Country').selectOption('us');
+  await admin.waitForFunction((n) => document.querySelector('#vcount')?.textContent?.replace(/,/g, '') === String(n), all);
+  await sel('State').selectOption(String(texas));
+  await admin.waitForFunction((n) => document.querySelector('#vcount')?.textContent?.replace(/,/g, '') === String(n), tx);
+  // City list now only offers Texas cities.
+  const cityNames = await sel('City').locator('option').allTextContents();
+  const [{ n: txCities }] = await q(`select count(*)::int n from cities where region_id = $1`, [texas]);
+  assert.equal(cityNames.length - 1, txCities);
+  const [{ id: austin }] = await q(`select id from cities where name = 'Austin'`);
+  await sel('City').selectOption(String(austin));
+  const [{ n: inAustin }] = await q(`select count(*)::int n from vendors where city_id = $1`, [austin]);
+  await admin.waitForFunction((n) => document.querySelector('#vcount')?.textContent?.replace(/,/g, '') === String(n), inAustin);
+  const cities = await admin.locator('tbody tr td:nth-child(3)').allTextContents();
+  assert.ok(cities.length > 0 && cities.every((c) => c.startsWith('Austin')), cities.join('|'));
+  // Combines with category; Clear filters resets everything.
+  const [{ id: venues }] = await q(`select id from categories where slug = 'wedding-venues'`);
+  await sel('Category').selectOption(String(venues));
+  const [{ n: austinVenues }] = await q(`select count(*)::int n from vendors where city_id = $1 and category_id = $2`, [austin, venues]);
+  await admin.waitForFunction((n) => document.querySelector('#vcount')?.textContent?.replace(/,/g, '') === String(n), austinVenues);
+  await admin.click('button:has-text("Clear filters")');
+  await admin.waitForFunction((n) => document.querySelector('#vcount')?.textContent?.replace(/,/g, '') === String(n), all);
+  assert.equal(await sel('State').inputValue(), '');
+  assert.deepEqual(admin.errors ?? [], []);
+});
+
 test('claims: approve transfers ownership and the queue empties', async () => {
   await go(admin, 'vendors');
   await admin.click('.seg button:has-text("Claims")');
