@@ -7,7 +7,8 @@
 -- leads and claims: an unusable number is refused with 'invalid_phone'.
 -- vendors: refused when an owner or admin changes the phone, or adds a new business; imported numbers that don't fit the
 -- rule are kept as they were (they came from public listings) but valid ones are tidied.
--- The admin CSV import is lenient the same way, so one messy number never stops an import.
+-- Admins are lenient the same way (the CSV import must never stop on one messy number;
+-- the admin vendor screen checks numbers in the browser).
 
 create or replace function normalize_phone(raw text) returns text
 language plpgsql immutable set search_path = public as $$
@@ -38,8 +39,8 @@ begin
   if nullif(btrim(coalesce(new.phone, '')), '') is null then new.phone := null; return new; end if;
   v := normalize_phone(new.phone);
   if tg_table_name = 'vendors' then
-    if current_setting('app.phone_lenient', true) = 'on' then
-      lenient := true;                                   -- admin CSV import (see below)
+    if is_admin() then
+      lenient := true;                                   -- admins: CSV import; the admin screen checks numbers itself
     elsif tg_op = 'UPDATE' then
       if new.phone is not distinct from old.phone then lenient := true; end if;
     elsif to_jsonb(new)->>'source' is distinct from 'self_signup' then
@@ -65,4 +66,3 @@ drop trigger if exists vendors_phone on vendors;
 create trigger vendors_phone before insert or update of phone on vendors
   for each row execute function phone_guard();
 
-alter function admin_import_vendors(jsonb, text, boolean) set app.phone_lenient = 'on';
