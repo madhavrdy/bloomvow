@@ -1,0 +1,36 @@
+---
+// A post published since the last site build has no page yet. /blog/<slug>/ hands over to
+// this one shared, noindex page (see 404.astro), which loads the post from the database.
+// Once the rebuild (started automatically on publish) is live, it sends readers to the real page.
+import Base from '../../layouts/Base.astro';
+---
+<Base title="Blog" description="Wedding planning ideas and guides." noindex>
+  <main class="wrap" style="padding-top:24px">
+    <p id="bp-loading" class="muted" style="padding:48px 0;min-height:40vh">Loading the article…</p>
+    <div id="bp-missing" hidden style="padding:48px 0;min-height:40vh">
+      <h1 class="serif" style="font-size:44px;margin:0 0 12px">We couldn't find that article</h1>
+      <p class="muted">It may have been unpublished or the link is out of date.</p>
+      <p><a class="btn btn-primary" href="/blog/">See all articles</a></p>
+    </div>
+    <div id="bp-page" hidden>
+      <nav class="crumbs" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li><a href="/blog/">Blog</a></li><li><a id="bp-cat-crumb" href="/blog/"></a></li><li><span id="bp-crumb" aria-current="page" style="color:var(--ink);font-weight:600"></span></li></ol></nav>
+      <article class="post">
+        <header class="post-head">
+          <a id="bp-cat" href="/blog/" class="pcat"></a>
+          <h1 id="bp-title" class="serif"></h1>
+          <p id="bp-meta" class="muted post-meta"></p>
+        </header>
+        <img id="bp-cover" class="post-cover" hidden alt="" />
+        <div class="post-layout">
+          <nav id="bp-toc" class="toc" aria-label="On this page" hidden><b>On this page</b><ol></ol></nav>
+          <div id="bp-body" class="prose"></div>
+        </div>
+        <p class="post-cta"><a class="btn btn-primary btn-lg" href="/get-matched/">Get free quotes</a> <a class="btn btn-outline btn-lg" href="/blog/">More articles</a></p>
+      </article>
+    </div>
+  </main>
+</Base>
+<script>
+  import { initBlogFallback } from '../../scripts/blog-fallback';
+  initBlogFallback();
+</script>

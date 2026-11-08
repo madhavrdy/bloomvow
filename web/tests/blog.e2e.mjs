@@ -153,6 +153,32 @@ test('a vendor added after the last build still opens (404 hands over to the sha
   await p.locator('#bv-team-h:has-text("Complete your wedding team in Austin")').waitFor();
 });
 
+test('a post published after the last build opens right away from its own link', async () => {
+  const body = '## Cake styles\n\nNaked cakes are **popular**.\n\n## Costs\n\nAbout $7 a slice.\n\n## Tasting\n\nBook early. <script>window.bad=1</script>';
+  await q(`insert into posts (slug, title, body, category_id, status, published_at, author_name)
+    values ('fresh-cake-ideas', 'Fresh cake ideas', $1, (select id from blog_categories where active order by sort limit 1), 'published', now(), 'Mia')`, [body]);
+  await q(`insert into posts (slug, title, body, category_id, status, published_at)
+    values ('not-yet-cake', 'Not yet', 'x', (select id from blog_categories where active order by sort limit 1), 'draft', null)`);
+  const p = await page();
+  await p.goto(`${SITE}/blog/fresh-cake-ideas/`);
+  await p.locator('#bp-title:has-text("Fresh cake ideas")').waitFor();
+  assert.match(p.url(), /\/blog\/fresh-cake-ideas\/$/, 'the address bar keeps the real link');
+  assert.match(await p.locator('#bp-body').innerHTML(), /<h2 id="cake-styles">Cake styles<\/h2>/);
+  assert.match(await p.locator('#bp-body').innerHTML(), /&lt;script&gt;/, 'raw HTML shown as text');
+  assert.equal(await p.evaluate(() => window.bad), undefined);
+  assert.match(await p.locator('#bp-meta').innerText(), /By Mia · .* · 1 min read/);
+  assert.equal(await p.locator('#bp-toc li').count(), 3, 'table of contents for 3+ headings');
+  assert.equal(await p.locator('meta[name=robots]').getAttribute('content'), 'noindex, follow');
+
+  await p.goto(`${SITE}/blog/not-yet-cake/`);
+  await p.locator('#bp-missing:not([hidden])').waitFor();
+  // An existing (built) post is never shown through the fallback.
+  await p.goto(`${SITE}/blog-post/?p=how-much-does-a-wedding-venue-cost-in-austin`);
+  await p.waitForURL(/\/blog\/how-much-does-a-wedding-venue-cost-in-austin\/$/);
+  await p.locator('h1:has-text("wedding venue")').waitFor();
+  await q(`delete from posts where slug in ('fresh-cake-ideas', 'not-yet-cake')`);
+});
+
 test('paginated lists: each page is self-canonical, with prev/next links and its own description', () => {
   const base = 'us/texas/san-marcos/wedding-venues/';
   const p1 = html(`${base}index.html`), p2 = html(`${base}page/2/index.html`);

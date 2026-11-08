@@ -22,6 +22,41 @@ export function postState(p: Pick<Post, 'status' | 'published_at'>, now = Date.n
 const isLive = (p: Pick<Post, 'status' | 'published_at'>) => p.status !== 'draft' && Boolean(p.published_at) && new Date(p.published_at!).getTime() <= Date.now();
 const localInput = (iso: string | null) => (iso ? new Date(new Date(iso).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '');
 
+type BuildStatus = { ready: boolean; waiting_since: string | null; last: { sent_at: string; result: string | null } | null };
+
+// "Site update" line: new and edited posts open right away; the blog lists, categories and
+// sitemap refresh with an automatic site rebuild (about 15 minutes).
+function SiteUpdate({ onToast }: { onToast: (m: string) => void }) {
+  const [s, setS] = useState<BuildStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const load = async () => { const { data } = await sb().rpc('site_build_status'); if (data) setS(data as BuildStatus); };
+  useEffect(() => { load(); const t = setInterval(load, 30000); return () => clearInterval(t); }, []);
+  if (!s) return null;
+  const mins = (iso: string) => Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  const failed = Boolean(s.last?.result && s.last.result !== 'ok');
+  const building = Boolean(s.last?.sent_at) && !failed && mins(s.last!.sent_at) < 16;
+  const text = !s.ready
+    ? 'Automatic site updates are not set up yet: new posts open from their link right away, and blog lists refresh with the nightly update.'
+    : s.waiting_since ? 'Site update starting within a minute…'
+    : failed ? `The last site update request failed (${s.last!.result}). Try again, or check the GitHub token.`
+    : building ? `Site update in progress: started ${mins(s.last!.sent_at)} min ago, usually done in about 15 minutes.`
+    : 'Publishing updates the site automatically. New posts open from their link right away; blog lists refresh in about 15 minutes.';
+  async function now() {
+    setBusy(true);
+    const { data, error } = await sb().rpc('request_site_build');
+    setBusy(false);
+    if (error) return onToast(friendly(error));
+    setS(data as BuildStatus);
+    onToast((data as BuildStatus).ready ? 'Site update requested' : 'Saved the request: it will run once automatic updates are set up');
+  }
+  return (
+    <p class={`site-update${failed ? ' is-bad' : ''}`} role="status">
+      <span>{text}</span>
+      {s.ready && !s.waiting_since && <button class="btn btn-outline btn-sm" disabled={busy} onClick={now}>Update site now</button>}
+    </p>
+  );
+}
+
 export function Posts({ ref_, userId, userName }: { ref_: Ref; userId: string; userName: string }) {
   const [rows, setRows] = useState<(Post & { id: string; updated_at: string })[] | null>(null);
   const [cats, setCats] = useState<BlogCat[]>([]);
@@ -43,6 +78,7 @@ export function Posts({ ref_, userId, userName }: { ref_: Ref; userId: string; u
   return (
     <>
       <div class="dhead"><h1>Blog posts</h1><button class="btn btn-primary" onClick={() => setEdit(blank)}>+ New post</button></div>
+      <SiteUpdate onToast={setToast} />
       <div class="seg" role="group" aria-label="Filter posts">
         {['all', 'Live', 'Scheduled', 'Draft'].map((f) => <button type="button" aria-pressed={filter === f} onClick={() => setFilter(f)}>{f === 'all' ? `All (${rows.length})` : f}</button>)}
       </div>
@@ -59,7 +95,7 @@ export function Posts({ ref_, userId, userName }: { ref_: Ref; userId: string; u
                 <td><span class={`chip-s ${st.cls}`}>{st.label}</span></td>
                 <td style="font-size:13px">{ago(p.updated_at)}</td>
                 <td style="white-space:nowrap"><button class="btn btn-outline btn-sm" onClick={() => setEdit(p)}>Edit</button>
-                  {isLive(p) && <> <a class="btn btn-outline btn-sm" href={`/blog/${p.slug}/`} target="_blank" rel="noopener" title="Opens the post on the site. New posts appear there after the next site update.">View ↗</a></>}</td>
+                  {isLive(p) && <> <a class="btn btn-outline btn-sm" href={`/blog/${p.slug}/`} target="_blank" rel="noopener" title="Opens the post on the site">View ↗</a></>}</td>
               </tr>;
             })}
           </tbody>
@@ -107,7 +143,7 @@ function Editor({ post, cats, ref_, userId, onClose }: { post: Post; cats: BlogC
       if (/slug_locked/.test(error.message)) return setErr('This post is live, so its web address is locked.');
       return setErr(friendly(error));
     }
-    onClose(status === 'published' ? `Published. It goes live at /blog/${p.slug}/ with the next site update.` : status === 'scheduled' ? `Scheduled for ${fmtDate(published_at)}` : 'Draft saved');
+    onClose(status === 'published' ? `Published: /blog/${p.slug}/ opens now; blog lists update in about 15 minutes` : status === 'scheduled' ? `Scheduled for ${fmtDate(published_at)}` : 'Draft saved');
   }
   async function remove() {
     if (!post.id || !confirm(`Delete "${post.title}" and its comments permanently?`)) return;
@@ -142,7 +178,7 @@ function Editor({ post, cats, ref_, userId, onClose }: { post: Post; cats: BlogC
           <div class="row" style="gap:8px">
             {isLive(post) && <a class="btn btn-outline btn-sm" href={`/blog/${post.slug}/`} target="_blank" rel="noopener">View post ↗</a>}
             <button class="btn btn-outline btn-sm" onClick={() => onClose()}>← All posts</button></div></div>
-        {isLive(post) && <p class="muted" style="margin:-8px 0 0;font-size:13px">Live at <a href={`/blog/${post.slug}/`} target="_blank" rel="noopener">{location.host}/blog/{post.slug}/</a>. Edits show there after the next site update.</p>}
+        {isLive(post) && <p class="muted" style="margin:-8px 0 0;font-size:13px">Live at <a href={`/blog/${post.slug}/`} target="_blank" rel="noopener">{location.host}/blog/{post.slug}/</a>. Saved edits show there once the site updates (about 15 minutes).</p>}
         <section class="panel">
           <label class="field">Title<input value={p.title} maxLength={200} style="font-size:20px;font-weight:700"
             onInput={(e) => { const t = e.currentTarget.value; setP({ ...p, title: t, slug: slugTouched ? p.slug : toSlug(t).slice(0, 80) }); }} /></label>

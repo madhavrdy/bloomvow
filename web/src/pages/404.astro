@@ -4,11 +4,13 @@ import Base from '../layouts/Base.astro';
 <Base title="Page not found" description="This page doesn't exist." noindex>
   <main class="wrap" style="padding:64px 24px;min-height:50vh">
     <h1 class="serif" style="font-size:48px;margin:0 0 12px">We couldn't find that page</h1>
-    <p class="muted">The vendor may have moved or the link is out of date.</p>
+    <p class="muted">The page may have moved or the link is out of date.</p>
     <p style="display:flex;gap:12px;flex-wrap:wrap"><a class="btn btn-primary" href="/">Search vendors</a><a class="btn btn-outline" href="/get-matched/">Get matched</a></p>
   </main>
 </Base>
 <script is:inline>
   // A vendor added since the last site build has no page yet: show it on the shared vendor page.
   (function () { var m = location.pathname.match(/^\/vendor\/([a-z0-9-]+)\/?$/); if (m) location.replace('/vendor/?v=' + m[1]); })();
+  // Likewise a blog post published since the last build: show it on the shared post page.
+  (function () { var m = location.pathname.match(/^\/blog\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$/); if (m) location.replace('/blog-post/?p=' + m[1] + location.hash); })();
 </script>

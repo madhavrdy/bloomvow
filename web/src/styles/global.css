@@ -210,3 +210,14 @@ details.faq p { margin: 10px 0 0; color: var(--ink-2); }
 .vcard-cat { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--rose-dark); }
 .nearby-more { margin-top: 12px; }
 .nap { font-style: normal; display: flex; flex-direction: column; gap: 6px; font-size: 16px; line-height: 1.5; }
+
+/* Blog post page (shared by /blog/<slug>/ and the just-published fallback /blog-post/) */
+.post { max-width: 1060px; }
+.post-head { max-width: 760px; margin: 16px 0 24px; }
+.post-head h1 { font-size: clamp(36px, 5vw, 54px); line-height: 1.08; margin: 8px 0 12px; }
+.pcat { font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--rose-dark); text-decoration: none; }
+.post-meta { margin: 0; font-size: 15px; }
+.post-cover { width: 100%; max-height: 520px; object-fit: cover; border-radius: 20px; margin-bottom: 32px; }
+.post-layout { display: flex; gap: 48px; align-items: flex-start; flex-wrap: wrap-reverse; }
+.post-layout .toc { flex: 0 1 240px; }
+.post-cta { display: flex; flex-wrap: wrap; gap: 12px; margin: 40px 0 0; }

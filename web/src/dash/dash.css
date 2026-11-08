@@ -166,3 +166,8 @@
   .rte-grow { display: none; }
   .rte-area { padding: 14px 14px 20px; min-height: 320px; max-height: none; }
 }
+
+/* Blog: automatic site update status */
+.site-update { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 14px;
+  padding: 10px 14px; border-radius: 12px; background: var(--acc-soft); color: var(--acc-ink); font-size: 14px; }
+.site-update.is-bad { background: #fdecec; color: #8a1f1f; }

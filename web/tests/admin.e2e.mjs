@@ -367,6 +367,7 @@ test('blog posts: visual editor writes Markdown, keeps formatting both ways, cle
 
 test('blog posts: write with preview, schedule, publish, slug lock, delete', async () => {
   await go(admin, 'posts');
+  assert.match(await admin.locator('.site-update').innerText(), /not set up yet.*open from their link right away/s, 'explains how posts go live');
   await admin.click('button:has-text("+ New post")');
   await admin.fill('label:has-text("Title") input', 'Best barn venues near Austin');
   assert.equal(await admin.inputValue('label:has-text("Web address") input'), 'best-barn-venues-near-austin');
