@@ -4,6 +4,7 @@ import { sb, must, friendly } from '../supabase';
 import { ago, fmtDate, Toast, useToast, type Ref } from '../shared';
 import { renderMarkdown, plainText, readingMinutes } from '../../lib/markdown';
 import { toSlug } from './Taxonomy';
+import { RichEditor } from '../editor/RichEditor';
 
 type BlogCat = { id: number; name: string; slug: string; active: boolean };
 export type Post = {
@@ -72,7 +73,7 @@ export function Posts({ ref_, userId, userName }: { ref_: Ref; userId: string; u
 function Editor({ post, cats, ref_, userId, onClose }: { post: Post; cats: BlogCat[]; ref_: Ref; userId: string; onClose: (msg?: string) => void }) {
   const [p, setP] = useState<Post>(post);
   const [slugTouched, setSlugTouched] = useState(Boolean(post.id));
-  const [mode, setMode] = useState<'write' | 'preview'>('write');
+  const [mode, setMode] = useState<'visual' | 'write' | 'preview'>('visual');
   const [when, setWhen] = useState(localInput(post.published_at));
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -114,17 +115,24 @@ function Editor({ post, cats, ref_, userId, onClose }: { post: Post; cats: BlogC
     if (error) return setErr(friendly(error));
     onClose('Post deleted');
   }
+  // Uploads one image to the blog-images bucket and returns its public URL.
+  async function uploadImage(original: File): Promise<string> {
+    if (!/^image\/(jpeg|png|webp)$/.test(original.type)) throw new Error('Please upload a JPG, PNG or WebP image.');
+    if (original.size > MAX_ORIGINAL) throw new Error('That image is larger than 25 MB.');
+    const file = await shrinkImage(original, 2000);
+    if (file.size > 5 * 1024 * 1024) throw new Error('That image is too large even after resizing.');
+    const path = `${new Date().toISOString().slice(0, 7)}/${crypto.randomUUID()}.${extOf(file)}`;
+    const { error } = await sb().storage.from('blog-images').upload(path, file, { contentType: file.type, cacheControl: '31536000' });
+    if (error) throw new Error(friendly(error));
+    return sb().storage.from('blog-images').getPublicUrl(path).data.publicUrl;
+  }
   async function upload(e: Event) {
     const original = (e.currentTarget as HTMLInputElement).files?.[0];
     if (!original) return;
-    if (!/^image\/(jpeg|png|webp)$/.test(original.type)) return setErr('Please upload a JPG, PNG or WebP image.');
-    if (original.size > MAX_ORIGINAL) return setErr('That image is larger than 25 MB.');
-    const file = await shrinkImage(original, 2000);
-    if (file.size > 5 * 1024 * 1024) return setErr('That image is too large even after resizing.');
-    const path = `${new Date().toISOString().slice(0, 7)}/${crypto.randomUUID()}.${extOf(file)}`;
-    const { error } = await sb().storage.from('blog-images').upload(path, file, { contentType: file.type, cacheControl: '31536000' });
-    if (error) return setErr(friendly(error));
-    setP({ ...p, cover_url: sb().storage.from('blog-images').getPublicUrl(path).data.publicUrl, cover_alt: p.cover_alt || p.title });
+    try {
+      const url = await uploadImage(original);
+      setP((cur) => ({ ...cur, cover_url: url, cover_alt: cur.cover_alt || cur.title }));
+    } catch (ex) { setErr((ex as Error).message); }
   }
 
   return (
@@ -145,10 +153,14 @@ function Editor({ post, cats, ref_, userId, onClose }: { post: Post; cats: BlogC
         </section>
         <section class="panel">
           <div class="dhead"><div class="seg" role="group" aria-label="Editor mode">
-            <button type="button" aria-pressed={mode === 'write'} onClick={() => setMode('write')}>Write</button>
+            <button type="button" aria-pressed={mode === 'visual'} onClick={() => setMode('visual')}>Visual</button>
+            <button type="button" aria-pressed={mode === 'write'} onClick={() => setMode('write')}>Markdown</button>
             <button type="button" aria-pressed={mode === 'preview'} onClick={() => setMode('preview')}>Preview</button></div>
             <span class="muted" style="font-size:13px">{words} words · {readingMinutes(p.body)} min read</span></div>
-          {mode === 'write' ? (
+          {mode === 'visual' ? (
+            <RichEditor value={p.body} onChange={(md) => setP((cur) => ({ ...cur, body: md }))} onUpload={uploadImage}
+              placeholder="Start writing, or paste from Google Docs or Word…" />
+          ) : mode === 'write' ? (
             <>
               <label class="field"><span class="sr-only">Post body</span>
                 <textarea rows={22} value={p.body} onInput={(e) => set('body', e.currentTarget.value)} style="font-family:ui-monospace,Menlo,monospace;font-size:14px;line-height:1.6"

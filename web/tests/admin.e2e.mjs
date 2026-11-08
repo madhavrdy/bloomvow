@@ -288,11 +288,89 @@ test('vendor categories: add, edit, reorder, hide; slug locks when used; cities 
   await admin.locator('.result:has-text("Canada") button:has-text("Live")').click();
 });
 
+test('blog posts: visual editor writes Markdown, keeps formatting both ways, cleans pasted Docs text', async () => {
+  await go(admin, 'posts');
+  await admin.click('button:has-text("+ New post")');
+  await admin.fill('label:has-text("Title") input', 'Visual editor check');
+  assert.equal(await admin.getAttribute('.seg button:has-text("Visual")', 'aria-pressed'), 'true', 'visual editor is the default');
+  const body = admin.locator('.rte-body');
+  const md = async () => { await admin.click('.seg button:has-text("Markdown")'); const v = await admin.inputValue('textarea[placeholder^="## A heading"]'); return v; };
+
+  // Write with the toolbar and shortcuts.
+  await body.click();
+  await admin.selectOption('.rte-select', 'h2');
+  await admin.keyboard.type('Why barns');
+  await admin.keyboard.press('Enter');
+  await admin.keyboard.type('Rustic ');
+  await admin.keyboard.press('Control+b'); await admin.keyboard.type('charm'); await admin.keyboard.press('Control+b');
+  await admin.keyboard.type(' and space.');
+  await admin.keyboard.press('Enter');
+  await admin.click('.rte-btn[aria-label="Bulleted list"]');
+  await admin.keyboard.type('Austin venues');
+  await admin.keyboard.press('Shift+Home');
+  await admin.click('.rte-btn[aria-label="Link (Ctrl+K)"]');
+  await admin.fill('.rte-sub input', '/us/texas/austin/wedding-venues/');
+  await admin.click('.rte-sub button:has-text("Apply")');
+  let out = await md();
+  assert.match(out, /^## Why barns$/m);
+  assert.match(out, /Rustic \*\*charm\*\* and space\./);
+  assert.match(out, /^- \[Austin venues\]\(\/us\/texas\/austin\/wedding-venues\/\)$/m);
+
+  // Markdown -> visual -> Markdown keeps every kind of formatting.
+  const rich = [
+    '## Planning', '', 'Some *italic*, **bold**, ~~old~~ and `code` with a [guide](https://example.com/guide).', '',
+    '![Barn at sunset](https://images.example.com/barn.jpg)', '', '1. First', '2. Second', '', '> A quote', '', '---', '',
+    '| Venue | Guests |', '| --- | --- |', '| Hill Barn | 200 |', '', '### Costs', '', 'Line one  ', 'line two',
+  ].join('\n');
+  await admin.fill('textarea[placeholder^="## A heading"]', rich);
+  await admin.click('.seg button:has-text("Visual")');
+  assert.equal(await body.locator('table th').first().innerText(), 'Venue');
+  assert.equal(await body.locator('img').getAttribute('alt'), 'Barn at sunset');
+  assert.equal(await body.evaluate((el) => [...el.querySelectorAll(':scope > p')].filter((x) => !x.textContent.trim()).length), 0, 'no empty line above the image');
+  await body.locator('h3').click();
+  await admin.waitForTimeout(150);
+  await admin.keyboard.press('End');
+  await admin.keyboard.type(' and fees');
+  await body.locator('img').click();
+  await admin.fill('label:has-text("Image description") input', 'Red barn at sunset');
+  out = await md();
+  for (const want of [/^## Planning$/m, /Some \*italic\*, \*\*bold\*\*, ~~old~~ and `code` with a \[guide\]\(https:\/\/example\.com\/guide\)\./,
+    /!\[Red barn at sunset\]\(https:\/\/images\.example\.com\/barn\.jpg\)/, /^1\. +First$/m, /^2\. +Second$/m, /^> A quote$/m, /^---$/m,
+    /^\| Venue \| Guests \|$/m, /^\| Hill Barn \| 200 \|$/m, /^### Costs and fees$/m, /Line one  \nline two/]) assert.match(out, want, String(want));
+
+  // Pasting from Google Docs keeps structure, drops fonts and colours.
+  await admin.click('.seg button:has-text("Visual")');
+  await body.locator('p').last().click();
+  await admin.waitForTimeout(150);                       // the editor reads a click's position a moment later
+  await admin.keyboard.press('End');
+  await admin.keyboard.press('Enter');
+  await admin.evaluate(() => {
+    const dt = new DataTransfer();
+    dt.setData('text/html', '<meta charset="utf-8"><b style="font-weight:normal" id="docs-internal-guid-1"><h2 dir="ltr"><span style="font-size:16pt;font-family:Arial;color:#ff0000">Pasted heading</span></h2>'
+      + '<p dir="ltr"><span style="font-size:11pt;font-family:Arial;font-weight:700">Bold bit</span><span style="font-size:11pt"> then plain.</span></p></b>');
+    dt.setData('text/plain', 'Pasted heading\nBold bit then plain.');
+    document.querySelector('.rte-body').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  });
+  out = await md();
+  assert.match(out, /^## Pasted heading$/m);
+  assert.match(out, /then plain\./);
+  assert.doesNotMatch(out, /style=|font-|<span|Arial/);
+
+  await admin.selectOption('label:has-text("Category") select', { label: 'Venues' });
+  await admin.click('button:has-text("Save draft")');
+  await toast(admin, /Draft saved/);
+  const [row] = await q(`select body from posts where slug = 'visual-editor-check'`);
+  assert.match(row.body, /^## Planning$/m);
+  await q(`delete from posts where slug = 'visual-editor-check'`);
+  assert.deepEqual(admin.errors, []);
+});
+
 test('blog posts: write with preview, schedule, publish, slug lock, delete', async () => {
   await go(admin, 'posts');
   await admin.click('button:has-text("+ New post")');
   await admin.fill('label:has-text("Title") input', 'Best barn venues near Austin');
   assert.equal(await admin.inputValue('label:has-text("Web address") input'), 'best-barn-venues-near-austin');
+  await admin.click('.seg button:has-text("Markdown")');
   await admin.fill('textarea[placeholder^="## A heading"]', '## Why barns\n\nRustic **charm** and <script>alert(1)</script> space.\n\n- [Austin venues](/us/texas/austin/wedding-venues/)');
   await admin.click('.seg button:has-text("Preview")');
   const html = await admin.locator('article.prose').innerHTML();

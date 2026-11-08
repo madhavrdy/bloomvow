@@ -232,8 +232,9 @@ test('edit listing: details, packages, service-area cities and photos are saved'
   await p.click('.det-field:has-text("Catering") button:has-text("In-house catering only")');
   assert.equal(await p.getAttribute('.det-field:has-text("Catering") button:has-text("In-house catering only")', 'aria-checked'), 'true');
   await p.click('button:has-text("Save changes")');
-  await p.waitForSelector('.toast');
-  const [dd] = await q(`select details from vendors where id = $1`, [v.id]);
+  // The toast from the save above may still be showing, so wait for the data itself.
+  let dd;
+  for (let i = 0; i < 50; i++) { [dd] = await q(`select details from vendors where id = $1`, [v.id]); if (dd.details?.amenities) break; await p.waitForTimeout(100); }
   assert.deepEqual(dd.details.amenities, ['Dance floor', 'Wheelchair accessible'], 'kept in the defined order');
   assert.equal(dd.details.catering_policy, 'In-house catering only');
   assert.equal(dd.details.capacity_seated, 180);
