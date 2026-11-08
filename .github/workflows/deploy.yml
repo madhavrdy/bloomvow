@@ -34,6 +34,18 @@ jobs:
           test -n "$SITE_URL" || echo "::warning::Set the SITE_URL variable (Settings > Secrets and variables > Actions > Variables) to your domain before launch."
           npm run build
           echo "Pages: $(find dist -name '*.html' | wc -l), files: $(find dist -type f | wc -l)" >> "$GITHUB_STEP_SUMMARY"
+      # Serve photos from the site itself instead of Supabase (see scripts/mirror-media.mjs).
+      # Photos copied by earlier builds are kept in the Actions cache, so each is fetched once.
+      - name: Restore copied photos
+        uses: actions/cache/restore@v4
+        with: { path: .media-cache, key: 'media-${{ github.run_id }}', restore-keys: 'media-' }
+      - name: Copy photos to the site
+        run: |
+          node scripts/mirror-media.mjs web/dist --cache .media-cache --site "$SITE_URL" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Remember copied photos
+        if: always() && hashFiles('.media-cache/**') != ''
+        uses: actions/cache/save@v4
+        with: { path: .media-cache, key: 'media-${{ github.run_id }}' }
       # Preferred: one zip, unpacked by Hostinger (needs the HOSTINGER_API_TOKEN secret).
       - name: Publish to Hostinger
         if: env.HAS_API == 'true'

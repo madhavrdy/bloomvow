@@ -6,7 +6,7 @@
     "db:reset": "node db/scripts/reset.mjs",
     "dev:api": "node scripts/local-stack.mjs",
     "test:db": "node --test --test-concurrency=1 --test-reporter=spec db/test/*.test.mjs",
-    "test:unit": "cd web && node --import tsx --test --test-reporter=spec tests/unit.test.ts ../scripts/scraper/enrich.test.mjs",
+    "test:unit": "cd web && node --import tsx --test --test-reporter=spec tests/unit.test.ts ../scripts/scraper/enrich.test.mjs ../scripts/mirror-media.test.mjs",
     "test:e2e": "node scripts/e2e.mjs",
     "test": "npm run test:db && npm run test:unit && npm run test:e2e"
   },
