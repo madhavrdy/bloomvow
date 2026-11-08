@@ -44,7 +44,7 @@ const today = new Date().toISOString().slice(0, 10);
             </div>
             <label class="field">Full name<input name="couple_name" required maxlength="120" autocomplete="name" /></label>
             <label class="field">Email<input type="email" name="email" required autocomplete="email" /></label>
-            <label class="field">Phone (optional)<input type="tel" name="phone" autocomplete="tel" /></label>
+            <label class="field">Phone (optional)<input type="tel" name="phone" autocomplete="tel" inputmode="tel" placeholder="(212) 423-0172" maxlength="30" /></label>
             <label class="field">Message<textarea name="message" rows="3">Hi! We're planning our wedding and would love to know your pricing and availability for our date.</textarea></label>
             <label class="hp" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off" /></label>
             <label class="check" style="background:var(--rose-soft);border-radius:12px;padding:12px"><input type="checkbox" name="also_similar" checked /><span><b>Also send to 3 similar vendors</b> to compare more quotes.</span></label>

@@ -4,6 +4,7 @@ import { ago, fmtNum, Toast, useToast, type Ref } from '../shared';
 import { csvToObjects } from './csv';
 import { DetailsEditor } from '../DetailsEditor';
 import { cleanDetails, type Details } from '../../lib/details';
+import { normalizePhone, PHONE_HINT } from '../../lib/phone';
 
 type V = {
   id: string; slug: string; name: string; category_id: number; city_id: number; status: string; plan: string; plan_renews_at: string | null;
@@ -143,8 +144,10 @@ function EditVendor({ v, ref_, onClose, onSaved }: { v: V; ref_: Ref; onClose: (
   async function save(e: Event) {
     e.preventDefault(); setErr('');
     if (f.plan === 'featured' && !f.renews) return setErr('Featured plans need a renewal date.');
+    const phoneChanged = f.phone.trim() !== (v.phone ?? '');
+    if (phoneChanged && f.phone.trim() && !normalizePhone(f.phone)) return setErr(PHONE_HINT);
     try {
-      await must(sb().from('vendors').update({ name: f.name.trim(), email: f.email.trim().toLowerCase() || null, phone: f.phone.trim() || null,
+      await must(sb().from('vendors').update({ name: f.name.trim(), email: f.email.trim().toLowerCase() || null, phone: phoneChanged ? normalizePhone(f.phone) : v.phone,
         website: f.website.trim() || null, description: f.description.trim() || null, price_from: num(f.price_from), capacity_max: num(f.capacity_max), details: cleanDetails(catSlug, details) }).eq('id', v.id) as never);
       const { error } = await sb().rpc('admin_set_vendor', { p_vendor: v.id, p_status: f.status, p_plan: f.plan, p_renews: f.renews || null });
       if (error) throw error;
@@ -163,7 +166,7 @@ function EditVendor({ v, ref_, onClose, onSaved }: { v: V; ref_: Ref; onClose: (
           <label class="field">Plan<select value={f.plan} onChange={set('plan')}><option value="free">Free</option><option value="featured">Featured</option></select></label>
           {f.plan === 'featured' && <label class="field span2">Plan renews on<input type="date" value={f.renews} onInput={set('renews')} /></label>}
           <label class="field span2">Lead email (private)<input type="email" value={f.email} onInput={set('email')} /></label>
-          <label class="field">Phone<input value={f.phone} onInput={set('phone')} /></label>
+          <label class="field">Phone<input type="tel" inputMode="tel" placeholder="(212) 423-0172" value={f.phone} onInput={set('phone')} /></label>
           <label class="field">Website<input type="url" value={f.website} onInput={set('website')} /></label>
           <label class="field">Starting price ($)<input inputMode="numeric" value={f.price_from} onInput={set('price_from')} /></label>
           <label class="field">Max guests<input inputMode="numeric" value={f.capacity_max} onInput={set('capacity_max')} /></label>

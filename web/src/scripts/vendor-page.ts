@@ -1,5 +1,5 @@
 import { rpc, track, conversion, friendlyError } from './api';
-import { leadPayload, showSent } from './lead';
+import { leadPayload, showSent, phoneProblem } from './lead';
 
 export function initVendorPage() {
   const page = document.querySelector<HTMLElement>('[data-vendor-page]');
@@ -15,6 +15,8 @@ export function initVendorPage() {
     const err = form.querySelector('.form-error')!;
     const btn = form.querySelector<HTMLButtonElement>('button[type=submit]')!;
     err.textContent = '';
+    const bad = phoneProblem(new FormData(form));
+    if (bad) { err.textContent = bad; form.querySelector<HTMLInputElement>('[name=phone]')?.focus(); return; }
     btn.disabled = true;
     try {
       const payload = leadPayload(new FormData(form), { source: 'profile', vendor_id: vendorId, city_id: Number(form.dataset.city) });

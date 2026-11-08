@@ -87,7 +87,7 @@ export function vendorJsonLd(site: URL | undefined, d: SiteData, v: Vendor) {
     areaServed: { '@type': 'City', name: `${city.name}, ${region.name}` },
     knowsAbout: cat.name,
     ...(v.description ? { description: v.description } : {}),
-    ...(v.phone ? { telephone: telHref(v.phone).slice(4) } : {}),
+    ...(v.phone ? { telephone: telHref(v.phone).slice(4).split(',')[0] } : {}),
     ...(photos.length ? { image: photos.map((p) => p.url) } : {}),
     address: { '@type': 'PostalAddress', ...(v.address ? { streetAddress: v.address } : {}), addressLocality: city.name, addressRegion: region.code.toUpperCase(), ...(v.zip ? { postalCode: v.zip } : {}), addressCountry: region.country_code.toUpperCase() },
     ...(city.lat != null ? { geo: { '@type': 'GeoCoordinates', latitude: city.lat, longitude: city.lng } } : {}),

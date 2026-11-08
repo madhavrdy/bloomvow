@@ -255,7 +255,7 @@ const extraAmenities = v.amenities.filter((a) => !detAmen.has(a.toLowerCase()));
           <label class="check"><input type="checkbox" name="date_flexible" /> Our date is flexible</label>
           <label class="field">Full name<input name="couple_name" required maxlength="120" autocomplete="name" /></label>
           <label class="field">Email<input type="email" name="email" required autocomplete="email" /></label>
-          <label class="field">Phone (optional, for faster replies)<input type="tel" name="phone" autocomplete="tel" /></label>
+          <label class="field">Phone (optional, for faster replies)<input type="tel" name="phone" autocomplete="tel" inputmode="tel" placeholder="(212) 423-0172" maxlength="30" /></label>
           <label class="field">Message<textarea name="message" rows="3">Hi! We're planning our wedding and would love to know your pricing and availability for our date.</textarea></label>
           <label class="hp" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off" /></label>
           {similar.length > 0 && <label class="check similar"><input type="checkbox" name="also_similar" checked /><span><b>Also send to {Math.min(3, similar.length)} similar {cat.name.toLowerCase()}</b> with my date open. Compare more quotes with no extra effort.</span></label>}

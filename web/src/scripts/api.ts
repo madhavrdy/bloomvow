@@ -58,6 +58,7 @@ export const friendlyError = (e: unknown) => {
   const code = e instanceof ApiError ? e.code : '';
   return ({
     invalid_email: 'Please enter a valid email address.',
+    invalid_phone: 'Please check your phone number, or leave it blank. Outside the US and Canada, start with + and the country code.',
     name_required: 'Please enter your name.',
     invalid_guests: 'Please enter a guest count between 1 and 3,000.',
     invalid_city: 'Please choose your wedding city.',

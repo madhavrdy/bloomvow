@@ -96,12 +96,17 @@ test('vendor profile: lead form sends to the vendor plus similar ones; views and
   await p.fill('#lead-form [name=guests]', '140');
   await p.fill('#lead-form [name=couple_name]', 'Test Couple');
   await p.fill('#lead-form [name=email]', email);
+  await p.fill('#lead-form [name=phone]', '12345');
+  await p.click('#lead-form button[type=submit]');
+  assert.match(await p.locator('#lead-form .form-error').innerText(), /valid phone number/, 'bad phone is caught before sending');
+  await p.fill('#lead-form [name=phone]', '512.423.0172');
   await p.click('#lead-form button[type=submit]');
   const ok = await p.locator('#lead-form .form-ok').innerText();
   const shown = Number(ok.match(/to (\d+) vendors/)?.[1] ?? 1);
 
-  const [lead] = await q(`select id, source, guests, wedding_date::text from leads where email = $1`, [email]);
+  const [lead] = await q(`select id, source, guests, phone, wedding_date::text from leads where email = $1`, [email]);
   assert.equal(lead.source, 'profile');
+  assert.equal(lead.phone, '+15124230172', 'phone stored in one tidy format');
   assert.equal(lead.guests, 140);
   assert.equal(lead.wedding_date, '2027-06-12');
   const rec = await q(`select vendor_id from lead_recipients where lead_id = $1`, [lead.id]);

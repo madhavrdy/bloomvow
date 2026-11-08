@@ -5,6 +5,7 @@ import { Toast, useToast, type Category, type City, type Ref } from '../shared';
 import { listingChecks, strength, words } from './completeness';
 import { DetailsEditor } from '../DetailsEditor';
 import { cleanDetails, type Details } from '../../lib/details';
+import { normalizePhone, PHONE_HINT } from '../../lib/phone';
 import type { Listing } from './VendorApp';
 
 type Pkg = { id?: string; name: string; description: string; price: string; sort: number };
@@ -58,11 +59,13 @@ export function ListingEditor({ listing, category, city, ref_, onSaved }: { list
     if (f.name.trim().length < 2) return setErr('Please enter your business name.');
     if (f.email && !/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(f.email.trim())) return setErr('Please enter a valid email for leads.');
     if (f.website && !/^https?:\/\//i.test(f.website.trim())) return setErr('Website should start with https://');
+    const phoneChanged = f.phone.trim() !== (listing.phone ?? '');
+    if (phoneChanged && f.phone.trim() && !normalizePhone(f.phone)) return setErr(PHONE_HINT);
     if (pkgs.some((p) => !p.name.trim())) return setErr('Every package needs a name.');
     setBusy(true);
     try {
       await must(sb().from('vendors').update({
-        name: f.name.trim(), phone: f.phone.trim() || null, website: f.website.trim() || null, email: f.email.trim().toLowerCase() || null,
+        name: f.name.trim(), phone: phoneChanged ? normalizePhone(f.phone) : listing.phone, website: f.website.trim() || null, email: f.email.trim().toLowerCase() || null,
         address: f.address.trim() || null, zip: f.zip.trim() || null, description: f.description.trim() || null,
         price_from: toInt(f.price_from), capacity_max: toInt(f.capacity_max), setting: f.setting || null,
         amenities: f.amenities.split(',').map((a) => a.trim()).filter(Boolean).slice(0, 30),
@@ -148,7 +151,7 @@ export function ListingEditor({ listing, category, city, ref_, onSaved }: { list
           <div class="grid2">
             <label class="field">Business name<input value={f.name} onInput={set('name')} required maxLength={120} /></label>
             <label class="field">Category<input value={category.name} disabled /></label>
-            <label class="field">Phone<input type="tel" value={f.phone} onInput={set('phone')} /></label>
+            <label class="field">Phone<input type="tel" inputMode="tel" autoComplete="tel" placeholder="(212) 423-0172" value={f.phone} onInput={set('phone')} /></label>
             <label class="field">Website<input type="url" value={f.website} onInput={set('website')} placeholder="https://" /></label>
             <label class="field span2">Email for new leads (not shown publicly)<input type="email" value={f.email} onInput={set('email')} /></label>
             <label class="field span2">About your business

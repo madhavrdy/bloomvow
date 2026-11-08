@@ -4,6 +4,7 @@ import { matches, type Filters } from '../src/scripts/listing';
 import { resolveSearch } from '../src/scripts/search';
 import { validateStep } from '../src/scripts/quote';
 import { leadPayload } from '../src/scripts/lead';
+import { normalizePhone } from '../src/lib/phone';
 import { niceRound, kmBetween } from '../src/lib/geo';
 import { rankVendors, median, money, replyLabel, type Vendor } from '../src/lib/data';
 import { cleanDetails, filledGroups, groupsFor } from '../src/lib/details';
@@ -191,4 +192,15 @@ test('vendor details: only known keys and options for the category are kept', ()
       if (f.type !== 'number') for (const o of f.options) assert.ok(o.length >= 1 && o.length <= 80, `${slug}.${f.key}: ${o}`);
     }
   }
+});
+
+test('phone numbers: same rule as the database', () => {
+  const ok: Record<string, string> = { '(212) 423-0172': '+12124230172', '1 212 423 0172': '+12124230172', '212-423-0172 x45': '+12124230172;ext=45', '+44 20 7123 4567': '+44 20 7123 4567' };
+  for (const [raw, want] of Object.entries(ok)) assert.equal(normalizePhone(raw), want, raw);
+  for (const bad of ['123-456-7890', '555-0100', 'abc', '212-555-0123', '+44 12', '2124230172000']) assert.equal(normalizePhone(bad), null, bad);
+  assert.equal(normalizePhone('  '), null);
+  assert.equal(formatPhone('+12124230172;ext=45'), '(212) 423-0172 ext. 45');
+  assert.equal(telHref('(212) 423-0172 ext. 45'), 'tel:+12124230172,45');
+  const fd = new FormData(); fd.set('phone', '212 423 0172');
+  assert.equal(leadPayload(fd, {}).phone, '+12124230172');
 });

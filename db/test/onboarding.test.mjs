@@ -16,7 +16,7 @@ before(async () => {
 after(() => db?.close());
 
 test('a vendor can add a new business: hidden until an admin approves the claim', async () => {
-  const r = (await db.user(owner, 'select create_listing($1, $2, $3, $4, $5) as r', ['Fern & Fig Florals', florists, austin, '512-555-0101', 'https://fernfig.example']))[0].r;
+  const r = (await db.user(owner, 'select create_listing($1, $2, $3, $4, $5) as r', ['Fern & Fig Florals', florists, austin, '512-423-0101', 'https://fernfig.example']))[0].r;
   assert.equal(r.slug, 'fern-fig-florals-austin');
   const v = await db.one('select status, email, source, owner_id from vendors where id = $1', [r.vendor_id]);
   assert.deepEqual({ ...v }, { status: 'hidden', email: 'owner@fernfig.example', source: 'self_signup', owner_id: null });

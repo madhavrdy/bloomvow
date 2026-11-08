@@ -3,6 +3,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { sb, must, friendly } from '../supabase';
 import type { Ref } from '../shared';
 import type { Claim } from './VendorApp';
+import { normalizePhone, PHONE_HINT } from '../../lib/phone';
 
 type Hit = { id: string; name: string; city_id: number; category_id: number; status: string };
 
@@ -55,11 +56,12 @@ export function Onboarding({ siteName, ref_, pending, email, hasListing, onDone,
     const city = ref_.cities.find((c) => c.label.toLowerCase() === cityLabel);
     setErr('');
     if (!city) return setErr('Please choose your city from the list. If it isn\'t there, pick the nearest one and tell us in the note.');
+    if (String(fd.get('phone') ?? '').trim() && !normalizePhone(String(fd.get('phone')))) return setErr(PHONE_HINT);
     setBusy(true);
     try {
       const { error } = await sb().rpc('create_listing', {
         p_name: fd.get('name'), p_category: Number(fd.get('category')), p_city: city.id,
-        p_phone: fd.get('phone') || null, p_website: fd.get('website') || null, p_note: fd.get('note') || null,
+        p_phone: normalizePhone(String(fd.get('phone') ?? '')), p_website: fd.get('website') || null, p_note: fd.get('note') || null,
       });
       if (error) throw error;
       setMsg(`Thanks! We'll review ${fd.get('name')} and email ${email} as soon as it's live.`);
@@ -121,7 +123,7 @@ export function Onboarding({ siteName, ref_, pending, email, hasListing, onDone,
               <label class="field">Category<select name="category" required>{ref_.categories.map((c) => <option value={c.id}>{c.name}</option>)}</select></label>
               <label class="field">City<input name="city" list="ob-cities" required placeholder="e.g. Austin, TX" autocomplete="off" />
                 <datalist id="ob-cities">{ref_.cities.map((c) => <option value={c.label} />)}</datalist></label>
-              <label class="field">Business phone<input name="phone" type="tel" /></label>
+              <label class="field">Business phone<input name="phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="(212) 423-0172" /></label>
               <label class="field">Website<input name="website" type="url" placeholder="https://" /></label>
               <label class="field span2">Anything we should know? (optional)<textarea name="note" rows={2} /></label>
             </div>

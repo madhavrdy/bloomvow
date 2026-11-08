@@ -78,7 +78,7 @@ test('claims: domain check, admin approval transfers ownership, already-claimed 
   const listing = await makeVendor(db, { name: 'Sugar Bloom', website: 'https://sugarbloom.example', email: null });
   const owner = await makeUser(db, 'owner@sugarbloom.example');
   const rival = await makeUser(db, 'rival@gmail.com');
-  const a = (await db.user(owner, 'select request_claim($1, $2) as r', [listing.id, '512-555-0101']))[0].r;
+  const a = (await db.user(owner, 'select request_claim($1, $2) as r', [listing.id, '512-423-0101']))[0].r;
   const b = (await db.user(rival, 'select request_claim($1) as r', [listing.id]))[0].r;
   assert.equal(a.check, 'domain_match');
   assert.equal(b.check, 'free_email');

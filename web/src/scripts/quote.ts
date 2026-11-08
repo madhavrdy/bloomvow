@@ -1,5 +1,5 @@
 import { rpc, conversion, friendlyError } from './api';
-import { leadPayload } from './lead';
+import { leadPayload, phoneProblem } from './lead';
 
 // Map "Austin, TX" -> city id via the build-time city list.
 async function cityList(): Promise<{ id: number; name: string; url: string }[]> {
@@ -17,6 +17,8 @@ export function validateStep(step: number, fd: FormData, cityId: number | null):
   if (step === 4) {
     if (!String(fd.get('couple_name') ?? '').trim()) return 'Please enter your name.';
     if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(String(fd.get('email') ?? '').trim())) return 'Please enter a valid email address.';
+    const bad = phoneProblem(fd);
+    if (bad) return bad;
   }
   return null;
 }

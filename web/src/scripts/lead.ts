@@ -1,4 +1,11 @@
 // Shared lead-form helpers (vendor profile form and the Get matched flow).
+import { normalizePhone, PHONE_HINT } from '../lib/phone';
+
+/** The phone problem to show, or null when the phone is empty or usable. */
+export function phoneProblem(fd: FormData): string | null {
+  const raw = String(fd.get('phone') ?? '').trim();
+  return raw && !normalizePhone(raw) ? PHONE_HINT : null;
+}
 
 export function leadPayload<E extends Record<string, unknown>>(fd: FormData, extra: E) {
   const s = (k: string) => {
@@ -8,7 +15,7 @@ export function leadPayload<E extends Record<string, unknown>>(fd: FormData, ext
   return {
     couple_name: s('couple_name'),
     email: s('email'),
-    phone: s('phone') || null,
+    phone: normalizePhone(s('phone')),
     wedding_date: s('wedding_date') || null,
     date_flexible: fd.get('date_flexible') === 'on',
     guests: s('guests') ? Number(s('guests')) : null,

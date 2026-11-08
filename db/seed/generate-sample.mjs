@@ -144,7 +144,7 @@ insert into reviews (vendor_id, author_name, rating, body)
   select id, 'Pending Reviewer', 4, 'Lovely team and a beautiful setting, would recommend to friends.' from vendors where source = 'sample' order by slug limit 5;
 insert into auth.users (email) values ('owner1@claimtest.example'), ('owner2@gmail.com');
 insert into claims (vendor_id, user_id, email, phone)
-  select v.id, u.id, u.email, '(512) 555-0142' from (select id, row_number() over (order by slug) rn from vendors where status = 'unclaimed' and source = 'sample' limit 2) v
+  select v.id, u.id, u.email, '(512) 423-0142' from (select id, row_number() over (order by slug) rn from vendors where status = 'unclaimed' and source = 'sample' limit 2) v
   join (select id, email, row_number() over (order by email) rn from auth.users where email like 'owner%') u on u.rn = v.rn;
 -- Analytics events for the last 30 days.
 insert into events (vendor_id, kind, page_path, created_at)
