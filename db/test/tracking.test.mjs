@@ -21,6 +21,6 @@ test('tracking IDs: admins save them, values are format-checked, others cannot c
     { bing: 'zzzz9999' }, { custom_script: 'alert(1)' },
   ]) await assert.rejects(set('authenticated', admin, bad), /settings_tracking_check/, JSON.stringify(bad));
   for (const uid of [editor, vendor]) assert.equal((await set('authenticated', uid, good)).length, 0, 'not an admin: nothing changes');
-  assert.equal((await set('anon', null, good)).length, 0);
+  await assert.rejects(set('anon', null, good), /permission denied/, 'visitors cannot change settings at all');
   assert.deepEqual((await db.one(`select value from settings where key = 'tracking'`)).value, {});
 });
