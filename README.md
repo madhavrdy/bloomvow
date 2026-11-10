@@ -107,6 +107,11 @@ scripts/           Local Supabase stand-in (PostgREST gateway) and the end-to-en
 | Vendor profile | `/vendor/cedar-hollow-ranch-austin/` |
 | Lead flow | `/get-matched/` |
 
+Pages 2+ of a long listing are kept clearly secondary so page 1 is the one that
+ranks: their title and H1 end in "– Page N", they carry no intro, summary, guide
+or FAQs, they link back to page 1 (intro line and breadcrumb), and only page 1
+is in the sitemap.
+
 City + category pages with fewer than 5 vendors (setting `min_vendors_to_index`)
 are built but marked `noindex` and left out of the sitemap, so thin pages don't
 hurt the whole site's ranking.

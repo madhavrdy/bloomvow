@@ -67,9 +67,9 @@ export function breadcrumbJsonLd(site: URL | undefined, items: { name: string; u
     itemListElement: items.map((it, i) => ({ '@type': 'ListItem', position: i + 1, name: it.name, ...(it.url ? { item: new URL(it.url, site).href } : {}) })) };
 }
 
-export function itemListJsonLd(site: URL | undefined, d: SiteData, vendors: Vendor[]) {
+export function itemListJsonLd(site: URL | undefined, d: SiteData, vendors: Vendor[], offset = 0) {
   return { '@context': 'https://schema.org', '@type': 'ItemList',
-    itemListElement: vendors.slice(0, 30).map((v, i) => ({ '@type': 'ListItem', position: i + 1, url: new URL(d.urls.vendor(v), site).href, name: v.name })) };
+    itemListElement: vendors.slice(0, 30).map((v, i) => ({ '@type': 'ListItem', position: offset + i + 1, url: new URL(d.urls.vendor(v), site).href, name: v.name })) };
 }
 
 export function vendorJsonLd(site: URL | undefined, d: SiteData, v: Vendor) {

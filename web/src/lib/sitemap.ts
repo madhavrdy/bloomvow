@@ -1,5 +1,4 @@
 import { getData } from './data';
-import { PAGE_SIZE } from './constants';
 
 // Only indexable pages go in the sitemap: thin city x category pages
 // (fewer than min_vendors_to_index vendors) are left out and marked noindex.
@@ -13,8 +12,8 @@ export async function allUrls() {
   for (const l of d.listings) {
     if (!l.indexable) continue;
     const last = l.vendors.reduce((m, v) => (v.updated_at > m ? v.updated_at : m), '');
+    // Page 1 only: pages 2+ are reached through the pager, so the sitemap points search engines at the main page.
     urls.push({ loc: l.url, lastmod: last.slice(0, 10) });
-    for (let p = 2; p <= Math.ceil(l.vendors.length / PAGE_SIZE); p++) urls.push({ loc: `${l.url}page/${p}/` });
   }
   urls.push({ loc: '/blog/', lastmod: d.posts[0]?.updated_at.slice(0, 10) });
   for (const c of d.blogCategories) urls.push({ loc: d.urls.blogCategory(c) });

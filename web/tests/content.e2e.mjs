@@ -212,7 +212,20 @@ test('venue location FAQs: 8 questions, short direct answers built from local li
   const o = faqsOf(other);
   assert.notEqual(o[0].a, austin[0].a);
   assert.ok(!o.some((f) => /Austin/.test(f.q)), 'questions name their own city');
-  // Page 2 has no FAQs (they live on page 1 only).
-  const p2 = path.join(DIST, 'us/texas/austin/wedding-venues/page/2/index.html');
-  if (fs.existsSync(p2)) assert.ok(!fs.readFileSync(p2, 'utf8').includes('FAQPage'));
+  // Page 2 of a long listing is clearly secondary, so page 1 is the one that ranks:
+  // no FAQs, own title and H1, no intro, summary or guide, links back to page 1, and not in the sitemap.
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((x) => (x.isDirectory() ? walk(path.join(dir, x.name)) : []).concat(x.isDirectory() && x.name === 'page' ? [path.join(dir, 'page/2/index.html')] : []));
+  const p2 = walk(path.join(DIST, 'us')).find((f) => fs.existsSync(f));
+  assert.ok(p2, 'sample data has a listing with a second page');
+  const p1 = '/' + path.relative(DIST, path.resolve(p2, '../../..')).split(path.sep).join('/') + '/';
+  const h2 = fs.readFileSync(p2, 'utf8');
+  assert.ok(!h2.includes('FAQPage'));
+  assert.match(h2, /<title>[^<]* – Page 2 of \d+ \|[^<]*<\/title>/, 'page 2 has its own title');
+  assert.match(h2, /<h1[^>]*>[^<]* – Page 2<\/h1>/, 'page 2 has its own H1');
+  assert.ok(!h2.includes('id="guide"') && !h2.includes('id="glance"'), 'guide and summary live on page 1 only');
+  assert.ok(new RegExp(`class="muted page-intro"[^>]*>Page 2 of \\d+\\. Start with the <a href="${p1}"`).test(h2), 'page 2 links back to page 1');
+  assert.ok(new RegExp(`<nav class="crumbs"[\\s\\S]*?<a href="${p1}"`).test(h2), 'breadcrumb links to page 1');
+  assert.equal(ld(h2, 'ItemList')[0].itemListElement[0].position, 61, 'list positions continue from page 1');
+  const sm = fs.readdirSync(DIST).filter((f) => /^sitemap-\d+\.xml$/.test(f)).map((f) => fs.readFileSync(path.join(DIST, f), 'utf8')).join('');
+  assert.ok(sm.includes(`${p1}</loc>`) && !sm.includes(`${p1}page/2/`), 'sitemap lists page 1 only');
 });

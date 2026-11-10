@@ -40,7 +40,9 @@ const c = contentFor(d, path, Astro.site?.host);
 const styles = d.styleListings.filter((x) => x.listing === l);
 const st = region.code.toUpperCase();
 const heading = style ? `${style.label} ${cat.name.toLowerCase()} in ${city.name}, ${st}` : `${cat.name} in ${city.name}, ${st}`;
-const title = c.seoTitle ?? `${heading}${pageNo > 1 ? ` (page ${pageNo})` : ''}`;
+// Pages 2+ get their own title and H1, so search engines treat page 1 as the main page for the query.
+const pageHeading = pageNo > 1 ? `${heading} – Page ${pageNo}` : heading;
+const title = c.seoTitle ?? (pageNo > 1 ? `${heading} – Page ${pageNo} of ${pages}` : heading);
 const autoIntro = style
   ? `${all.length} ${style.label.toLowerCase()} ${cat.name.toLowerCase()} in and around ${city.name}. Compare pricing and capacity, then request quotes from several at once.`
   : listingIntro(l);
@@ -51,7 +53,8 @@ const crumbs = [
   { name: 'Home', url: '/' },
   { name: region.name, url: d.urls.region(region) },
   { name: city.name, url: d.urls.city(city) },
-  ...(style ? [{ name: cat.name, url: l.url }, { name: style.label }] : [{ name: cat.name }]),
+  ...(style ? [{ name: cat.name, url: l.url }, { name: style.label }]
+    : pageNo > 1 ? [{ name: cat.name, url: l.url }, { name: `Page ${pageNo}` }] : [{ name: cat.name }]),
 ];
 
 // Price filter bands from this page's own prices (quartiles, rounded).
@@ -73,8 +76,8 @@ const autoFaqs = style ? [] : cat.slug === 'wedding-venues'
   : listingFaqs(l);
 const faqs = pageNo === 1 ? mergeFaqs(c.faqs, autoFaqs) : [];
 
-const jsonld = [breadcrumbJsonLd(Astro.site, crumbs), itemListJsonLd(Astro.site, d, vendors), ...(faqs.length ? [faqJsonLd(faqs)] : []),
-  { '@context': 'https://schema.org', '@type': 'CollectionPage', name: heading, url: new URL(path, Astro.site).href, ...(updated ? { dateModified: updated } : {}) }];
+const jsonld = [breadcrumbJsonLd(Astro.site, crumbs), itemListJsonLd(Astro.site, d, vendors, (pageNo - 1) * PAGE_SIZE), ...(faqs.length ? [faqJsonLd(faqs)] : []),
+  { '@context': 'https://schema.org', '@type': 'CollectionPage', name: pageHeading, url: new URL(path, Astro.site).href, ...(updated ? { dateModified: updated } : {}) }];
 const ogImage = c.hero?.url ?? vendors.map((v) => d.photosByVendor.get(v.id)?.[0]?.url).find(Boolean);
 const pageUrl = (n: number) => (n === 1 ? l.url : `${l.url}page/${n}/`);
 ---
@@ -83,8 +86,10 @@ const pageUrl = (n: number) => (n === 1 ? l.url : `${l.url}page/${n}/`);
   prev={!style && pageNo > 1 ? pageUrl(pageNo - 1) : undefined} next={!style && pageNo < pages ? pageUrl(pageNo + 1) : undefined}>
   <main class="wrap" style="padding-top:24px">
     <Breadcrumbs items={crumbs} />
-    <h1 class="serif" style="font-size:clamp(36px,5vw,52px);margin:16px 0 8px">{heading}</h1>
-    <Intro c={c} auto={autoIntro} />
+    <h1 class="serif" style="font-size:clamp(36px,5vw,52px);margin:16px 0 8px">{pageHeading}</h1>
+    {pageNo === 1
+      ? <Intro c={c} auto={autoIntro} />
+      : <p class="muted page-intro">Page {pageNo} of {pages}. Start with the <a href={l.url}>top {cat.name.toLowerCase()} in {city.name}, {st}</a>.</p>}
     {updated && <p class="updated">Last updated <time datetime={updated}>{fmtDay(updated)}</time></p>}
     {glance.length > 0 && (
       <details class="glance" id="glance" open>
@@ -166,7 +171,7 @@ const pageUrl = (n: number) => (n === 1 ? l.url : `${l.url}page/${n}/`);
       </section>
     </div>
   </main>
-  <Guide c={c} title={`${heading}: the guide`} />
+  {pageNo === 1 && <Guide c={c} title={`${heading}: the guide`} />}
   <main class="wrap">
     {pageNo === 1 && <Guides cityId={city.id} categoryId={cat.id} title={`Planning guides: ${cat.name.toLowerCase()} in ${city.name}`} />}
   </main>
