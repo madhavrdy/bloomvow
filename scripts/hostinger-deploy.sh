@@ -57,7 +57,17 @@ head -c 300 "$WORK/resp"; echo
 # 4. Wait until the live site serves this build (up to 15 minutes).
 for i in $(seq 1 45); do
   live=$(curl -s --max-time 20 "${SITE_URL%/}/build-id.txt?nocache=$RANDOM$i" || true)
-  if [ "$live" = "$ID" ]; then echo "Live after ~$((i*20))s"; echo "Published to $SITE_URL" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"; exit 0; fi
+  if [ "$live" = "$ID" ]; then
+    echo "Live after ~$((i*20))s"; echo "Published to $SITE_URL" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+    # 5. Clear the server cache and Hostinger CDN, which otherwise keeps serving older copies
+    #    of changed pages (and old "not found" answers for new ones). A failure here only warns.
+    code=$(curl -s --max-time 60 -o "$WORK/resp" -w '%{http_code}' -X DELETE \
+      "$API/api/hosting/v1/accounts/$HOSTINGER_USERNAME/websites/$HOSTINGER_DOMAIN/cache/clear" \
+      -H "Authorization: Bearer $HOSTINGER_API_TOKEN" || true)
+    if [ "${code:0:1}" = "2" ]; then echo "Cache and CDN cleared"; echo "Cache and CDN cleared" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+    else echo "::warning::Could not clear the Hostinger cache/CDN (HTTP $code): $(head -c 200 "$WORK/resp")"; fi
+    exit 0
+  fi
   sleep 20
 done
 echo "::error::The new version did not appear on $SITE_URL within 15 minutes (live build-id: ${live:-none})"; exit 1
