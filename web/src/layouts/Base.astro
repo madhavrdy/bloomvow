@@ -58,10 +58,11 @@ const tags = !PREVIEW && !/^\/(back-end|vendor-dashboard)\//.test(Astro.url.path
   {langs.map((l) => <link rel="alternate" hreflang={l.lang} href={l.href} />)}
   <meta name="twitter:card" content="summary_large_image" />
   {rss && <link rel="alternate" type="application/rss+xml" title={`${SITE_NAME} blog`} href="/blog/rss.xml" />}
-  <link rel="icon" href="/favicon.ico" sizes="48x48" />
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-  <link rel="manifest" href="/site.webmanifest" />
+  <!-- Icons from the chosen logo (Mandap Arch, plum tile). Bump ?v= when they change so browsers and the CDN refetch. -->
+  <link rel="icon" href="/favicon.ico?v=3" sizes="48x48" />
+  <link rel="icon" href="/favicon.svg?v=3" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
+  <link rel="manifest" href="/site.webmanifest?v=3" />
   <meta name="theme-color" content="#ffffff" />
   <link rel="preconnect" href={SUPABASE_URL} crossorigin />
   <meta name="bv-api" content={SUPABASE_URL} data-key={SUPABASE_ANON_KEY} data-contact={CONTACT_EMAIL} />

@@ -61,7 +61,7 @@ test('sign in, new account and forgot password: main buttons have a solid colour
   await p.click('text=Forgot password?');
   await solid('form.auth button.btn-acc');
   // Icons: tab icon, Apple touch icon and manifest are linked.
-  for (const sel of ['link[rel=icon][href="/favicon.svg"]', 'link[rel=icon][href="/favicon.ico"]', 'link[rel=apple-touch-icon]', 'link[rel=manifest]'])
+  for (const sel of ['link[rel=icon][href="/favicon.svg?v=3"]', 'link[rel=icon][href="/favicon.ico?v=3"]', 'link[rel=apple-touch-icon]', 'link[rel=manifest]'])
     assert.equal(await p.locator(sel).count(), 1, sel);
 });
 

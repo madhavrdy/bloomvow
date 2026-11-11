@@ -1,9 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <!-- Celebrateio mandap arch (from the logo) on a bright marigold-to-sindoor tile -->
-  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFB627"/><stop offset="1" stop-color="#F0582A"/></linearGradient></defs>
-  <rect width="64" height="64" rx="15" fill="url(#g)"/>
-  <g transform="translate(3.5 5.5) scale(.57 .54)">
-    <path d="M20 94 V52 C20 32 33 21 44 13 C47 11 49 8 50 4 C51 8 53 11 56 13 C67 21 80 32 80 52 V94" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M50 44 L54.4 57.6 L68 62 L54.4 66.4 L50 80 L45.6 66.4 L32 62 L45.6 57.6 Z" fill="#3A1D4A"/>
-  </g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"><rect width="160" height="160" rx="36" fill="#3A1D4A"/><g transform="translate(26 26) scale(1.08)"><path d="M20 94 V52 C20 32 33 21 44 13 C47 11 49 8 50 4 C51 8 53 11 56 13 C67 21 80 32 80 52 V94" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M50 46 L53.6 58.4 L66 62 L53.6 65.6 L50 78 L46.4 65.6 L34 62 L46.4 58.4 Z" fill="#F4A42C"/></g></svg>
