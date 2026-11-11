@@ -15,13 +15,21 @@ export async function allUrls() {
     // Page 1 only: pages 2+ are reached through the pager, so the sitemap points search engines at the main page.
     urls.push({ loc: l.url, lastmod: last.slice(0, 10) });
   }
-  urls.push({ loc: '/blog/', lastmod: d.posts[0]?.updated_at.slice(0, 10) });
-  for (const c of d.blogCategories) urls.push({ loc: d.urls.blogCategory(c) });
-  for (const p of d.posts) urls.push({ loc: d.urls.post(p), lastmod: p.updated_at.slice(0, 10) });
-  for (const [name] of d.postsByAuthor) urls.push({ loc: d.urls.author(name) });
   for (const x of d.styleListings) urls.push({ loc: x.url, lastmod: x.vendors.reduce((m, v) => (v.updated_at > m ? v.updated_at : m), '').slice(0, 10) });
   for (const v of d.vendors.filter(d.vendorIndexable)) urls.push({ loc: d.urls.vendor(v), lastmod: v.updated_at.slice(0, 10) });
 
+  return urls;
+}
+
+// Blog pages get their own sitemap (/sitemap-blog.xml) so Search Console reports blog
+// indexing separately from the directory pages.
+export async function blogUrls() {
+  const d = await getData();
+  const newest = (list: { updated_at: string }[]) => list.reduce((m, p) => (p.updated_at > m ? p.updated_at : m), '').slice(0, 10) || undefined;
+  const urls: { loc: string; lastmod?: string }[] = [{ loc: '/blog/', lastmod: newest(d.posts) }];
+  for (const c of d.blogCategories) urls.push({ loc: d.urls.blogCategory(c), lastmod: newest(d.postsByCategory.get(c.id) ?? []) });
+  for (const p of d.posts) urls.push({ loc: d.urls.post(p), lastmod: p.updated_at.slice(0, 10) });
+  for (const [name, list] of d.postsByAuthor) urls.push({ loc: d.urls.author(name), lastmod: newest(list) });
   return urls;
 }
 

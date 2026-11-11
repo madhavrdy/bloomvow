@@ -259,7 +259,7 @@ test('SEO: titles, canonicals, structured data, noindex for thin pages, no priva
   const files = [];
   const walk = (d) => { for (const f of fs.readdirSync(d, { withFileTypes: true })) { const fp = path.join(d, f.name); if (f.isDirectory()) walk(fp); else if (f.name === 'index.html') files.push(fp); } };
   walk(DIST);
-  const sitemap = fs.readdirSync(DIST).filter((f) => /^sitemap-\d+\.xml$/.test(f)).map((f) => fs.readFileSync(path.join(DIST, f), 'utf8')).join('\n');
+  const sitemap = fs.readdirSync(DIST).filter((f) => /^sitemap-(\d+|blog)\.xml$/.test(f)).map((f) => fs.readFileSync(path.join(DIST, f), 'utf8')).join('\n');
   const titles = new Map();
   let thin = 0;
   for (const f of files) {

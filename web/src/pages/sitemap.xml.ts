@@ -1,12 +1,14 @@
 import type { APIContext } from 'astro';
-import { chunks } from '../lib/sitemap';
+import { chunks, blogUrls } from '../lib/sitemap';
 
-// Sitemap index: points to /sitemap-1.xml, /sitemap-2.xml... (45,000 URLs each,
-// under Google's 50,000 limit). Only indexable pages are listed.
+// Sitemap index: /sitemap-1.xml, /sitemap-2.xml... (directory pages, 45,000 URLs each, under
+// Google's 50,000 limit) and /sitemap-blog.xml (blog). Only indexable pages are listed.
 export async function GET({ site }: APIContext) {
   const parts = await chunks();
   const today = new Date().toISOString().slice(0, 10);
-  const body = `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${parts
-    .map((_, i) => `<sitemap><loc>${new URL(`/sitemap-${i + 1}.xml`, site).href}</loc><lastmod>${today}</lastmod></sitemap>`).join('\n')}\n</sitemapindex>\n`;
+  const blogDate = (await blogUrls())[0]?.lastmod ?? today;
+  const files = [...parts.map((_, i) => ({ loc: `/sitemap-${i + 1}.xml`, lastmod: today })), { loc: '/sitemap-blog.xml', lastmod: blogDate }];
+  const body = `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${files
+    .map((f) => `<sitemap><loc>${new URL(f.loc, site).href}</loc><lastmod>${f.lastmod}</lastmod></sitemap>`).join('\n')}\n</sitemapindex>\n`;
   return new Response(body, { headers: { 'content-type': 'application/xml' } });
 }

@@ -226,6 +226,6 @@ test('venue location FAQs: 8 questions, short direct answers built from local li
   assert.ok(new RegExp(`class="muted page-intro"[^>]*>Page 2 of \\d+\\. Start with the <a href="${p1}"`).test(h2), 'page 2 links back to page 1');
   assert.ok(new RegExp(`<nav class="crumbs"[\\s\\S]*?<a href="${p1}"`).test(h2), 'breadcrumb links to page 1');
   assert.equal(ld(h2, 'ItemList')[0].itemListElement[0].position, 61, 'list positions continue from page 1');
-  const sm = fs.readdirSync(DIST).filter((f) => /^sitemap-\d+\.xml$/.test(f)).map((f) => fs.readFileSync(path.join(DIST, f), 'utf8')).join('');
+  const sm = fs.readdirSync(DIST).filter((f) => /^sitemap-(\d+|blog)\.xml$/.test(f)).map((f) => fs.readFileSync(path.join(DIST, f), 'utf8')).join('');
   assert.ok(sm.includes(`${p1}</loc>`) && !sm.includes(`${p1}page/2/`), 'sitemap lists page 1 only');
 });

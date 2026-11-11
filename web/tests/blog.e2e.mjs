@@ -103,10 +103,15 @@ test('planning guides on matching city pages, RSS and sitemap index', async () =
   assert.ok(!/how-much-does-a-wedding-venue-cost-in-austin/.test(html('us/texas/austin/photographers/index.html')), 'not on other categories');
   const rss = html('blog/rss.xml');
   assert.match(rss, /<item><title>How much does a wedding venue cost in Austin\?<\/title>/);
-  assert.match(html('sitemap.xml'), /<sitemapindex[\s\S]*sitemap-1\.xml/);
+  assert.match(html('sitemap.xml'), /<sitemapindex[\s\S]*sitemap-1\.xml[\s\S]*sitemap-blog\.xml<\/loc><lastmod>\d{4}-\d\d-\d\d</);
   const sm = html('sitemap-1.xml');
-  assert.match(sm, /\/blog\/how-much-does-a-wedding-venue-cost-in-austin\//);
-  assert.match(sm, /\/blog\/category\/budget\//);
+  const blog = html('sitemap-blog.xml');
+  assert.match(blog, /<urlset[\s\S]*\/blog\/<\/loc><lastmod>/, 'blog home with the newest post date');
+  assert.match(blog, /\/blog\/how-much-does-a-wedding-venue-cost-in-austin\/<\/loc><lastmod>\d{4}-\d\d-\d\d<\/lastmod>/);
+  assert.match(blog, /\/blog\/category\/budget\/<\/loc><lastmod>/);
+  assert.match(blog, /\/blog\/author\//);
+  assert.ok(!/\/blog\//.test(sm), 'blog pages live only in the blog sitemap');
+  assert.ok(!/\/us\//.test(blog), 'no directory pages in the blog sitemap');
   assert.ok(!sm.includes('/vendor/open-data-florals-austin/'), 'basic imported listings stay out of the sitemap');
 });
 
