@@ -159,6 +159,16 @@ test('a vendor added after the last build still opens (404 hands over to the sha
   await p.locator('#bv-team-h:has-text("Complete your wedding team in Austin")').waitFor();
 });
 
+test('blog discovery: home links to the latest posts, city pages link to posts, large image previews allowed', async () => {
+  const home = html('index.html');
+  assert.match(home, /id="latest-h"[^>]*>Latest from the blog</);
+  assert.match(home, /href="\/blog\/how-much-does-a-wedding-venue-cost-in-austin\/"/);
+  assert.match(home, /<meta name="robots" content="max-image-preview:large"/);
+  assert.match(html('us/texas/austin/index.html'), /planning guides[\s\S]*href="\/blog\//i, 'city pages link to posts');
+  assert.doesNotMatch(html('vendor/index.html'), /max-image-preview/, 'not on noindex pages');
+  assert.match(html('blog/how-much-does-a-wedding-venue-cost-in-austin/index.html'), /class="ad-slot in-article" data-ad="post_intro"/);
+});
+
 test('a post published after the last build opens right away from its own link', async () => {
   const body = '## Cake styles\n\nNaked cakes are **popular**.\n\n## Costs\n\nAbout $7 a slice.\n\n## Tasting\n\nBook early. <script>window.bad=1</script>';
   await q(`insert into posts (slug, title, body, category_id, status, published_at, author_name)

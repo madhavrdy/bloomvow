@@ -172,7 +172,9 @@ function build(d: Awaited<ReturnType<typeof load>>) {
   const guidesFor = (cityId: number | null, catId: number | null, n = 3) => posts
     .map((p) => ({ p, score: (p.city_id && p.city_id === cityId ? 2 : 0) + (p.vendor_category_id && p.vendor_category_id === catId ? 1 : 0)
       - ((p.city_id && p.city_id !== cityId) || (p.vendor_category_id && catId && p.vendor_category_id !== catId) ? 9 : 0) }))
-    .filter((x) => x.score > 0).sort((a, b) => b.score - a.score).slice(0, n).map((x) => x.p);
+    // Posts tagged for this city/category first, then the newest general posts (never one
+    // tagged for a different city or category), so every city page links to the blog.
+    .filter((x) => x.score >= 0).sort((a, b) => b.score - a.score || b.p.published_at.localeCompare(a.p.published_at)).slice(0, n).map((x) => x.p);
   const relatedPosts = (p: Post, n = 3) => posts.filter((x) => x.id !== p.id)
     .map((x) => ({ x, s: (x.category_id === p.category_id ? 2 : 0) + (p.city_id && x.city_id === p.city_id ? 2 : 0) + (p.vendor_category_id && x.vendor_category_id === p.vendor_category_id ? 1 : 0) }))
     .sort((a, b) => b.s - a.s).slice(0, n).map((a) => a.x);

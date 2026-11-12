@@ -49,7 +49,7 @@ const adClient = d.ads.client;
   <link rel="canonical" href={canonical} />
   {prev && <link rel="prev" href={new URL(prev, Astro.site).href} />}
   {next && <link rel="next" href={new URL(next, Astro.site).href} />}
-  {PREVIEW ? <meta name="robots" content="noindex, nofollow, noarchive, nosnippet" /> : noindex && <meta name="robots" content="noindex, follow" />}
+  {PREVIEW ? <meta name="robots" content="noindex, nofollow, noarchive, nosnippet" /> : noindex ? <meta name="robots" content="noindex, follow" /> : <meta name="robots" content="max-image-preview:large" />}
   <meta property="og:type" content={ogType} />
   <meta property="og:site_name" content={SITE_NAME} />
   <meta property="og:title" content={fullTitle} />

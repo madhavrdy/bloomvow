@@ -237,3 +237,14 @@ details.faq p { margin: 10px 0 0; color: var(--ink-2); }
 .post-side { flex: 0 1 240px; position: sticky; top: 16px; display: flex; flex-direction: column; gap: 16px; }
 .post-layout .post-side .toc { position: static; flex: none; }
 @media (max-width: 900px) { .ad-slot.side-ad { display: none !important; } .post-side { position: static; } }
+
+/* Home: latest blog posts */
+.home-posts { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px; }
+
+/* Blog posts: in-article "Read more" and vendor boxes */
+.prose .read-more, .prose .vendor-callout { display: flex; flex-direction: column; gap: 4px; margin: 28px 0; padding: 14px 18px; border-radius: 12px; }
+.prose .read-more { border-left: 4px solid var(--rose); background: var(--rose-soft, #fbeef3); }
+.prose .vendor-callout { border: 1px solid var(--line); background: #faf8f5; }
+.prose .read-more span, .prose .vendor-callout span { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.prose .read-more a, .prose .vendor-callout a { font-weight: 600; font-size: 17px; text-decoration: none; color: var(--ink); }
+.prose .read-more a:hover, .prose .vendor-callout a:hover { text-decoration: underline; }

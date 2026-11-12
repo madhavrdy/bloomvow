@@ -5,6 +5,8 @@ import { resolveSearch } from '../src/scripts/search';
 import { validateStep } from '../src/scripts/quote';
 import { leadPayload } from '../src/scripts/lead';
 import { normalizePhone } from '../src/lib/phone';
+import { postFaqs } from '../src/lib/postFaqs';
+import { placeInArticle } from '../src/lib/articleInserts';
 import { niceRound, kmBetween } from '../src/lib/geo';
 import { rankVendors, median, money, replyLabel, type Vendor } from '../src/lib/data';
 import { cleanDetails, filledGroups, groupsFor } from '../src/lib/details';
@@ -210,4 +212,29 @@ test('phone numbers: same rule as the database', () => {
   assert.equal(telHref('(212) 423-0172 ext. 45'), 'tel:+12124230172,45');
   const fd = new FormData(); fd.set('phone', '212 423 0172');
   assert.equal(leadPayload(fd, {}).phone, '+12124230172');
+});
+
+test('blog FAQ markup: questions under an FAQ heading become FAQPage entries', () => {
+  const html = '<p>Intro</p><h2 id="a">Planning</h2><h3>Not a question here</h3><p>Some text that is long enough.</p>'
+    + '<h2 id="faq">Frequently Asked Questions About Cakes</h2>'
+    + '<h3 id="q1">1. How much does a wedding cake cost?</h3><p>Most couples spend <b>$350–$700</b> &amp; more for tall designs.</p>'
+    + '<h3>Short?</h3><p>Too short answer?</p>'
+    + '<h3>Can I freeze the top tier?</h3><p>Yes, wrap it well and freeze it for up to a year.</p>'
+    + '<h2>Final thoughts</h2><h3>Ignored after the section</h3><p>This one is outside the FAQ section.</p>';
+  assert.deepEqual(postFaqs(html), [
+    { q: 'How much does a wedding cake cost?', a: 'Most couples spend $350–$700 & more for tall designs.' },
+    { q: 'Can I freeze the top tier?', a: 'Yes, wrap it well and freeze it for up to a year.' },
+  ]);
+  assert.deepEqual(postFaqs('<h2>Budget tips</h2><h3>Question one here?</h3><p>Answer long enough to count.</p>'), []);
+});
+
+test('blog posts: ads, read-more and vendor boxes go between sections, never two at one spot', () => {
+  const post = '<p>Intro</p>' + Array.from({ length: 9 }, (_, i) => `<h2 id="s${i}">S${i}</h2><p>Text ${i}</p>`).join('');
+  const r = placeInArticle(post, { adIntro: '[AD1]', adMid: '[AD2]', readMore: ['[RM1]', '[RM2]'], vendor: '[V]' });
+  const order = r.html.match(/\[[A-Z0-9]+\]|<h2 id="s\d"/g)!.map((t) => t.replace(/<h2 id="(s\d)"/, '$1'));
+  assert.deepEqual(order, ['[AD1]', 's0', 's1', 's2', '[RM1]', 's3', '[AD2]', 's4', '[V]', 's5', 's6', '[RM2]', 's7', 's8']);
+  assert.equal(r.readMoreUsed, 2);
+  const short = placeInArticle('<h2>A</h2><p>x</p><h2>B</h2><p>y</p>', { adIntro: '[AD1]', adMid: '[AD2]', readMore: ['[RM1]'], vendor: '[V]' });
+  assert.equal(short.html, '<h2>A</h2><p>x</p>[AD1]<h2>B</h2><p>y</p>', 'short posts: just the intro ad');
+  assert.equal(short.readMoreUsed, 0);
 });

@@ -1,12 +1,14 @@
 ---
 import Base from '../../layouts/Base.astro';
+import { postFaqs } from '../../lib/postFaqs';
+import { placeInArticle } from '../../lib/articleInserts';
 import AdSlot from '../../components/AdSlot.astro';
 import { PREVIEW } from '../../config';
 import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import PostCard from '../../components/PostCard.astro';
 import { getData, type Post } from '../../lib/data';
 import { renderMarkdown, plainText, readingMinutes } from '../../lib/markdown';
-import { breadcrumbJsonLd } from '../../lib/seo';
+import { faqJsonLd, breadcrumbJsonLd } from '../../lib/seo';
 import { SITE_NAME } from '../../config';
 
 export async function getStaticPaths() {
@@ -18,24 +20,32 @@ const { p } = Astro.props;
 const d = await getData();
 const cat = d.blogCategoryById.get(p.category_id)!;
 const { html: rawHtml, headings } = renderMarkdown(p.body, Astro.site?.host);
-// AdSense slots inside the article: after the intro (before the first section heading; if the
-// post opens with a heading, after the first section) and before the section heading nearest
-// the middle (posts with 4+ sections).
+// Inside the article, between sections (inserted before a section heading, so each lands at
+// the end of the section above it):
+// * AdSense: after the intro (or after the first section if the post opens with a heading) and
+//   before the heading nearest the middle (posts with 4+ sections).
+// * "Read more": one related post each, at about a third and two-thirds of the way through.
+// * "Find vendors": a link to the matching vendor directory, between the two.
+// Never two inserts at the same spot. Related posts used here are not repeated at the end.
+const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 const slot = (k: string) => (PREVIEW ? '' : `<div class="ad-slot in-article" data-ad="${k}" hidden></div>`);
-const h2At = [...rawHtml.matchAll(/<h2[\s>]/g)].map((m) => m.index!);
-let html = rawHtml;
-if (h2At.length) {
-  const cuts: [number, string][] = [];
-  const intro = h2At[0] > 0 ? h2At[0] : h2At[1];
-  if (intro !== undefined) cuts.push([intro, slot('post_intro')]);
-  const mid = h2At[Math.floor(h2At.length / 2)];
-  if (h2At.length >= 4 && mid !== intro) cuts.push([mid, slot('post_mid')]);
-  for (const [at, ins] of cuts.sort((a, b) => b[0] - a[0])) html = html.slice(0, at) + ins + html.slice(at);
-}
+const vcatEarly = p.vendor_category_id ? d.categoryById.get(p.vendor_category_id) : undefined;
+const relatedAll = d.relatedPosts(p, 9);
+const readMore = (r: (typeof relatedAll)[number]) =>
+  `<aside class="read-more" aria-label="Related article"><span>Read more</span><a href="${d.urls.post(r)}">${esc(r.title)} →</a></aside>`;
+const placed = placeInArticle(rawHtml, {
+  adIntro: slot('post_intro'), adMid: slot('post_mid'),
+  readMore: relatedAll.slice(0, 2).map(readMore),
+  vendor: vcatEarly ? `<aside class="vendor-callout"><span>Planning your ${esc(vcatEarly.name.toLowerCase())}?</span><a href="/categories/${vcatEarly.slug}/">Compare ${esc(vcatEarly.name.toLowerCase())} near you and request free quotes →</a></aside>` : '',
+});
+const html = placed.html;
+const inline = relatedAll.slice(0, placed.readMoreUsed);
+const faqs = postFaqs(rawHtml);
 const comments = d.commentsByPost.get(p.id) ?? [];
 const top = comments.filter((c) => !c.parent_id);
 const replies = (id: string) => comments.filter((c) => c.parent_id === id);
-const related = d.relatedPosts(p);
+// End of the article: up to 6 more related posts (not the ones already linked above).
+const related = relatedAll.filter((r) => !inline.includes(r)).slice(0, 6);
 const city = p.city_id ? d.cityById.get(p.city_id) : undefined;
 const vcat = p.vendor_category_id ? d.categoryById.get(p.vendor_category_id) : undefined;
 const listing = city && vcat ? d.listings.find((l) => l.city.id === city.id && l.category.id === vcat.id) : undefined;
@@ -56,7 +66,7 @@ const article = {
   ...(comments.length ? { commentCount: comments.length } : {}),
 };
 ---
-<Base title={p.seo_title || p.title} description={desc} image={p.cover_url ?? undefined} ogType="article" jsonld={[article, breadcrumbJsonLd(Astro.site, crumbs)]} rss>
+<Base title={p.seo_title || p.title} description={desc} image={p.cover_url ?? undefined} ogType="article" jsonld={[article, breadcrumbJsonLd(Astro.site, crumbs), ...(faqs.length ? [faqJsonLd(faqs)] : [])]} rss>
   <main class="wrap" style="padding-top:24px">
     <Breadcrumbs items={crumbs} />
     <article class="post">
@@ -121,7 +131,7 @@ const article = {
       ) : <p class="muted">Comments are closed for this article.</p>}
     </section>
 
-    {related.length > 0 && <section class="section"><h2>Keep reading</h2><div class="post-grid">{related.map((r) => <PostCard p={r} />)}</div></section>}
+    {related.length > 0 && <section class="section"><h2>You might also like</h2><div class="post-grid">{related.map((r) => <PostCard p={r} />)}</div></section>}
   </main>
 </Base>
 <script>

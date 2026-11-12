@@ -2,6 +2,7 @@
 import CategoryCard from '../components/CategoryCard.astro';
 import Base from '../layouts/Base.astro';
 import VendorRow from '../components/VendorRow.astro';
+import PostCard from '../components/PostCard.astro';
 import { getData, rankVendors, categoryImage } from '../lib/data';
 import { SITE_NAME, CONTACT_EMAIL, SOCIAL_LINKS } from '../config';
 
@@ -87,6 +88,15 @@ const jsonld = [
       <section class="section wrap">
         <h2>Top-rated wedding venues</h2>
         <div class="row-grid">{topVenues.map((v, i) => <VendorRow v={v} index={i} />)}</div>
+      </section>
+    )}
+
+    {d.posts.length > 0 && (
+      <section class="section wrap" aria-labelledby="latest-h">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+          <h2 id="latest-h">Latest from the blog</h2><a href="/blog/">All articles →</a>
+        </div>
+        <div class="post-grid home-posts">{d.posts.slice(0, 3).map((p) => <PostCard p={p} />)}</div>
       </section>
     )}
 
