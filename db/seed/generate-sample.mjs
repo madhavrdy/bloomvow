@@ -122,12 +122,12 @@ for (let i = 0; i < 160; i++) {
   const city = pick(leadCities);
   const cats = pick(catsPool);
   const name = `${pick(first)} & ${pick(first)}`;
-  const payload = { source: rnd() < 0.6 ? 'matched' : 'bulk', couple_name: name, email: `couple${i}@example.com`, guests: int(40, 260), budget_band: int(0, 4), message: 'Hi! We would love pricing and availability for our date.', wedding_date: `2027-${String(int(1, 12)).padStart(2, '0')}-${String(int(1, 28)).padStart(2, '0')}` };
+  const payload = { source: rnd() < 0.6 ? 'matched' : 'bulk', couple_name: name, email: `couple${i}@example.com`, phone: `(512) ${int(201, 989)}-${String(int(1000, 9999))}`, guests: int(40, 260), budget_band: int(0, 4), message: 'Hi! We would love pricing and availability for our date.', wedding_date: `2027-${String(int(1, 12)).padStart(2, '0')}-${String(int(1, 28)).padStart(2, '0')}` };
   sql.push(`select submit_lead(${q(JSON.stringify(payload))}::jsonb || jsonb_build_object('city_id', (select id from cities where name = ${q(city)}), 'category_ids', (select jsonb_agg(id) from categories where slug in (${cats.map(q).join(',')}))));`);
 }
 // Dana's own inbox gets a few profile-form leads.
 for (let i = 0; i < 5; i++) {
-  const payload = { source: 'profile', couple_name: `${pick(first)} & ${pick(first)}`, email: `dana-lead${i}@example.com`, guests: int(80, 220), budget_band: int(1, 4), message: 'We love your venue! Is our date open, and what does the Saturday package include?', wedding_date: `2027-0${int(3, 9)}-${String(int(1, 28)).padStart(2, '0')}`, also_similar: true };
+  const payload = { source: 'profile', couple_name: `${pick(first)} & ${pick(first)}`, email: `dana-lead${i}@example.com`, phone: `(737) ${int(201, 989)}-${String(int(1000, 9999))}`, guests: int(80, 220), budget_band: int(1, 4), message: 'We love your venue! Is our date open, and what does the Saturday package include?', wedding_date: `2027-0${int(3, 9)}-${String(int(1, 28)).padStart(2, '0')}`, also_similar: true };
   sql.push(`select submit_lead(${q(JSON.stringify(payload))}::jsonb || jsonb_build_object('city_id', (select id from cities where name = 'Austin'), 'vendor_id', (select id from vendors where owner_id = '00000000-0000-0000-0000-00000000b001')));`);
 }
 sql.push(`-- Spread leads over 14 days and simulate vendor replies.

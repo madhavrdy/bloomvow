@@ -129,11 +129,32 @@ test('lead form shows friendly errors from the API', async () => {
   await p.goto(`${SITE}/vendor/${v.slug}/`);
   await p.fill('#lead-form [name=couple_name]', 'X');
   await p.fill('#lead-form [name=email]', 'x@x.co');
+  await p.fill('#lead-form [name=phone]', '512-423-0166');
   await p.fill('#lead-form [name=guests]', '5000');
-  await p.locator('#lead-form [name=guests]').evaluate((el) => el.removeAttribute('max'));
   await p.click('#lead-form button[type=submit]');
   await p.waitForSelector('#lead-form .form-error:not(:empty)');
   assert.match(await p.locator('#lead-form .form-error').innerText(), /guest count/);
+  assert.equal(await p.locator('#lead-form [name=guests]').getAttribute('aria-invalid'), 'true', 'the field is marked');
+  await p.fill('#lead-form [name=guests]', '');
+  await p.fill('#lead-form [name=phone]', '');
+  await p.click('#lead-form button[type=submit]');
+  assert.match(await p.locator('#lead-form .form-error').innerText(), /phone number so vendors can reach you/);
+  await p.fill('#lead-form [name=phone]', '512-423-0166');
+  await p.fill('#lead-form [name=wedding_date]', '2020-01-01');
+  await p.click('#lead-form button[type=submit]');
+  assert.match(await p.locator('#lead-form .form-error').innerText(), /today or later/);
+  await p.fill('#lead-form [name=wedding_date]', '');
+  await p.fill('#lead-form [name=couple_name]', '   ');
+  await p.click('#lead-form button[type=submit]');
+  assert.match(await p.locator('#lead-form .form-error').innerText(), /enter your name/);
+  // The database refuses a request without a phone even if the page's checks are skipped.
+  const res = await p.evaluate(async () => {
+    const m = document.querySelector('meta[name="bv-api"]');
+    const r = await fetch(`${m.content}/rest/v1/rpc/submit_lead`, { method: 'POST', headers: { apikey: m.dataset.key, authorization: `Bearer ${m.dataset.key}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ payload: { source: 'profile', vendor_id: document.getElementById('lead-form').dataset.vendor, city_id: Number(document.getElementById('lead-form').dataset.city), couple_name: 'No Phone', email: 'nophone@example.com' } }) });
+    return r.text();
+  });
+  assert.match(res, /phone_required/);
   await p.context().close();
 });
 
@@ -155,6 +176,9 @@ test('Get matched: 4 steps with validation, routes to several categories', async
   const email = `e2e-match-${Date.now()}@example.com`;
   await p.fill('[name=couple_name]', 'Match Couple');
   await p.fill('[name=email]', email);
+  await p.click('#next');
+  assert.match(await p.locator('#quote-error').innerText(), /phone number/, 'phone is required');
+  await p.fill('[name=phone]', '(512) 423-0199');
   await p.click('#next');
   await p.waitForSelector('#done:not([hidden])');
   const title = await p.locator('#done-title').innerText();
@@ -183,6 +207,7 @@ test('"Request pricing from several" pre-fills category and city and uses bulk r
   const email = `e2e-bulk-${Date.now()}@example.com`;
   await p.fill('[name=couple_name]', 'Bulk Couple');
   await p.fill('[name=email]', email);
+  await p.fill('[name=phone]', '512-423-0188');
   await p.click('#next');
   await p.waitForSelector('#done:not([hidden])');
   const [lead] = await q(`select source from leads where email = $1`, [email]);
@@ -360,6 +385,7 @@ test('tracking: tags from Admin > Tracking on public pages only; lead and contac
   await p.fill('#lead-form [name=guests]', '120');
   await p.fill('#lead-form [name=couple_name]', 'Pixel Couple');
   await p.fill('#lead-form [name=email]', `e2e-pixel-${Date.now()}@example.com`);
+  await p.fill('#lead-form [name=phone]', '512 423 0177');
   await p.click('#lead-form button[type=submit]');
   await p.locator('#lead-form .form-ok').waitFor();
   const fb = await p.evaluate(() => window.fbq.queue.map((a) => [a[0], a[1]]));

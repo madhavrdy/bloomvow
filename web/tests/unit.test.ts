@@ -51,7 +51,14 @@ test('quote flow step validation', () => {
   assert.match(validateStep(2, fd({ guests: '0' }), 5)!, /guest count/);
   assert.equal(validateStep(2, fd({ guests: '120' }), 5), null);
   assert.match(validateStep(4, fd({ couple_name: 'A', email: 'nope' }), 5)!, /email/);
-  assert.equal(validateStep(4, fd({ couple_name: 'A', email: 'a@b.co' }), 5), null);
+  assert.match(validateStep(4, fd({ couple_name: 'A', email: 'a@b.co' }), 5)!, /phone number/, 'phone is required');
+  assert.equal(validateStep(4, fd({ couple_name: 'A', email: 'a@b.co', phone: '(212) 423-0172' }), 5), null);
+  assert.match(validateStep(2, fd({ wedding_date: '2020-01-01' }), 5)!, /today or later/);
+  const far = new Date(); far.setFullYear(far.getFullYear() + 6);
+  assert.match(validateStep(2, fd({ wedding_date: far.toISOString().slice(0, 10) }), 5)!, /5 years/);
+  assert.match(validateStep(2, fd({ guests: '12.5' }), 5)!, /guest count/);
+  assert.match(validateStep(4, fd({ couple_name: '   ', email: 'a@b.co', phone: '(212) 423-0172' }), 5)!, /your name/);
+  assert.match(validateStep(4, fd({ couple_name: 'A', email: 'a@b.co', phone: '123' }), 5)!, /valid phone/);
 });
 
 test('lead payload is cleaned up for the API', () => {

@@ -27,12 +27,13 @@ test('normalize_phone: US/Canada in any layout, international with +, extensions
   }
 });
 
-test('leads: a bad phone is refused, a good one is stored tidy, blank is fine', async () => {
+test('leads: a phone is required; bad ones are refused, good ones stored tidy', async () => {
   await assert.rejects(submit(lead({ city_id: austin, category_ids: [venues], phone: '12345' })), /invalid_phone/);
   await submit(lead({ city_id: austin, category_ids: [venues], phone: '(512) 423-0172', email: 'p1@x.test' }));
-  await submit(lead({ city_id: austin, category_ids: [venues], phone: '   ', email: 'p2@x.test' }));
-  const rows = await db.sql(`select email, phone from leads where email in ('p1@x.test','p2@x.test') order by email`);
-  assert.deepEqual(rows.map((r) => r.phone), ['+15124230172', null]);
+  await assert.rejects(submit(lead({ city_id: austin, category_ids: [venues], phone: '   ', email: 'p2@x.test' })), /phone_required/);
+  await assert.rejects(submit(lead({ city_id: austin, category_ids: [venues], phone: null, email: 'p3@x.test' })), /phone_required/);
+  const rows = await db.sql(`select email, phone from leads where email in ('p1@x.test','p2@x.test','p3@x.test') order by email`);
+  assert.deepEqual(rows.map((r) => r.phone), ['+15124230172'], 'only the request with a phone was saved');
 });
 
 test('vendors: imported numbers kept; owners must enter a valid one when they change it', async () => {
@@ -53,4 +54,12 @@ test('new business sign-up refuses a bad phone', async () => {
   await assert.rejects(call('12'), /invalid_phone/);
   await call('(737) 201-0000');
   assert.equal((await db.one(`select phone from vendors where name = 'Fresh Blooms'`)).phone, '+17372010000');
+});
+
+test('leads: wedding date must be from today to 5 years ahead', async () => {
+  const day = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+  await assert.rejects(submit(lead({ city_id: austin, category_ids: [venues], wedding_date: day(-30) })), /invalid_date/);
+  await assert.rejects(submit(lead({ city_id: austin, category_ids: [venues], wedding_date: day(6 * 366) })), /invalid_date/);
+  await submit(lead({ city_id: austin, category_ids: [venues], wedding_date: day(200) }));
+  await submit(lead({ city_id: austin, category_ids: [venues], wedding_date: null }));
 });

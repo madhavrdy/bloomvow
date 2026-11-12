@@ -127,6 +127,6 @@ export async function makeVendor(db, o) {
 export function lead(overrides = {}) {
   return {
     source: 'matched', couple_name: 'Jordan & Priya', email: `couple${Math.random().toString(36).slice(2, 8)}@example.com`,
-    guests: 150, budget_band: 2, message: 'Hi!', ...overrides,
+    phone: '(512) 423-0172', guests: 150, budget_band: 2, message: 'Hi!', ...overrides,
   };
 }

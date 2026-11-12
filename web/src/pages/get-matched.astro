@@ -43,7 +43,7 @@ const today = new Date().toISOString().slice(0, 10);
           <legend class="serif">Where should vendors send quotes?</legend>
           <label class="field">Full name<input name="couple_name" required autocomplete="name" maxlength="120" /></label>
           <label class="field">Email<input type="email" name="email" required autocomplete="email" /></label>
-          <label class="field">Phone (optional)<input type="tel" name="phone" autocomplete="tel" inputmode="tel" placeholder="(212) 423-0172" maxlength="30" /></label>
+          <label class="field">Phone<input type="tel" name="phone" required autocomplete="tel" inputmode="tel" placeholder="(212) 423-0172" maxlength="30" /></label>
           <label class="field">Anything vendors should know?<textarea name="message" rows="3" maxlength="4000"></textarea></label>
           <label class="hp" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off" /></label>
           <p class="muted" style="font-size:13px;margin:0">Your details are shared only with vendors matching your request. <a href="/privacy/">Privacy</a></p>

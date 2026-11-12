@@ -1,5 +1,5 @@
 import { rpc, conversion, friendlyError } from './api';
-import { leadPayload, phoneProblem } from './lead';
+import { leadPayload, leadProblem, dateProblem } from './lead';
 
 // Map "Austin, TX" -> city id via the build-time city list.
 async function cityList(): Promise<{ id: number; name: string; url: string }[]> {
@@ -11,14 +11,14 @@ export function validateStep(step: number, fd: FormData, cityId: number | null):
   if (step === 1 && fd.getAll('category').length === 0) return 'Please pick at least one type of vendor.';
   if (step === 2) {
     if (!cityId) return 'Please choose your wedding city from the list.';
-    const g = String(fd.get('guests') ?? '');
-    if (g && (Number(g) < 1 || Number(g) > 3000)) return 'Please enter a guest count between 1 and 3,000.';
+    const d = dateProblem(fd);
+    if (d) return d;
+    const g = String(fd.get('guests') ?? '').trim();
+    if (g && !(/^\d+$/.test(g) && Number(g) >= 1 && Number(g) <= 3000)) return 'Please enter a guest count between 1 and 3,000.';
   }
   if (step === 4) {
-    if (!String(fd.get('couple_name') ?? '').trim()) return 'Please enter your name.';
-    if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(String(fd.get('email') ?? '').trim())) return 'Please enter a valid email address.';
-    const bad = phoneProblem(fd);
-    if (bad) return bad;
+    const bad = leadProblem(fd);
+    if (bad) return bad[1];
   }
   return null;
 }

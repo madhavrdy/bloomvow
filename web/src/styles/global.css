@@ -221,3 +221,6 @@ details.faq p { margin: 10px 0 0; color: var(--ink-2); }
 .post-layout { display: flex; gap: 48px; align-items: flex-start; flex-wrap: wrap-reverse; }
 .post-layout .toc { flex: 0 1 240px; }
 .post-cta { display: flex; flex-wrap: wrap; gap: 12px; margin: 40px 0 0; }
+
+/* Quote forms: the field with a problem */
+.field [aria-invalid="true"] { border-color: #c0392b; box-shadow: 0 0 0 3px rgba(192, 57, 43, .15); }

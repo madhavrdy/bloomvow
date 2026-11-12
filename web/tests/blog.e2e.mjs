@@ -138,6 +138,7 @@ test('basic listing: its own static page (noindex, follow) with business schema 
   await p.waitForURL(/\/vendor\/open-data-florals-austin\/$/);   // old shared links redirect
   await p.fill('#lead-form [name=couple_name]', 'Ana & Leo');
   await p.fill('#lead-form [name=email]', 'ana.leo@example.com');
+  await p.fill('#lead-form [name=phone]', '(512) 423-0155');
   await p.click('#lead-form button[type=submit]');
   await p.locator('.form-ok:has-text("Request sent")').waitFor();
   const [r] = await q(`select count(*)::int n from lead_recipients lr join leads l on l.id = lr.lead_id join vendors v on v.id = lr.vendor_id where l.email = 'ana.leo@example.com' and v.slug = 'open-data-florals-austin'`);
