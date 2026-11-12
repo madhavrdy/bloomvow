@@ -248,3 +248,20 @@ details.faq p { margin: 10px 0 0; color: var(--ink-2); }
 .prose .read-more span, .prose .vendor-callout span { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .prose .read-more a, .prose .vendor-callout a { font-weight: 600; font-size: 17px; text-decoration: none; color: var(--ink); }
 .prose .read-more a:hover, .prose .vendor-callout a:hover { text-decoration: underline; }
+
+/* Blog posts: in-article "Couples are also reading" related posts (cover, title, snippet) */
+.prose .also-read { margin: 32px 0; }
+.prose .also-read-h { display: block; margin: 0 0 14px; padding-top: 12px; position: relative; font-size: 13px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.prose .also-read-h::before { content: ""; position: absolute; top: 0; left: 0; width: 64px; height: 3px; border-radius: 2px; background: var(--rose); }
+.prose .also-read-item { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 16px; align-items: center; padding: 10px 0; text-decoration: none; color: inherit; }
+.prose .also-read-item img { width: 160px; height: 110px; object-fit: cover; border-radius: 10px; margin: 0; }
+.prose .also-read-t { display: flex; flex-direction: column; gap: 4px; }
+.prose .also-read-t b { font-size: 18px; line-height: 1.3; color: var(--ink); }
+.prose .also-read-t span { font-size: 15px; line-height: 1.45; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.prose .also-read-item:hover b { text-decoration: underline; }
+@media (max-width: 560px) {
+  .prose .also-read-item { grid-template-columns: 110px minmax(0, 1fr); gap: 12px; }
+  .prose .also-read-item img { width: 110px; height: 80px; }
+  .prose .also-read-t b { font-size: 16px; }
+  .prose .also-read-t span { -webkit-line-clamp: 2; font-size: 14px; }
+}

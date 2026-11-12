@@ -6,7 +6,7 @@ import AdSlot from '../../components/AdSlot.astro';
 import { PREVIEW } from '../../config';
 import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import PostCard from '../../components/PostCard.astro';
-import { getData, type Post } from '../../lib/data';
+import { getData, categoryImage, type Post } from '../../lib/data';
 import { renderMarkdown, plainText, readingMinutes } from '../../lib/markdown';
 import { faqJsonLd, breadcrumbJsonLd } from '../../lib/seo';
 import { SITE_NAME } from '../../config';
@@ -24,22 +24,30 @@ const { html: rawHtml, headings } = renderMarkdown(p.body, Astro.site?.host);
 // the end of the section above it):
 // * AdSense: after the intro (or after the first section if the post opens with a heading) and
 //   before the heading nearest the middle (posts with 4+ sections).
-// * "Read more": one related post each, at about a third and two-thirds of the way through.
+// * "Couples are also reading": 3 related posts with cover, title and snippet at about a third of the way in;
+//   a one-line "Read more" to a 4th at about two-thirds (6+ sections).
 // * "Find vendors": a link to the matching vendor directory, between the two.
 // Never two inserts at the same spot. Related posts used here are not repeated at the end.
 const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 const slot = (k: string) => (PREVIEW ? '' : `<div class="ad-slot in-article" data-ad="${k}" hidden></div>`);
 const vcatEarly = p.vendor_category_id ? d.categoryById.get(p.vendor_category_id) : undefined;
 const relatedAll = d.relatedPosts(p, 9);
-const readMore = (r: (typeof relatedAll)[number]) =>
+type Rel = (typeof relatedAll)[number];
+const readMore = (r: Rel) =>
   `<aside class="read-more" aria-label="Related article"><span>Read more</span><a href="${d.urls.post(r)}">${esc(r.title)} →</a></aside>`;
+// "Couples are also reading": 3 related posts with cover image, title and a one-line description (the
+// reference design for in-article related posts).
+const coverOf = (r: Rel) => r.cover_url || (r.vendor_category_id && d.categoryById.get(r.vendor_category_id) ? categoryImage(d.categoryById.get(r.vendor_category_id)!) : '/og-default.png');
+const alsoRead = (list: Rel[]) => `<aside class="also-read" aria-labelledby="also-read-h"><p class="also-read-h" id="also-read-h">Couples are also reading</p>${list.map((r) =>
+  `<a class="also-read-item" href="${d.urls.post(r)}"><img src="${esc(coverOf(r))}" alt="" width="300" height="200" loading="lazy" decoding="async"><span class="also-read-t"><b>${esc(r.title)}</b><span>${esc(r.excerpt || plainText(r.body, 110))}</span></span></a>`).join('')}</aside>`;
+const firstBlock = relatedAll.slice(0, 3);
 const placed = placeInArticle(rawHtml, {
   adIntro: slot('post_intro'), adMid: slot('post_mid'),
-  readMore: relatedAll.slice(0, 2).map(readMore),
+  readMore: [firstBlock.length ? alsoRead(firstBlock) : '', relatedAll[3] ? readMore(relatedAll[3]) : ''].filter(Boolean),
   vendor: vcatEarly ? `<aside class="vendor-callout"><span>Planning your ${esc(vcatEarly.name.toLowerCase())}?</span><a href="/categories/${vcatEarly.slug}/">Compare ${esc(vcatEarly.name.toLowerCase())} near you and request free quotes →</a></aside>` : '',
 });
 const html = placed.html;
-const inline = relatedAll.slice(0, placed.readMoreUsed);
+const inline = placed.readMoreUsed === 0 ? [] : placed.readMoreUsed === 1 ? firstBlock : relatedAll.slice(0, 4);
 const faqs = postFaqs(rawHtml);
 const comments = d.commentsByPost.get(p.id) ?? [];
 const top = comments.filter((c) => !c.parent_id);
