@@ -2,6 +2,7 @@
 import Base from '../../../../../layouts/Base.astro';
 import Breadcrumbs from '../../../../../components/Breadcrumbs.astro';
 import VendorRow from '../../../../../components/VendorRow.astro';
+import AdSlot from '../../../../../components/AdSlot.astro';
 import { getData, money, type ListingPage } from '../../../../../lib/data';
 import Guides from '../../../../../components/Guides.astro';
 import { venueFaqs } from '../../../../../lib/venueFaqs';
@@ -102,6 +103,7 @@ const pageUrl = (n: number) => (n === 1 ? l.url : `${l.url}page/${n}/`);
         {styles.map((x) => <a href={x.url} aria-current={style?.slug === x.style.slug ? 'page' : undefined}>{x.style.label} ({x.vendors.length})</a>)}</nav>
     )}
 
+    <AdSlot placement="city_top" city={city.id} category={cat.id} />
     <div class="layout">
       <aside class="filters" id="filter-sheet" aria-label="Filters">
         <div class="sheet-head"><b>Filters</b><span style="display:flex;gap:16px;align-items:center"><button type="reset" form="filters" class="linkish">Clear all</button><button type="button" class="icon-btn" data-close-filters aria-label="Close filters">✕</button></span></div>
@@ -151,6 +153,7 @@ const pageUrl = (n: number) => (n === 1 ? l.url : `${l.url}page/${n}/`);
           {vendors.map((v, i) => (
             <div class="item" data-i={i} data-cap={v.capacity_max ?? ''} data-price={v.price_from ?? ''} data-setting={v.setting ?? ''} data-rating={v.rating ?? 0} data-reviews={v.review_count} hidden={i >= 20}>
               <VendorRow v={v} index={i} />
+              {i === 5 && <AdSlot placement="city_list" city={city.id} category={cat.id} class="in-list" />}
               {i === 2 && (
                 <div class="match-card">
                   <div><span class="serif" style="font-size:30px">Too many options?</span>

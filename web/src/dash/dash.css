@@ -171,3 +171,7 @@
 .site-update { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 14px;
   padding: 10px 14px; border-radius: 12px; background: var(--acc-soft); color: var(--acc-ink); font-size: 14px; }
 .site-update.is-bad { background: #fdecec; color: #8a1f1f; }
+
+/* Inputs inside admin tables (e.g. Admin > Ads ad-unit IDs) */
+.tbl input:not([type=checkbox]):not([type=radio]) { height: 36px; padding: 0 10px; border: 1px solid var(--ln); border-radius: 8px; font: inherit; font-size: 14px; background: #fff; }
+.tbl input[aria-invalid="true"] { border-color: #b42318; }

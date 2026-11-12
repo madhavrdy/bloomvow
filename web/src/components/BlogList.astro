@@ -1,6 +1,7 @@
 ---
 // Shared body of /blog/ and /blog/category/<slug>/ (with pagination).
 import PostCard from './PostCard.astro';
+import AdSlot from './AdSlot.astro';
 import Breadcrumbs from './Breadcrumbs.astro';
 import { getData, type Post, type BlogCategory } from '../lib/data';
 interface Props { posts: Post[]; pageNo: number; pages: number; base: string; heading: string; intro: string; current?: BlogCategory; crumbs: { name: string; url?: string }[] }
@@ -16,7 +17,7 @@ const pageUrl = (n: number) => (n === 1 ? base : `${base}page/${n}/`);
     <a href="/blog/" aria-current={!current ? 'page' : undefined}>All</a>
     {d.blogCategories.map((c) => <a href={d.urls.blogCategory(c)} aria-current={current?.id === c.id ? 'page' : undefined}>{c.name}</a>)}
   </nav>
-  {posts.length ? <div class="post-grid">{posts.map((p) => <PostCard p={p} />)}</div> : <p class="muted">No articles here yet. Check back soon.</p>}
+  {posts.length ? <div class="post-grid">{posts.map((p, i) => <><PostCard p={p} />{i === 5 && posts.length > 6 && <AdSlot placement="blog_list" class="in-grid" />}</>)}</div> : <p class="muted">No articles here yet. Check back soon.</p>}
   {pages > 1 && (
     <nav class="pager" aria-label="Pages">
       {pageNo > 1 && <a class="btn btn-outline" href={pageUrl(pageNo - 1)} rel="prev">← Newer</a>}

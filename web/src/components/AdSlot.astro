@@ -1,0 +1,13 @@
+---
+// An ad slot. Empty and hidden until scripts/ads.ts fills it with a sponsor banner or an
+// AdSense unit (Admin > Ads); nothing on preview builds.
+import { PREVIEW } from '../config';
+import type { Placement } from '../lib/ads';
+interface Props { placement: Placement; city?: number; category?: number; vendor?: string; class?: string }
+const { placement, city, category, vendor, class: cls } = Astro.props;
+---
+{!PREVIEW && <div class:list={['ad-slot', cls]} data-ad={placement} data-city={city} data-cat={category} data-vendor={vendor} hidden></div>}
+<script>
+  import { initAds } from '../scripts/ads';
+  initAds();
+</script>

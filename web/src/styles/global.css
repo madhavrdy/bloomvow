@@ -224,3 +224,16 @@ details.faq p { margin: 10px 0 0; color: var(--ink-2); }
 
 /* Quote forms: the field with a problem */
 .field [aria-invalid="true"] { border-color: #c0392b; box-shadow: 0 0 0 3px rgba(192, 57, 43, .15); }
+
+/* Ad slots (components/AdSlot.astro, scripts/ads.ts): hidden until an ad is booked */
+.ad-slot { margin: 24px 0; }
+.ad-slot[hidden] { display: none !important; }
+.ad-label { display: block; margin: 0 0 6px; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.ad-sponsor { display: block; }
+.ad-sponsor img { display: block; width: 100%; height: auto; max-height: 260px; object-fit: cover; border-radius: 14px; border: 1px solid var(--line); }
+.ad-slot.in-list { margin: 16px 0; }
+.ad-slot.in-grid { grid-column: 1 / -1; margin: 0; }
+.ad-slot.in-article { margin: 28px 0; }
+.post-side { flex: 0 1 240px; position: sticky; top: 16px; display: flex; flex-direction: column; gap: 16px; }
+.post-layout .post-side .toc { position: static; flex: none; }
+@media (max-width: 900px) { .ad-slot.side-ad { display: none !important; } .post-side { position: static; } }

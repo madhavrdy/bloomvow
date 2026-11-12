@@ -1,5 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
+import AdSlot from '../../components/AdSlot.astro';
+import { PREVIEW } from '../../config';
 import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import PostCard from '../../components/PostCard.astro';
 import { getData, type Post } from '../../lib/data';
@@ -15,7 +17,21 @@ interface Props { p: Post }
 const { p } = Astro.props;
 const d = await getData();
 const cat = d.blogCategoryById.get(p.category_id)!;
-const { html, headings } = renderMarkdown(p.body, Astro.site?.host);
+const { html: rawHtml, headings } = renderMarkdown(p.body, Astro.site?.host);
+// AdSense slots inside the article: after the intro (before the first section heading; if the
+// post opens with a heading, after the first section) and before the section heading nearest
+// the middle (posts with 4+ sections).
+const slot = (k: string) => (PREVIEW ? '' : `<div class="ad-slot in-article" data-ad="${k}" hidden></div>`);
+const h2At = [...rawHtml.matchAll(/<h2[\s>]/g)].map((m) => m.index!);
+let html = rawHtml;
+if (h2At.length) {
+  const cuts: [number, string][] = [];
+  const intro = h2At[0] > 0 ? h2At[0] : h2At[1];
+  if (intro !== undefined) cuts.push([intro, slot('post_intro')]);
+  const mid = h2At[Math.floor(h2At.length / 2)];
+  if (h2At.length >= 4 && mid !== intro) cuts.push([mid, slot('post_mid')]);
+  for (const [at, ins] of cuts.sort((a, b) => b[0] - a[0])) html = html.slice(0, at) + ins + html.slice(at);
+}
 const comments = d.commentsByPost.get(p.id) ?? [];
 const top = comments.filter((c) => !c.parent_id);
 const replies = (id: string) => comments.filter((c) => c.parent_id === id);
@@ -57,13 +73,17 @@ const article = {
       {p.cover_url && <img class="post-cover" src={p.cover_url} alt={p.cover_alt ?? ''} fetchpriority="high" />}
       <div class="post-layout">
         {headings.length >= 3 && (
-          <nav class="toc" aria-label="On this page">
-            <b>On this page</b>
-            <ol>{headings.map((h) => <li class={`d${h.depth}`}><a href={`#${h.id}`}>{h.text}</a></li>)}</ol>
-          </nav>
+          <div class="post-side">
+            <nav class="toc" aria-label="On this page">
+              <b>On this page</b>
+              <ol>{headings.map((h) => <li class={`d${h.depth}`}><a href={`#${h.id}`}>{h.text}</a></li>)}</ol>
+            </nav>
+            <AdSlot placement="post_side" class="side-ad" />
+          </div>
         )}
         <div class="prose" set:html={html} />
       </div>
+      <AdSlot placement="post_end" />
       {cta && <p class="post-cta"><a class="btn btn-primary btn-lg" href={cta.url}>{cta.text}</a> <a class="btn btn-outline btn-lg" href={`/get-matched/${city ? `?city=${city.id}` : ''}`}>Get free quotes</a></p>}
     </article>
 

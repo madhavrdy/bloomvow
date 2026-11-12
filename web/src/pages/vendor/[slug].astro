@@ -1,5 +1,6 @@
 ---
 import { fmtDay } from '../../lib/content';
+import AdSlot from '../../components/AdSlot.astro';
 import Base from '../../layouts/Base.astro';
 import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import VendorCard from '../../components/VendorCard.astro';
@@ -224,6 +225,8 @@ const extraAmenities = v.amenities.filter((a) => !detAmen.has(a.toLowerCase()));
         {v.status === 'unclaimed' && (
           <p class="claim">Is this your business? <a href={`/for-vendors/?claim=${v.id}`}>Claim this listing</a> to add photos, pricing and reply to couples.</p>
         )}
+
+        {!v.featured && <AdSlot placement="vendor_page" city={v.city_id} category={v.category_id} vendor={v.id} />}
 
         {nearby.length > 0 && (
           <section aria-labelledby="nearby-h">

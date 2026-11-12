@@ -82,7 +82,9 @@ async function canEdit(claims, name, bucket = 'vendor-photos') {
     await c.query('begin');
     await c.query('set local role authenticated');
     await c.query(`select set_config('request.jwt.claims', $1, true)`, [JSON.stringify(claims)]);
-    const r = bucket === 'blog-images' ? await c.query('select public.is_editor() ok') : await c.query('select can_edit_vendor_path($1) ok', [name]);
+    const r = bucket === 'blog-images' ? await c.query('select public.is_editor() ok')
+      : bucket === 'ad-images' ? await c.query('select public.is_admin() ok')
+      : await c.query('select can_edit_vendor_path($1) ok', [name]);
     await c.query('commit');
     return r.rows[0].ok;
   } catch { await c.query('rollback'); return false; } finally { c.release(); }
@@ -108,7 +110,7 @@ async function storage(req, res) {
     const rel = decodeURIComponent(parts);
     const [bucket, ...rest] = rel.split('/');
     const name = rest.join('/');
-    if (!['vendor-photos', 'blog-images'].includes(bucket) || !safe(rel)) return send(res, 400, { error: 'invalid_path' });
+    if (!['vendor-photos', 'blog-images', 'ad-images'].includes(bucket) || !safe(rel)) return send(res, 400, { error: 'invalid_path' });
     if (!(await canEdit(claims, name, bucket))) return send(res, 403, { statusCode: '403', error: 'Unauthorized', message: 'new row violates row-level security policy' });
     const chunks = [];
     for await (const ch of req) chunks.push(ch);

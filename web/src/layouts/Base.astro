@@ -36,6 +36,8 @@ const langs: { lang: string; href: string }[] = Astro.url.pathname === '/'
   : cc && d.countryByCode.has(cc) ? [{ lang: `en-${cc}`, href: canonical }] : [];
 // Tracking tags on the public site only: not on preview builds, the admin or the vendor dashboard.
 const tags = !PREVIEW && !/^\/(back-end|vendor-dashboard)\//.test(Astro.url.pathname);
+// AdSense: the ownership tag Google looks for when you add the site (Admin > Ads).
+const adClient = d.ads.client;
 ---
 <!doctype html>
 <html lang="en">
@@ -67,6 +69,7 @@ const tags = !PREVIEW && !/^\/(back-end|vendor-dashboard)\//.test(Astro.url.path
   <link rel="preconnect" href={SUPABASE_URL} crossorigin />
   <meta name="bv-api" content={SUPABASE_URL} data-key={SUPABASE_ANON_KEY} data-contact={CONTACT_EMAIL} />
   {tags && <Tracking t={d.tracking} />}
+  {tags && adClient && <meta name="google-adsense-account" content={adClient} />}
   {jsonld.map((j) => <script type="application/ld+json" set:html={JSON.stringify(j)} />)}
 </head>
 <body>

@@ -1,6 +1,7 @@
 // Build-time data: everything the static pages need, loaded once from the
 // Supabase REST API (public views only, using the public anon key).
 import { cleanTracking } from './tracking';
+import { cleanAds } from './ads';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config';
 import { VENUE_STYLES, STYLE_CATEGORIES } from './styles';
 
@@ -118,6 +119,7 @@ function build(d: Awaited<ReturnType<typeof load>>) {
   const setting = (k: string) => d.settings.find((s) => s.key === k)?.value;
   const minToIndex = Number(setting('min_vendors_to_index') ?? 5);
   const tracking = cleanTracking(setting('tracking'));
+  const ads = cleanAds(setting('ads'));
   const budgetBands = (setting('budget_bands') as number[]) ?? [15000, 30000, 50000, 80000, 150000];
 
   const countryByCode = new Map(d.countries.map((c) => [c.code, c]));
@@ -245,7 +247,7 @@ function build(d: Awaited<ReturnType<typeof load>>) {
     vendors, isRich, vendorIndexable, vendorById, vendorBySlug, listings, listingsByCity, listingsByCategory,
     countryByCode, regionById, cityById, categoryById,
     packagesByVendor, photosByVendor, reviewsByVendor,
-    minToIndex, budgetBands, tracking, urls, cityVendorCount,
+    minToIndex, budgetBands, tracking, ads, urls, cityVendorCount,
     styleListings, contentByPath, nearbyFor, teamFor, kmFrom,
     posts, postsByAuthor, blogCategories, blogCategoryById, postsByCategory, commentsByPost, guidesFor, relatedPosts,
   };

@@ -35,6 +35,9 @@ export function friendly(e: unknown): string {
   if (/Signups not allowed/i.test(msg)) return 'New sign-ups are switched off for this site right now.';
   if (/Email not confirmed/i.test(msg)) return 'Please confirm your email first: click the link we sent you (check spam too).';
   if (/duplicate key.*claims_one_pending/.test(msg)) return 'You already asked to claim this listing. We will review it shortly.';
+  if (/ad_campaigns_image_url_check/.test(msg)) return 'The banner image needs to be uploaded again (it must come from a secure https address).';
+  if (/ad_campaigns_link_url_check/.test(msg)) return 'Please enter the full link, starting with https://';
+  if (/violates check constraint/.test(msg)) return "Some details aren't in a valid format. Please check the highlighted fields and try again.";
   if (/row-level security|violates/.test(msg)) return "You don't have permission to change that.";
   if (/mime type|invalid_mime/.test(msg)) return 'Please upload a JPG, PNG or WebP image.';
   if (/maximum allowed size|too large/i.test(msg)) return 'That image is larger than 5 MB. Please use a smaller one.';
