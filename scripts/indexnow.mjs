@@ -12,7 +12,7 @@ const key = keyFile.replace('.txt', '');
 // URLs from the sitemap chunks whose lastmod is within the last 2 days (or every URL with --all).
 const since = new Date(Date.now() - 2 * 864e5).toISOString().slice(0, 10);
 const all = process.argv.includes('--all');
-const urls = fs.readdirSync(dist).filter((f) => /^sitemap-\d+\.xml$/.test(f))
+const urls = fs.readdirSync(dist).filter((f) => /^sitemap-(\d+|blog)\.xml$/.test(f))
   .flatMap((f) => [...fs.readFileSync(path.join(dist, f), 'utf8').matchAll(/<loc>([^<]+)<\/loc>(?:<lastmod>([^<]+)<\/lastmod>)?/g)])
   .filter((m) => all || (m[2] && m[2] >= since)).map((m) => m[1]).slice(0, 10000);
 if (!urls.length) { console.log('IndexNow: nothing changed'); process.exit(0); }
