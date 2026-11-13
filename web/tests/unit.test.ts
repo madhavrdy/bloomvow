@@ -139,6 +139,25 @@ test('venue styles match names and settings', () => {
   assert.ok(!by('waterfront').test({ name: 'Downtown Loft', setting: null }));
 });
 
+test('indoor, outdoor and banquet hall styles', () => {
+  const by = (slug: string) => VENUE_STYLES.find((s) => s.slug === slug)!;
+  const n = (name: string) => ({ name, setting: null });
+  assert.ok(by('outdoor').test(n('Rosewood Gardens')));
+  assert.ok(by('outdoor').test(n('Lakeside Pavilion')));
+  assert.ok(!by('outdoor').test(n('Courtyard Dallas Downtown')));
+  assert.ok(!by('outdoor').test(n('Long Beach Petroleum Club')));
+  assert.ok(!by('outdoor').test(n('Aloft Overland Park Hotel')));
+  assert.ok(by('outdoor').test({ name: 'The Venue', setting: null, details: { amenities: ['Outdoor event space'] } }));
+  assert.ok(by('outdoor').test({ name: 'The Venue', setting: null, details: { venue_type: ['Rooftop'] } }));
+  assert.ok(by('indoor').test(n('The Grand Ballroom')));
+  assert.ok(by('indoor').test({ name: 'The Venue', setting: null, amenities: ['Indoor event space'] }));
+  assert.ok(!by('indoor').test(n('Willow Creek Meadow')));
+  assert.ok(by('banquet-halls').test(n('Royal Palace Banquet Hall')));
+  assert.ok(by('banquet-halls').test(n('Sunset Event Center')));
+  assert.ok(by('banquet-halls').test({ name: 'The Venue', setting: null, details: { venue_type: ['Banquet hall'] } }));
+  assert.ok(!by('banquet-halls').test(n('Rosewood Gardens')));
+});
+
 import { matchPages } from '../src/scripts/site-search';
 test('header search: every word must start a word in the title, common aliases work, bigger pages first', () => {
   const idx = [
