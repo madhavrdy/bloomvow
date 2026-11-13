@@ -1,4 +1,7 @@
 [hidden] { display: none !important; }
+/* Logo font (Outfit), cut down to the letters a wordmark needs: about 9 KB instead of 28 KB. */
+@font-face { font-family: 'Outfit'; font-style: normal; font-weight: 300; font-display: swap; src: url('../fonts/outfit-logo-300.woff2') format('woff2'); }
+@font-face { font-family: 'Outfit'; font-style: normal; font-weight: 700; font-display: swap; src: url('../fonts/outfit-logo-700.woff2') format('woff2'); }
 :root {
   --ink: #1f1a2e; --ink-2: #4a4458; --ink-3: #5c566a;
   --rose: #b83260; --rose-dark: #9e2a52; --rose-soft: #fbf1f3; --rose-tint: #f2a7bf;

@@ -1,7 +1,12 @@
-# Builds the static site from the live database and uploads changed files to Hostinger.
+# Builds the static site from the live database and publishes it to Hostinger.
 # Runs daily (so vendor edits and new blog posts go live), on every push to
 # main, and on demand (Actions > Build and deploy > Run workflow).
-# Uploading is skipped until the FTP secrets exist; the build still runs as a check.
+# How it publishes:
+#  * Fast route (FTP_HOST, FTP_USER, FTP_PASS secrets): upload only the files that changed since
+#    the last publish (a new post or an edited vendor is a handful of files: a minute or two).
+#  * Whole-site route (HOSTINGER_API_TOKEN secret): one zip unpacked by Hostinger (about 13 min).
+#    Used for the first publish, when too many files changed for FTP (e.g. a design change
+#    touches every page), or if the FTP upload fails.
 name: Build and deploy
 on:
   push: { branches: [main] }
@@ -12,10 +17,10 @@ permissions: { contents: read }
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 180   # an FTP upload of every file is slow; the Hostinger API route takes minutes
+    timeout-minutes: 180   # a first full FTP upload is slow; normal runs take minutes
     env:
       HAS_API: "${{ secrets.HOSTINGER_API_TOKEN != '' }}"
-      HAS_FTP: "${{ secrets.HOSTINGER_API_TOKEN == '' && secrets.FTP_HOST != '' }}"
+      HAS_FTP: "${{ secrets.FTP_HOST != '' }}"
       SITE_URL: ${{ vars.SITE_URL || 'https://celebrateio.com' }}
     steps:
       - uses: actions/checkout@v4
@@ -46,35 +51,61 @@ jobs:
         if: always() && hashFiles('.media-cache/**') != ''
         uses: actions/cache/save@v4
         with: { path: .media-cache, key: 'media-${{ github.run_id }}' }
-      # Preferred: one zip, unpacked by Hostinger (needs the HOSTINGER_API_TOKEN secret).
-      - name: Publish to Hostinger
-        if: env.HAS_API == 'true'
-        env:
-          HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
-          HOSTINGER_USERNAME: ${{ vars.HOSTINGER_USERNAME || 'u895082831' }}
-          HOSTINGER_DOMAIN: ${{ vars.HOSTINGER_DOMAIN || 'celebrateio.com' }}
-        run: scripts/hostinger-deploy.sh web/dist
-      # Fallback: uploads only files that changed since the last successful upload (tracked by a
-      # file-hash list kept in the Actions cache). Reconnects on its own if Hostinger drops FTP.
       - name: Restore last upload's file list
         if: env.HAS_FTP == 'true'
         uses: actions/cache/restore@v4
         with: { path: .ftp-manifest, key: 'ftp-manifest-${{ github.run_id }}', restore-keys: 'ftp-manifest-' }
+      # Fast route: only changed files. Exit 3 = too many changes for FTP, use the zip instead.
       - name: Upload changed files to Hostinger
-        if: env.HAS_FTP == 'true'
+        id: ftp
+        if: env.HAS_FTP == 'true' && (hashFiles('.ftp-manifest') != '' || env.HAS_API != 'true')
         env:
           FTP_HOST: ${{ secrets.FTP_HOST }}
           FTP_USER: ${{ secrets.FTP_USER }}
           FTP_PASS: ${{ secrets.FTP_PASS }}
           FTP_DIR: ${{ vars.FTP_DIR || 'domains/celebrateio.com/public_html' }}
+          FTP_MAX_FILES: ${{ env.HAS_API == 'true' && (vars.FTP_MAX_FILES || '1500') || '' }}
         run: |
           if [ ! -f .ftp-manifest ] && [ "${{ vars.FTP_FULL_UPLOAD }}" != "true" ]; then
             echo "::warning::Not uploading: a full FTP upload takes over 3 hours. Add the HOSTINGER_API_TOKEN secret to publish in minutes."
             exit 0
           fi
           command -v lftp || { sudo apt-get update -qq && sudo apt-get install -y -qq lftp; } >/dev/null 2>&1 || echo "::error::Could not install lftp"
+          echo "${{ github.run_id }}-ftp-$(date +%s)" > web/dist/build-id.txt
+          set +e
           scripts/ftp-sync.sh web/dist "$( [ -f .ftp-manifest ] && echo .ftp-manifest )" .ftp-manifest.new
-          mv .ftp-manifest.new .ftp-manifest
+          code=$?
+          set -e
+          if [ $code -eq 0 ]; then mv .ftp-manifest.new .ftp-manifest; echo "done=true" >> "$GITHUB_OUTPUT"
+          elif [ "$HAS_API" = "true" ]; then
+            [ $code -eq 3 ] || echo "::warning::FTP upload failed (exit $code); publishing the whole site instead."
+            rm -f .ftp-manifest   # what is live is no longer known; the zip publish below resets it
+          else exit $code; fi
+      - name: Clear Hostinger cache and CDN
+        if: steps.ftp.outputs.done == 'true' && env.HAS_API == 'true'
+        env:
+          HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
+          HOSTINGER_USERNAME: ${{ vars.HOSTINGER_USERNAME || 'u895082831' }}
+          HOSTINGER_DOMAIN: ${{ vars.HOSTINGER_DOMAIN || 'celebrateio.com' }}
+        run: |
+          code=$(curl -s --max-time 60 -o /tmp/resp -w '%{http_code}' -X DELETE \
+            "https://developers.hostinger.com/api/hosting/v1/accounts/$HOSTINGER_USERNAME/websites/$HOSTINGER_DOMAIN/cache/clear" \
+            -H "Authorization: Bearer $HOSTINGER_API_TOKEN" || true)
+          if [ "${code:0:1}" = "2" ]; then echo "Cache and CDN cleared" | tee -a "$GITHUB_STEP_SUMMARY"
+          else echo "::warning::Could not clear the Hostinger cache/CDN (HTTP $code)"; fi
+      # Whole-site route: one zip, unpacked by Hostinger.
+      - name: Publish to Hostinger
+        if: env.HAS_API == 'true' && steps.ftp.outputs.done != 'true'
+        env:
+          HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
+          HOSTINGER_USERNAME: ${{ vars.HOSTINGER_USERNAME || 'u895082831' }}
+          HOSTINGER_DOMAIN: ${{ vars.HOSTINGER_DOMAIN || 'celebrateio.com' }}
+        run: |
+          scripts/hostinger-deploy.sh web/dist
+          # Remember what is now live, so the next publish can send only the changes over FTP.
+          if [ "$HAS_FTP" = "true" ]; then
+            (cd web/dist && find . -type f -print0 | sort -z | xargs -0 sha1sum | sed 's#  \./#  #') > .ftp-manifest
+          fi
       - name: Remember this upload's file list
         if: env.HAS_FTP == 'true' && hashFiles('.ftp-manifest') != ''
         uses: actions/cache/save@v4

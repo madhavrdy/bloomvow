@@ -435,6 +435,21 @@ test('blog categories: create, rename, hide, delete with "move posts to"', async
   assert.equal(post.slug, 'honeymoons');
 });
 
+test('blog posts: comment counts open a quick view of that post\'s comments', async () => {
+  await go(admin, 'posts');
+  const [{ pending }] = await q(`select count(*)::int pending from comments where post_id = '00000000-0000-0000-0000-0000000b1001' and status = 'pending'`);
+  assert.ok(pending > 0, 'fixture has comments waiting');
+  const btn = admin.locator(`button[aria-label*="${pending} waiting"]`).first();
+  await btn.click();
+  const qv = admin.locator('.qv[role=dialog]');
+  await qv.waitFor();
+  await qv.locator('[aria-label^="Comment by"]').first().waitFor();
+  assert.equal(await qv.locator('[aria-label^="Comment by"]').count(), pending);
+  assert.equal(await qv.locator('select').count(), 0, 'no post filter inside the quick view');
+  await admin.keyboard.press('Escape');
+  await qv.waitFor({ state: 'detached' });
+});
+
 test('comments: bulk spam, approve, admin reply goes live', async () => {
   await go(admin, 'comments');
   await admin.waitForSelector('[aria-label^="Comment by"]');

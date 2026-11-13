@@ -1,9 +1,18 @@
-# Weekly database backup (Supabase's free plan has none). Each run is kept for
-# 60 days under Actions > Weekly backup > the run > Artifacts. Restore with
-# pg_restore --clean --no-owner -d "<connection string>" bloomvow.dump
-name: Weekly backup
+# Daily encrypted database backup (Supabase's free plan keeps none).
+# The repository is public, so the dump is encrypted with BACKUP_PASSPHRASE (AES-256)
+# before it is uploaded; without that secret nothing is uploaded at all.
+# Each run is kept for 30 days under Actions > Daily backup > the run > Artifacts.
+#
+# Needs two repository secrets (Settings > Secrets and variables > Actions):
+#   SUPABASE_DB_URL     the database connection string (Supabase > Connect > Session pooler)
+#   BACKUP_PASSPHRASE   a long passphrase you keep somewhere safe (password manager)
+#
+# Restore:
+#   gpg --batch --pinentry-mode loopback --passphrase '<passphrase>' -d celebrateio-db.dump.gpg > celebrateio-db.dump
+#   pg_restore --clean --if-exists --no-owner -d "<connection string>" celebrateio-db.dump
+name: Daily backup
 on:
-  schedule: [{ cron: '13 2 * * 0' }]
+  schedule: [{ cron: '43 20 * * *' }]   # 02:13 IST
   workflow_dispatch:
 permissions: { contents: read }
 jobs:
@@ -11,18 +20,35 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - name: Check secrets
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          test -n "$DATABASE_URL" || { echo "::error::Add the SUPABASE_DB_URL secret first"; exit 1; }
+          test -n "$PASSPHRASE" || { echo "::error::Add the BACKUP_PASSPHRASE secret first (backups are never uploaded unencrypted)"; exit 1; }
+          [ ${#PASSPHRASE} -ge 16 ] || { echo "::error::BACKUP_PASSPHRASE must be at least 16 characters"; exit 1; }
       - name: Install pg_dump 17
         run: |
           sudo install -d /usr/share/postgresql-common/pgdg
           sudo curl -fsSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
           echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
           sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17
-      - name: Dump
-        env: { DATABASE_URL: '${{ secrets.SUPABASE_DB_URL }}' }
+      - name: Dump and encrypt
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
         run: |
-          test -n "$DATABASE_URL" || { echo "::error::Add the SUPABASE_DB_URL secret first"; exit 1; }
+          set -euo pipefail
+          umask 077
           /usr/lib/postgresql/17/bin/pg_dump "$DATABASE_URL" --format=custom --no-owner --no-privileges \
-            --schema=public --schema=auth --schema=storage -f bloomvow.dump
-          ls -lh bloomvow.dump >> "$GITHUB_STEP_SUMMARY"
+            --schema=public --schema=auth --schema=storage -f "$RUNNER_TEMP/db.dump"
+          size=$(du -h "$RUNNER_TEMP/db.dump" | cut -f1)
+          /usr/lib/postgresql/17/bin/pg_restore --list "$RUNNER_TEMP/db.dump" > /dev/null   # the dump is readable
+          printf '%s' "$PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
+            --symmetric --cipher-algo AES256 --s2k-digest-algo SHA512 --s2k-count 65011712 \
+            -o celebrateio-db.dump.gpg "$RUNNER_TEMP/db.dump"
+          shred -u "$RUNNER_TEMP/db.dump"
+          echo "Backup: $size before encryption, $(du -h celebrateio-db.dump.gpg | cut -f1) encrypted" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
-        with: { name: 'bloomvow-db-${{ github.run_number }}', path: bloomvow.dump, retention-days: 60 }
+        with: { name: 'celebrateio-db-${{ github.run_number }}', path: celebrateio-db.dump.gpg, retention-days: 30, if-no-files-found: error }

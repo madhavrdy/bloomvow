@@ -1,4 +1,4 @@
-import { rpc, track, conversion, friendlyError } from './api';
+import { rpc, track, conversion, friendlyError, ApiError } from './api';
 import { leadPayload, showSent, leadProblem } from './lead';
 
 export function initVendorPage() {
@@ -46,8 +46,15 @@ export function initVendorPage() {
         p_wedding_date: fd.get('date') || null, p_rating: Number(fd.get('rating')), p_body: fd.get('body'),
       });
       review.innerHTML = '<p class="form-ok">Thanks! Your review will appear once it has been checked.</p>';
-    } catch {
-      err.textContent = 'Please check your review (at least 20 characters) and try again.';
+    } catch (ex) {
+      const code = ex instanceof ApiError ? ex.code : '';
+      err.textContent = ({
+        already_reviewed: "You've already reviewed this vendor. Thank you!",
+        rate_limited: "You've sent several reviews today. Please try again tomorrow.",
+        invalid_email: 'Please enter a valid email address.',
+        name_required: 'Please enter your name.',
+        invalid_rating: 'Please choose a star rating.',
+      } as Record<string, string>)[code] ?? 'Please check your review (at least 20 characters) and try again.';
     }
   });
 }

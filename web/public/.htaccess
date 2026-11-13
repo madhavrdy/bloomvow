@@ -20,6 +20,15 @@ RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
   Header always set X-Content-Type-Options "nosniff"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
   Header always set X-Frame-Options "SAMEORIGIN"
+  # Browsers only ever use https for this site (1 year; subdomains left out on purpose).
+  Header always set Strict-Transport-Security "max-age=31536000"
+  # No camera, microphone, payment, USB... for any page or embedded ad; location only for the site itself.
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(self), payment=(), usb=(), serial=(), bluetooth=(), magnetometer=(), gyroscope=(), accelerometer=(), interest-cohort=()"
+  # Scripts stay open (Google Tag Manager, AdSense and the tags added in Admin load from many
+  # domains), but plugins, <base> hijacking and other sites framing us are blocked, and any
+  # stray http:// link is upgraded.
+  Header always set Content-Security-Policy "object-src 'none'; base-uri 'self'; frame-ancestors 'self'; upgrade-insecure-requests"
+  Header always set Cross-Origin-Opener-Policy "same-origin-allow-popups"
 </IfModule>
 
 <IfModule mod_deflate.c>

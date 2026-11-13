@@ -4,7 +4,8 @@ import { sb, must, friendly } from '../supabase';
 import { ago, fmtDate, Toast, useToast, type Ref } from '../shared';
 import { renderMarkdown, plainText, readingMinutes } from '../../lib/markdown';
 import { toSlug } from './Taxonomy';
-import { RichEditor } from '../editor/RichEditor';
+import { RichEditor } from '../editor/LazyRichEditor';
+import { Comments } from './Comments';
 
 type BlogCat = { id: number; name: string; slug: string; active: boolean };
 export type Post = {
@@ -62,13 +63,27 @@ export function Posts({ ref_, userId, userName }: { ref_: Ref; userId: string; u
   const [cats, setCats] = useState<BlogCat[]>([]);
   const [edit, setEdit] = useState<Post | null>(null);
   const [filter, setFilter] = useState('all');
+  const [counts, setCounts] = useState<Record<string, { pending: number; approved: number }>>({});
+  const [quick, setQuick] = useState<{ id: string; title: string } | null>(null);
   const [toast, setToast] = useToast();
 
+  async function loadCounts() {
+    const cs = await must<{ post_id: string; status: string }[]>(sb().from('comments').select('post_id,status').in('status', ['pending', 'approved']).limit(10000) as never);
+    const out: Record<string, { pending: number; approved: number }> = {};
+    for (const c of cs) { const o = (out[c.post_id] ??= { pending: 0, approved: 0 }); if (c.status === 'pending') o.pending++; else o.approved++; }
+    setCounts(out);
+  }
   async function load() {
+    loadCounts().catch(() => {});
     setRows(await must(sb().from('posts').select('*').order('updated_at', { ascending: false }) as never));
     setCats(await must<BlogCat[]>(sb().from('blog_categories').select('id,name,slug,active').order('sort') as never));
   }
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    if (!quick) return;
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') { setQuick(null); loadCounts(); } };
+    addEventListener('keydown', k); return () => removeEventListener('keydown', k);
+  }, [quick]);
 
   if (edit) return <Editor post={edit} cats={cats} ref_={ref_} userId={userId} onClose={(msg) => { setEdit(null); if (msg) setToast(msg); load(); }} />;
   if (!rows) return <p class="muted">Loading posts…</p>;
@@ -84,15 +99,19 @@ export function Posts({ ref_, userId, userName }: { ref_: Ref; userId: string; u
       </div>
       <section class="panel" style="padding:0;overflow:hidden"><div class="scroll-x">
         <table class="tbl" style="min-width:680px">
-          <thead><tr><th style="padding-left:16px">Title</th><th>Category</th><th>Status</th><th>Updated</th><th /></tr></thead>
+          <thead><tr><th style="padding-left:16px">Title</th><th>Category</th><th>Status</th><th>Comments</th><th>Updated</th><th /></tr></thead>
           <tbody>
-            {shown.length === 0 && <tr><td colSpan={5} class="empty">No posts yet. Start with a "cost of a wedding venue in [city]" guide: those rank and convert best.</td></tr>}
+            {shown.length === 0 && <tr><td colSpan={6} class="empty">No posts yet. Start with a "cost of a wedding venue in [city]" guide: those rank and convert best.</td></tr>}
             {shown.map((p) => {
               const st = postState(p);
               return <tr>
                 <td style="padding-left:16px"><b>{p.title}</b><span class="muted" style="display:block;font-size:12px">/blog/{p.slug}/</span></td>
                 <td>{cats.find((c) => c.id === p.category_id)?.name}</td>
                 <td><span class={`chip-s ${st.cls}`}>{st.label}</span></td>
+                <td>{(() => { const n = counts[p.id]; if (!n) return <span class="muted" style="font-size:13px">None</span>;
+                  return <button type="button" class="btn btn-outline btn-sm" onClick={() => setQuick({ id: p.id, title: p.title })}
+                    aria-label={`Comments on ${p.title}: ${n.pending} waiting, ${n.approved} published`}>
+                    {n.approved} {n.pending > 0 && <span class="count" style="margin-left:6px">{n.pending} new</span>}</button>; })()}</td>
                 <td style="font-size:13px">{ago(p.updated_at)}</td>
                 <td style="white-space:nowrap"><button class="btn btn-outline btn-sm" onClick={() => setEdit(p)}>Edit</button>
                   {isLive(p) && <> <a class="btn btn-outline btn-sm" href={`/blog/${p.slug}/`} target="_blank" rel="noopener" title="Opens the post on the site">View ↗</a></>}</td>
@@ -101,6 +120,15 @@ export function Posts({ ref_, userId, userName }: { ref_: Ref; userId: string; u
           </tbody>
         </table></div>
       </section>
+      {quick && (
+        <div class="qv-back" onClick={(e) => { if (e.target === e.currentTarget) { setQuick(null); loadCounts(); } }}>
+          <div class="qv" role="dialog" aria-modal="true" aria-label={`Comments on ${quick.title}`}>
+            <div class="dhead" style="margin:0"><h2 style="margin:0;font-size:18px">Comments on “{quick.title}”</h2>
+              <button type="button" class="btn btn-outline btn-sm" onClick={() => { setQuick(null); loadCounts(); }}>Close</button></div>
+            <Comments postId={quick.id} onChange={loadCounts} />
+          </div>
+        </div>
+      )}
       <Toast text={toast} />
     </>
   );

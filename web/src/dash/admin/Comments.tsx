@@ -4,9 +4,10 @@ import { ago, Toast, useToast } from '../shared';
 
 type C = { id: string; post_id: string; parent_id: string | null; author_name: string; author_email: string; body: string; status: string; is_staff: boolean; created_at: string; posts: { title: string; slug: string } };
 
-export function Comments({ onChange }: { onChange: () => void }) {
+// postId: quick view for one post (opened from Blog posts), without the page title and post filter.
+export function Comments({ onChange, postId }: { onChange: () => void; postId?: string }) {
   const [status, setStatus] = useState('pending');
-  const [post, setPost] = useState('');
+  const [post, setPost] = useState(postId ?? '');
   const [rows, setRows] = useState<C[] | null>(null);
   const [posts, setPosts] = useState<{ id: string; title: string }[]>([]);
   const [sel, setSel] = useState<Set<string>>(new Set());
@@ -21,7 +22,7 @@ export function Comments({ onChange }: { onChange: () => void }) {
     setSel(new Set());
   }
   useEffect(() => { load(); }, [status, post]);
-  useEffect(() => { must<{ id: string; title: string }[]>(sb().from('posts').select('id,title').order('title') as never).then(setPosts); }, []);
+  useEffect(() => { if (!postId) must<{ id: string; title: string }[]>(sb().from('posts').select('id,title').order('title') as never).then(setPosts); }, []);
 
   async function moderate(ids: string[], to: string) {
     if (!ids.length) return;
@@ -42,13 +43,13 @@ export function Comments({ onChange }: { onChange: () => void }) {
 
   return (
     <>
-      <div class="dhead"><h1>Comments</h1>
+      <div class="dhead">{postId ? <span /> : <h1>Comments</h1>}
         <div class="seg" role="group" aria-label="Comment status">
           {[['pending', 'Pending'], ['approved', 'Approved'], ['spam', 'Spam'], ['rejected', 'Rejected']].map(([k, l]) => <button type="button" aria-pressed={status === k} onClick={() => setStatus(k)}>{l}</button>)}
         </div></div>
       <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
-        <label><span class="sr-only">Filter by post</span><select value={post} onChange={(e) => setPost(e.currentTarget.value)} style={inp}>
-          <option value="">All posts</option>{posts.map((p) => <option value={p.id}>{p.title}</option>)}</select></label>
+        {!postId && <label><span class="sr-only">Filter by post</span><select value={post} onChange={(e) => setPost(e.currentTarget.value)} style={inp}>
+          <option value="">All posts</option>{posts.map((p) => <option value={p.id}>{p.title}</option>)}</select></label>}
         {rows && rows.length > 0 && <>
           <label class="check"><input type="checkbox" checked={sel.size === all.length} onChange={() => setSel(sel.size === all.length ? new Set() : new Set(all))} /> Select all ({sel.size})</label>
           {status !== 'approved' && <button class="btn btn-green btn-sm" disabled={!sel.size} onClick={() => moderate([...sel], 'approved')}>Approve selected</button>}

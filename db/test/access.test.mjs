@@ -112,7 +112,9 @@ test('reviews: pending until approved, then rating recalculated', async () => {
   const r1 = (await db.anon('select submit_review($1, $2, $3, $4, $5, $6) as id', [vb.id, 'Maya', 'm@x.com', '2026-04-01', 5, body]))[0].id;
   const r2 = (await db.anon('select submit_review($1, $2, $3, $4, $5, $6) as id', [vb.id, 'Chris', 'c@x.com', null, 4, body]))[0].id;
   assert.equal((await db.anon('select * from public_reviews where vendor_id = $1', [vb.id])).length, 0);
-  await assert.rejects(db.anon('select submit_review($1, $2, $3, $4, $5, $6)', [vb.id, 'X', 'x@x.com', null, 6, body]), /check constraint/);
+  await assert.rejects(db.anon('select submit_review($1, $2, $3, $4, $5, $6)', [vb.id, 'Xavier', 'x@x.com', null, 6, body]), /invalid_rating/);
+  await assert.rejects(db.anon('select submit_review($1, $2, $3, $4, $5, $6)', [vb.id, 'Xavier', 'not-an-email', null, 5, body]), /invalid_email/);
+  await assert.rejects(db.anon('select submit_review($1, $2, $3, $4, $5, $6)', [vb.id, 'Maya', 'M@x.com ', null, 5, body]), /already_reviewed/);
   await db.user(admin, 'select admin_moderate_review($1, true)', [r1]);
   await db.user(admin, 'select admin_moderate_review($1, true)', [r2]);
   assert.equal((await db.anon('select * from public_reviews where vendor_id = $1', [vb.id])).length, 2);
@@ -120,6 +122,16 @@ test('reviews: pending until approved, then rating recalculated', async () => {
   assert.equal(Number(v.rating), 4.5);
   assert.equal(v.review_count, 2);
   await assert.rejects(db.user(bob, 'select admin_moderate_review($1, false)', [r1]), /forbidden/);
+});
+
+test('reviews: one email can send at most 3 a day', async () => {
+  const body = 'Lovely people and a beautiful setting, would book again for sure.';
+  // Three reviews already sent today (written directly; only one test vendor is public here).
+  for (let i = 0; i < 3; i++) {
+    await db.one("insert into reviews (vendor_id, author_name, author_email, rating, body, status) values ($1, 'Sam', 'sam@x.com', 5, $2, 'rejected') returning id", [vb.id, body]);
+  }
+  await assert.rejects(db.anon('select submit_review($1, $2, $3, $4, $5, $6)', [vb.id, 'Sam', 'sam@x.com', null, 5, body]), /rate_limited/);
+  await db.one("delete from reviews where author_email = 'sam@x.com' returning 1");
 });
 
 test('categories: admins can add and edit them, vendors and the public cannot', async () => {
