@@ -152,6 +152,43 @@ test('overview shows the same numbers as the database', async () => {
   await p.context().close();
 });
 
+test('analytics: claimed vendor sees their numbers and how couples found them', async () => {
+  const [v] = await q(`select id, slug from vendors where owner_id = $1 and status = 'claimed' order by name limit 1`, [DANA]);
+  await q(`select track_hit($1::jsonb)`, [JSON.stringify({ kind: 'page_view', path: '/us/texas/austin/wedding-venues/', vid: 'e2ecouple1', sid: 'e2evisit01', ref: 'www.google.com', dev: 'mobile' })]);
+  await q(`select pg_sleep(0.01)`);
+  await q(`select track_hit($1::jsonb)`, [JSON.stringify({ kind: 'view', vendor: v.id, path: `/vendor/${v.slug}/`, vid: 'e2ecouple1', sid: 'e2evisit01', dev: 'mobile' })]);
+  const p = await newPage();
+  await signIn(p, 'dana@vendor.local');
+  await p.waitForSelector('.kpis');
+  await p.click('nav.side a[href="#analytics"]');
+  await p.waitForSelector('h2:text-is("How couples found your profile")');
+  const views = Number((await p.locator('.kpi:has(span:text-is("Profile views")) b').innerText()).replace(/,/g, ''));
+  const [{ n }] = await q(`select count(*)::int n from events where vendor_id = $1 and kind = 'view' and created_at >= date_trunc('day', now()) - interval '29 days'`, [v.id]);
+  assert.equal(views, n);
+  assert.match(await p.locator('section:has(h2:text-is("How couples found your profile"))').innerText(), /city & category pages/);
+  assert.deepEqual(p.errors, []);
+  await p.context().close();
+});
+
+test('analytics is not offered for a listing whose claim is not approved', async () => {
+  const [v] = await q(`select id from vendors where owner_id = $1 and status = 'claimed' order by name limit 1`, [DANA]);
+  await q(`update vendors set status = 'unclaimed' where id = $1`, [v.id]);
+  try {
+    const p = await newPage();
+    await signIn(p, 'dana@vendor.local');
+    await p.waitForSelector('nav.side');
+    const { rows } = await db.query(`select count(*)::int n from vendors where owner_id = $1 and status = 'claimed'`, [DANA]);
+    if (rows[0].n === 0) assert.equal(await p.locator('nav.side a[href="#analytics"]').count(), 0, 'no Analytics link');
+    await p.goto(`${SITE}/vendor-dashboard/#analytics`);
+    await p.reload();
+    await p.waitForSelector('.dmain');
+    if (rows[0].n === 0) assert.match(await p.locator('.dmain').innerText(), /once your claim .* is approved|Welcome|Overview/);
+    await p.context().close();
+  } finally {
+    await q(`update vendors set status = 'claimed' where id = $1`, [v.id]);
+  }
+});
+
 test('lead inbox: opening marks read, quick reply sends an email to the couple, status updates', async () => {
   const [v] = await q(`select id from vendors where owner_id = $1`, [DANA]);
   const p = await newPage();
@@ -309,7 +346,7 @@ test('dashboard works on a phone screen', async () => {
   const p = await newPage({ viewport: { width: 390, height: 844 }, isMobile: true });
   await signIn(p, 'dana@vendor.local');
   await p.waitForSelector('.kpis');
-  for (const r of ['overview', 'leads', 'listing']) {
+  for (const r of ['overview', 'analytics', 'leads', 'listing']) {
     await p.goto(`${SITE}/vendor-dashboard/#${r}`);
     await p.waitForTimeout(500);
     const w = await p.evaluate(() => document.documentElement.scrollWidth);

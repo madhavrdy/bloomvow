@@ -168,3 +168,29 @@ test('click tracking and stats: vendor sees own numbers, admin sees totals', asy
   assert.ok('pending_reviews' in a.attention && 'thin_pages' in a.attention);
   await assert.rejects(db.user(alice, 'select admin_stats(14)'), /forbidden/);
 });
+
+test('vendor analytics: only the owner of a claimed listing (or an admin) can read it; views are traced to how couples found them', async () => {
+  const hit = (p) => db.anon('select track_hit($1::jsonb)', [JSON.stringify(p)]);
+  // Visit 1: Google -> city page -> Alice's profile. Visit 2: lands on her profile from Instagram.
+  await hit({ kind: 'page_view', path: '/us/texas/austin/wedding-venues/', vid: 'couple0001', sid: 'visit00001', ref: 'www.google.com', dev: 'mobile' });
+  await db.one(`select pg_sleep(0.01)`);
+  await hit({ kind: 'view', vendor: va.id, path: '/vendor/cedar-hollow/', vid: 'couple0001', sid: 'visit00001', dev: 'mobile' });
+  await hit({ kind: 'view', vendor: va.id, path: '/vendor/cedar-hollow/', vid: 'couple0002', sid: 'visit00002', ref: 'l.instagram.com', dev: 'desktop' });
+  await hit({ kind: 'click_phone', vendor: va.id, path: '/vendor/cedar-hollow/', vid: 'couple0002', sid: 'visit00002' });
+  const r = (await db.user(alice, 'select vendor_analytics($1, 30) as r', [va.id]))[0].r;
+  assert.ok(r.kpi.views >= 2);
+  assert.ok(r.kpi.visitors >= 2);
+  assert.ok(r.kpi.clicks_phone >= 1);
+  const found = Object.fromEntries(r.found_by.map((f) => [f.how, f.views]));
+  assert.equal(found['Celebrateio city & category pages'], 1);
+  assert.equal(found['Social'], 1);
+  assert.equal(r.series.length, 30);
+  assert.ok(r.peers.rank >= 1);
+  await assert.rejects(db.user(bob, 'select vendor_analytics($1, 30)', [va.id]), /forbidden/, 'another vendor');
+  await assert.rejects(db.anon('select vendor_analytics($1, 30)', [va.id]), /permission denied/);
+  assert.ok((await db.user(admin, 'select vendor_analytics($1, 30) as r', [va.id]))[0].r.kpi);
+  // An owner whose listing is not (or no longer) claimed sees nothing.
+  await db.one(`update vendors set status = 'unclaimed' where id = $1 returning id`, [va.id]);
+  await assert.rejects(db.user(alice, 'select vendor_analytics($1, 30)', [va.id]), /forbidden/);
+  await db.one(`update vendors set status = 'claimed' where id = $1 returning id`, [va.id]);
+});

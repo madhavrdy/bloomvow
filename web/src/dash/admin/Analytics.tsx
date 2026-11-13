@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { sb } from '../supabase';
 import { fmtNum, fmtDate } from '../shared';
+import { PLUM, ROSE, pct, Change, Bar, Trend, Legend } from '../charts';
 
 type N = number;
 type Report = {
@@ -22,46 +23,7 @@ type Report = {
   lead_cities: { city: string; leads: N }[];
 };
 
-const PLUM = '#3A1D4A', ROSE = '#b83260', SOFT = '#e9b8c8';
 const FORM_NAMES: Record<string, string> = { profile: 'Vendor page form', matched: 'Get matched', bulk: 'Request pricing (several vendors)' };
-const pct = (a: N, b: N) => (b > 0 ? `${((a / b) * 100).toFixed(a / b < 0.1 ? 1 : 0)}%` : '–');
-
-function Change({ now, before }: { now: N; before: N }) {
-  if (!before) return <small>&nbsp;</small>;
-  const d = ((now - before) / before) * 100;
-  const up = d >= 0;
-  return <small style={`color:${up ? '#1f7a4d' : '#a3264f'};font-weight:600`}>{up ? '▲' : '▼'} {Math.abs(d).toFixed(0)}% vs previous {''}</small>;
-}
-
-function Bar({ value, max, color = ROSE }: { value: N; max: N; color?: string }) {
-  return <span aria-hidden="true" style="display:block;height:6px;background:#f3eef5;border-radius:4px;margin-top:4px">
-    <span style={`display:block;height:6px;width:${max ? Math.max(2, (value / max) * 100) : 0}%;background:${color};border-radius:4px`} /></span>;
-}
-
-function Trend({ s }: { s: Report['series'] }) {
-  const W = 720, H = 220, pad = 28;
-  const maxV = Math.max(1, ...s.map((d) => d.pageviews));
-  const maxL = Math.max(1, ...s.map((d) => d.leads));
-  const x = (i: N) => pad + (s.length > 1 ? (i * (W - pad * 2)) / (s.length - 1) : (W - pad * 2) / 2);
-  const y = (v: N) => H - pad - (v / maxV) * (H - pad * 2);
-  const line = (k: 'visitors' | 'pageviews') => s.map((d, i) => `${x(i)},${y(d[k])}`).join(' ');
-  const bw = Math.max(2, Math.min(18, (W - pad * 2) / Math.max(1, s.length) - 3));
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} style="width:100%;height:auto" role="img"
-      aria-label={`Daily page views, visitors and leads from ${s[0]?.day} to ${s.at(-1)?.day}`}>
-      {[0, 0.5, 1].map((f) => <g><line x1={pad} x2={W - pad} y1={y(maxV * f)} y2={y(maxV * f)} stroke="#eee6f0" />
-        <text x={pad - 6} y={y(maxV * f) + 4} font-size="11" text-anchor="end" fill="#8a8494">{Math.round(maxV * f)}</text></g>)}
-      {s.map((d, i) => d.leads > 0 && <rect x={x(i) - bw / 2} y={H - pad - (d.leads / maxL) * 40} width={bw} height={(d.leads / maxL) * 40} fill={SOFT} rx="2">
-        <title>{`${d.day}: ${d.leads} lead${d.leads === 1 ? '' : 's'}`}</title></rect>)}
-      <polyline points={line('pageviews')} fill="none" stroke={PLUM} stroke-width="2" stroke-linejoin="round" />
-      <polyline points={line('visitors')} fill="none" stroke={ROSE} stroke-width="2.5" stroke-linejoin="round" />
-      {s.map((d, i) => <circle cx={x(i)} cy={y(d.visitors)} r="6" fill="transparent">
-        <title>{`${d.day}: ${d.visitors} visitors, ${d.pageviews} page views, ${d.leads} leads`}</title></circle>)}
-      <text x={pad} y={H - 8} font-size="11" fill="#8a8494">{fmtDate(s[0]?.day)}</text>
-      <text x={W - pad} y={H - 8} font-size="11" fill="#8a8494" text-anchor="end">{fmtDate(s.at(-1)?.day)}</text>
-    </svg>
-  );
-}
 
 function Table<T>({ title, rows, cols, empty = 'No data yet for this period.' }: {
   title: string; rows: T[]; empty?: string;
@@ -123,11 +85,8 @@ export function Analytics() {
 
         <section class="panel">
           <div class="dhead"><h2>Traffic and leads per day</h2>
-            <div style="display:flex;gap:16px;font-size:13px;flex-wrap:wrap">
-              <span><i style={`display:inline-block;width:14px;height:3px;background:${ROSE};vertical-align:middle`} /> Visitors</span>
-              <span><i style={`display:inline-block;width:14px;height:3px;background:${PLUM};vertical-align:middle`} /> Page views</span>
-              <span><i style={`display:inline-block;width:10px;height:10px;background:${SOFT};border-radius:2px`} /> Leads</span></div></div>
-          <Trend s={r.series} />
+            <Legend names={['Visitors', 'Page views', 'Leads']} /></div>
+          <Trend s={r.series.map((d) => ({ day: d.day, line1: d.visitors, line2: d.pageviews, bars: d.leads }))} names={['Visitors', 'Page views', 'Leads']} />
         </section>
 
         <div class="row">

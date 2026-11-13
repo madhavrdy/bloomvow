@@ -5,6 +5,7 @@ import { sb, must } from '../supabase';
 import { Auth, NewPassword } from '../Auth';
 import { useHash, loadRef, type Ref } from '../shared';
 import { Onboarding } from './Onboarding';
+import { Analytics } from './Analytics';
 import { Overview } from './Overview';
 import { Leads } from './Leads';
 import { ListingEditor } from './ListingEditor';
@@ -70,7 +71,8 @@ function Signed({ session, siteName }: { session: Session; siteName: string }) {
   const cat = ref.catById.get(current.category_id)!;
   const city = ref.cityById.get(current.city_id)!;
   const publicUrl = `/vendor/${current.slug}/`;
-  const nav = [['overview', 'Overview'], ['leads', 'Leads'], ['listing', 'Edit listing']] as const;
+  const claimed = current.status === 'claimed';
+  const nav = [['overview', 'Overview'], ...(claimed ? [['analytics', 'Analytics'] as const] : []), ['leads', 'Leads'], ['listing', 'Edit listing']] as const;
   return (
     <div class="dash">
       <nav class="side" aria-label="Vendor">
@@ -99,7 +101,8 @@ function Signed({ session, siteName }: { session: Session; siteName: string }) {
         <button type="button" class="navbtn" onClick={() => sb().auth.signOut()}>Sign out</button>
       </nav>
       <main class="dmain">
-        {route === 'leads' ? <Leads listing={current} ref_={ref} onChange={() => setNewLeads((n) => n)} />
+        {route === 'analytics' ? <Analytics listing={current} />
+          : route === 'leads' ? <Leads listing={current} ref_={ref} onChange={() => setNewLeads((n) => n)} />
           : route === 'listing' ? <ListingEditor listing={current} category={cat} city={city} ref_={ref} onSaved={reload} />
           : <Overview listing={current} category={cat} city={city} userName={(session.user.user_metadata?.full_name as string) || ''} />}
       </main>
