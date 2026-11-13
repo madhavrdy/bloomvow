@@ -7,6 +7,7 @@ import { leadPayload } from '../src/scripts/lead';
 import { normalizePhone } from '../src/lib/phone';
 import { postFaqs } from '../src/lib/postFaqs';
 import { placeInArticle } from '../src/lib/articleInserts';
+import { defaultRobots, finalRobots, robotsErrors, robotsWarnings } from '../src/lib/robots';
 import { niceRound, kmBetween } from '../src/lib/geo';
 import { rankVendors, median, money, replyLabel, type Vendor } from '../src/lib/data';
 import { cleanDetails, filledGroups, groupsFor } from '../src/lib/details';
@@ -237,4 +238,22 @@ test('blog posts: ads, read-more and vendor boxes go between sections, never two
   const short = placeInArticle('<h2>A</h2><p>x</p><h2>B</h2><p>y</p>', { adIntro: '[AD1]', adMid: '[AD2]', readMore: ['[RM1]'], vendor: '[V]' });
   assert.equal(short.html, '<h2>A</h2><p>x</p>[AD1]<h2>B</h2><p>y</p>', 'short posts: just the intro ad');
   assert.equal(short.readMoreUsed, 0);
+});
+
+test('robots.txt: default, custom text, checks and warnings', () => {
+  const site = 'https://celebrateio.com';
+  const d = defaultRobots(site);
+  assert.match(d, /^User-agent: \*\nAllow: \/\nDisallow: \/vendor-dashboard\//);
+  assert.match(d, /User-agent: GPTBot/);
+  assert.match(d, /Sitemap: https:\/\/celebrateio\.com\/sitemap\.xml\n$/);
+  assert.equal(finalRobots('', site), d, 'empty = default');
+  assert.equal(finalRobots('User-agent: *\nDisallow: /tmp/', site), 'User-agent: *\nDisallow: /tmp/\n\nSitemap: https://celebrateio.com/sitemap.xml\n', 'sitemap added');
+  assert.equal(finalRobots('User-agent: *\n<script>', site), d, 'invalid text never published');
+  assert.deepEqual(robotsErrors('# hi\nUser-agent: *\nDisallow: /a/\n\nCrawl-delay: 5\nSitemap: https://x.com/s.xml'), []);
+  assert.match(robotsErrors('Usr-agent: *')[0], /Line 1/);
+  assert.match(robotsErrors('Sitemap: /sitemap.xml')[0], /full address/);
+  assert.match(robotsErrors('Disallow: /<script>')[0], /Line 1/);
+  assert.match(robotsWarnings('User-agent: *\nDisallow: /').join(' '), /drop out of Google/);
+  assert.match(robotsWarnings('User-agent: GPTBot\nDisallow: /').join(' '), /blocks GPTBot from the whole site/);
+  assert.doesNotMatch(robotsWarnings('User-agent: GPTBot\nDisallow: /\n\nUser-agent: *\nAllow: /').join(' '), /drop out of Google/);
 });

@@ -1,15 +1,11 @@
 import type { APIContext } from 'astro';
 import { PREVIEW } from '../config';
+import { getData } from '../lib/data';
+import { finalRobots } from '../lib/robots';
 
-// Search engines and AI assistants are welcome to read and cite public pages.
-const AI_BOTS = ['GPTBot', 'OAI-SearchBot', 'ChatGPT-User', 'ClaudeBot', 'Claude-SearchBot', 'Claude-User', 'PerplexityBot',
-  'Perplexity-User', 'Google-Extended', 'Applebot-Extended', 'Bingbot', 'CCBot'];
-// The back end (/back-end/) is left out on purpose: it is noindex, and listing it here would advertise its address.
-const PRIVATE = ['/vendor-dashboard/', '/shortlist/'];
-
-export function GET({ site }: APIContext) {
+// robots.txt: the custom version from Admin > SEO files, or the built-in default (lib/robots.ts).
+export async function GET({ site }: APIContext) {
   if (PREVIEW) return new Response('# Preview site: not for search engines\nUser-agent: *\nDisallow: /\n', { headers: { 'content-type': 'text/plain' } });
-  const block = (ua: string) => `User-agent: ${ua}\nAllow: /\n${PRIVATE.map((p) => `Disallow: ${p}`).join('\n')}\n`;
-  const body = [block('*'), ...AI_BOTS.map(block), `Sitemap: ${new URL('/sitemap.xml', site).href}\n`].join('\n');
-  return new Response(body, { headers: { 'content-type': 'text/plain' } });
+  const d = await getData();
+  return new Response(finalRobots(d.robotsTxt, String(site)), { headers: { 'content-type': 'text/plain; charset=utf-8' } });
 }

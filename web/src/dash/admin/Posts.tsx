@@ -26,7 +26,7 @@ type BuildStatus = { ready: boolean; waiting_since: string | null; last: { sent_
 
 // "Site update" line: new and edited posts open right away; the blog lists, categories and
 // sitemap refresh with an automatic site rebuild (about 15 minutes).
-function SiteUpdate({ onToast }: { onToast: (m: string) => void }) {
+export function SiteUpdate({ onToast }: { onToast: (m: string) => void }) {
   const [s, setS] = useState<BuildStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const load = async () => { const { data } = await sb().rpc('site_build_status'); if (data) setS(data as BuildStatus); };

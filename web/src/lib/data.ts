@@ -120,6 +120,8 @@ function build(d: Awaited<ReturnType<typeof load>>) {
   const minToIndex = Number(setting('min_vendors_to_index') ?? 5);
   const tracking = cleanTracking(setting('tracking'));
   const ads = cleanAds(setting('ads'));
+  const robotsSetting = setting('robots_txt');
+  const robotsTxt = typeof robotsSetting === 'string' ? robotsSetting : '';
   const budgetBands = (setting('budget_bands') as number[]) ?? [15000, 30000, 50000, 80000, 150000];
 
   const countryByCode = new Map(d.countries.map((c) => [c.code, c]));
@@ -249,7 +251,7 @@ function build(d: Awaited<ReturnType<typeof load>>) {
     vendors, isRich, vendorIndexable, vendorById, vendorBySlug, listings, listingsByCity, listingsByCategory,
     countryByCode, regionById, cityById, categoryById,
     packagesByVendor, photosByVendor, reviewsByVendor,
-    minToIndex, budgetBands, tracking, ads, urls, cityVendorCount,
+    minToIndex, budgetBands, tracking, ads, robotsTxt, urls, cityVendorCount,
     styleListings, contentByPath, nearbyFor, teamFor, kmFrom,
     posts, postsByAuthor, blogCategories, blogCategoryById, postsByCategory, commentsByPost, guidesFor, relatedPosts,
   };

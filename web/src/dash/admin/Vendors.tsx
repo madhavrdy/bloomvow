@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { sb, must, friendly } from '../supabase';
 import { ago, fmtNum, Toast, useToast, type Ref } from '../shared';
 import { csvToObjects } from './csv';
@@ -58,7 +58,11 @@ function VendorList({ ref_, toast }: { ref_: Ref; toast: (t: string) => void }) 
   const [page, setPage] = useState(0);
   const [edit, setEdit] = useState<V | null>(null);
 
+  // Only the newest request may update the list: a slower, older reply (say, before the search
+  // box was cleared) must not overwrite a newer one.
+  const latest = useRef(0);
   async function load() {
+    const ticket = ++latest.current;
     let query = sb().from('vendors').select('id,slug,name,category_id,city_id,status,plan,plan_renews_at,email,phone,website,description,price_from,capacity_max,rating,review_count,owner_id,source,updated_at,hidden_reason,details,city:cities!vendors_city_id_fkey!inner(region_id,regions!inner(country_code))', { count: 'exact' });
     const t = q.trim().replace(/[%_,()]/g, ' ');
     if (t) query = query.or(`name.ilike.%${t}%,email.ilike.%${t}%,slug.ilike.%${t}%`);
@@ -69,6 +73,7 @@ function VendorList({ ref_, toast }: { ref_: Ref; toast: (t: string) => void }) 
     else if (region) query = query.eq('city.region_id', Number(region));
     else if (country) query = query.eq('city.regions.country_code', country);
     const { data, count, error } = await query.order('updated_at', { ascending: false }).range(page * PAGE, page * PAGE + PAGE - 1);
+    if (ticket !== latest.current) return;
     if (error) return toast(friendly(error));
     setRows(data as V[]); setTotal(count ?? 0);
   }

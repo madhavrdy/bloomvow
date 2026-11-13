@@ -69,10 +69,14 @@ test('overview: numbers match the database, including clicks; attention list lin
   await go(admin, 'overview');
   await admin.waitForFunction(() => document.querySelectorAll('.kpi b')[0]?.textContent !== '–');
   const [s] = await q(`select count(*)::int leads from leads where created_at >= now() - interval '14 days' and status <> 'spam'`);
-  const [c] = await q(`select count(*)::int clicks from events where created_at >= now() - interval '14 days' and kind in ('click_phone','click_website','click_directions')`);
+  // Events right at the 14-day edge can drop out between the page loading and this query.
+  const [c] = await q(`select count(*) filter (where created_at >= now() - interval '14 days')::int clicks,
+    count(*) filter (where created_at >= now() - interval '14 days' - interval '2 minutes')::int edge
+    from events where kind in ('click_phone','click_website','click_directions')`);
   const k = await admin.locator('.kpi b').allInnerTexts();
   assert.equal(Number(k[0].replace(/,/g, '')), s.leads);
-  assert.equal(Number(k[2].replace(/,/g, '')), c.clicks);
+  const shown = Number(k[2].replace(/,/g, ''));
+  assert.ok(shown >= c.clicks && shown <= c.edge, `clicks ${shown} should be ${c.clicks}`);
   assert.match(await admin.locator('.panel:has-text("Needs attention")').innerText(), /Blog comments to moderate\s*2/);
   assert.deepEqual(admin.errors, []);
 });
@@ -517,4 +521,27 @@ test('page content editor: find a page, write intro/guide/FAQ with preview and l
   assert.equal(dal.faqs.length, 2);
   assert.deepEqual(ed.errors ?? [], []);
   await ed.context().close();
+});
+
+test('SEO files: edit robots.txt with checks, blocking the site needs a second click, reset to default', async () => {
+  await go(admin, 'seo');
+  const box = admin.locator('textarea[aria-label="robots.txt contents"]');
+  assert.match(await box.inputValue(), /^User-agent: \*\nAllow: \/\nDisallow: \/vendor-dashboard\//, 'starts with the default');
+  await box.fill('User-agent: *\nDisalow: /private/');
+  await admin.locator('.form-error li:has-text("Line 2")').waitFor();
+  assert.equal(await admin.locator('button:has-text("Save robots.txt")').isDisabled(), true);
+  await box.fill('# Custom\nUser-agent: *\nAllow: /\nDisallow: /drafts/');
+  await admin.click('button:has-text("Save robots.txt")');
+  await toast(admin, /next site update/);
+  assert.equal((await q(`select value from settings where key = 'robots_txt'`))[0].value, '# Custom\nUser-agent: *\nAllow: /\nDisallow: /drafts/');
+  await box.fill('User-agent: *\nDisallow: /');
+  await admin.locator('text=drop out of Google').waitFor();
+  await admin.click('button:has-text("Save robots.txt")');
+  await admin.locator('text=This would remove the whole site from Google').waitFor();
+  assert.match((await q(`select value from settings where key = 'robots_txt'`))[0].value, /drafts/, 'not saved after one click');
+  await admin.click('button:has-text("Reset to default")');
+  await admin.click('button:has-text("Save robots.txt")');
+  await toast(admin, /Back to the default/);
+  assert.equal((await q(`select value from settings where key = 'robots_txt'`))[0].value, '');
+  assert.deepEqual(admin.errors, []);
 });
