@@ -158,6 +158,10 @@ test('lead form shows friendly errors from the API', async () => {
   await p.context().close();
 });
 
+// Google Analytics events the page sent (gtag queues them in dataLayer; the test site has a GA4 ID set).
+const gaAll = (p) => p.evaluate(() => (window.dataLayer ?? []).filter((a) => a[0] === 'event').map((a) => [a[1], a[2]]));
+const gaEvents = async (p, name) => (await gaAll(p)).filter((e) => e[0] === name).map((e) => e[1]);
+
 test('Get matched: 4 steps with validation, routes to several categories', async () => {
   const p = await page();
   await p.goto(`${SITE}/get-matched/`);
@@ -191,6 +195,19 @@ test('Get matched: 4 steps with validation, routes to several categories', async
   assert.equal(c, n);
   assert.ok(n >= 2 && n <= 6);
   assert.equal(await p.locator('#done-link').getAttribute('href'), '/us/texas/austin/');
+  // Google Analytics: one start, the refused steps, and one generate_lead with the request's details (no personal data).
+  assert.equal((await gaEvents(p, 'lead_form_start')).length, 1);
+  assert.deepEqual((await gaEvents(p, 'lead_form_error')).map((e) => e.form_step), [1, 2, 4]);
+  const leads = await gaEvents(p, 'generate_lead');
+  assert.equal(leads.length, 1);
+  const ev = leads[0];
+  assert.equal(ev.lead_source, 'get_matched');
+  assert.equal(ev.vendor_category, 'wedding-venues,photographers');
+  assert.equal(ev.wedding_city, 'Austin, TX');
+  assert.equal(ev.guest_count, 120);
+  assert.equal(ev.vendors_matched, n);
+  assert.ok(ev.budget_range && ev.budget_range !== 'not_sure');
+  assert.ok(!JSON.stringify(await gaAll(p)).match(/Match Couple|@example\.com|423-0199/), 'no personal data sent');
   assert.deepEqual(p.errors, []);
   await p.context().close();
 });
@@ -390,6 +407,6 @@ test('tracking: tags from Admin > Tracking on public pages only; lead and contac
   await p.locator('#lead-form .form-ok').waitFor();
   const fb = await p.evaluate(() => window.fbq.queue.map((a) => [a[0], a[1]]));
   assert.deepEqual(fb.slice(2), [['track', 'Contact'], ['track', 'Lead']]);
-  const g = await p.evaluate(() => window.dataLayer.filter((a) => a[0] === 'event').map((a) => [a[1], a[2]?.send_to ?? a[2]?.method ?? a[2]?.form]));
+  const g = await p.evaluate(() => window.dataLayer.filter((a) => a[0] === 'event' && !/^lead_form_/.test(a[1])).map((a) => [a[1], a[2]?.send_to ?? a[2]?.method ?? a[2]?.lead_source]));
   assert.deepEqual(g, [['contact', 'phone'], ['generate_lead', 'vendor_profile'], ['conversion', 'AW-111222333/LeadLabel1']]);
 });

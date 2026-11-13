@@ -1,4 +1,5 @@
-import { rpc, conversion, friendlyError } from './api';
+import { rpc, friendlyError, ApiError } from './api';
+import { leadSubmitted, watchLeadForm, leadError } from './lead-events';
 import { leadPayload, leadProblem, dateProblem } from './lead';
 
 // Map "Austin, TX" -> city id via the build-time city list.
@@ -34,6 +35,8 @@ export function initQuote() {
   const cityInput = document.getElementById('city-name') as HTMLInputElement;
   const params = new URLSearchParams(location.search);
   const bulk = params.get('mode') === 'bulk';
+  const formName = bulk ? 'request_pricing' : 'get_matched';
+  watchLeadForm(form, formName);
   let step = 1;
   let cities: { id: number; name: string; url: string }[] = [];
   let cityId: number | null = null;
@@ -75,7 +78,7 @@ export function initQuote() {
     syncCity();
     const fd = new FormData(form);
     const problem = validateStep(step, fd, cityId);
-    if (problem) { err.textContent = problem; return; }
+    if (problem) { err.textContent = problem; leadError(formName, problem, step); return; }
     if (step < 4) { step += 1; show(); return; }
 
     next.disabled = true;
@@ -83,8 +86,11 @@ export function initQuote() {
     try {
       const payload = leadPayload(fd, { source: bulk && cats.length === 1 ? 'bulk' : 'matched', city_id: cityId, category_ids: cats });
       const res = await rpc<{ matched: number }>('submit_lead', { payload });
-      conversion('lead', { form: bulk ? 'request_pricing' : 'get_matched', vendors: res.matched });
       const city = cities.find((c) => c.id === cityId)!;
+      leadSubmitted(form, {
+        form: formName, vendors: res.matched, city: city.name,
+        categories: [...form.querySelectorAll<HTMLInputElement>('[name=category]:checked')].map((i) => i.dataset.slug || i.value),
+      });
       form.hidden = true;
       document.getElementById('progress')!.hidden = true;
       const done = document.getElementById('done')!;
@@ -98,6 +104,7 @@ export function initQuote() {
       done.focus();
     } catch (ex) {
       err.textContent = friendlyError(ex);
+      leadError(formName, ex instanceof ApiError ? ex.code : 'network');
       next.disabled = false;
     }
   });

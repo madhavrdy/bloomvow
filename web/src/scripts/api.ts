@@ -36,6 +36,15 @@ export function track(vendorId: string | null, kind: string) {
   if (kind.startsWith('click_')) conversion('contact', { method: kind.slice(6) });
 }
 
+// A Google Analytics event (and the same event for Tag Manager), when those tags are present.
+export function analytics(name: string, params: Record<string, string | number> = {}) {
+  try {
+    const w = window as W;
+    w.gtag?.('event', name, params);
+    w.dataLayer?.push({ event: name, ...params });
+  } catch { /* never break the page */ }
+}
+
 // Conversion events for the ad and analytics tags set in Admin > Tracking (when present).
 type W = Window & { gtag?: (...a: unknown[]) => void; fbq?: (...a: unknown[]) => void; dataLayer?: unknown[] };
 export function conversion(name: 'lead' | 'contact', params: Record<string, string | number> = {}) {

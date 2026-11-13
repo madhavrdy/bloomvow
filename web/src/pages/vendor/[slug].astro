@@ -245,7 +245,7 @@ const extraAmenities = v.amenities.filter((a) => !detAmen.has(a.toLowerCase()));
       </div>
 
       <aside id="lead" class="lead" aria-label="Request pricing">
-        <form id="lead-form" class="lead-card" data-source="profile" data-vendor={v.id} data-city={city.id} novalidate>
+        <form id="lead-form" class="lead-card" data-source="profile" data-vendor={v.id} data-city={city.id} data-city-name={`${city.name}, ${st}`} data-category={cat.slug} novalidate>
           <button type="button" class="icon-btn lead-close" aria-label="Close" data-lead-close>✕</button>
           <div>
             <span class="serif" style="font-size:30px;line-height:1.1;display:block">Check availability &amp; pricing</span>

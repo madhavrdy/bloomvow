@@ -1,5 +1,6 @@
-import { rpc, track, conversion, friendlyError, ApiError } from './api';
+import { rpc, track, friendlyError, ApiError } from './api';
 import { leadPayload, showSent, leadProblem } from './lead';
+import { leadSubmitted, watchLeadForm, leadError } from './lead-events';
 
 export function initVendorPage() {
   const page = document.querySelector<HTMLElement>('[data-vendor-page]');
@@ -10,6 +11,7 @@ export function initVendorPage() {
     el.addEventListener('click', () => track(vendorId, el.dataset.track!)));
 
   const form = document.getElementById('lead-form') as HTMLFormElement | null;
+  if (form) watchLeadForm(form, 'vendor_profile');
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const err = form.querySelector('.form-error')!;
@@ -18,6 +20,7 @@ export function initVendorPage() {
     const bad = leadProblem(new FormData(form));
     if (bad) {
       err.textContent = bad[1];
+      leadError('vendor_profile', bad[0]);
       const field = form.querySelector<HTMLInputElement>(`[name=${bad[0]}]`);
       field?.setAttribute('aria-invalid', 'true'); field?.focus();
       return;
@@ -27,10 +30,11 @@ export function initVendorPage() {
     try {
       const payload = leadPayload(new FormData(form), { source: 'profile', vendor_id: vendorId, city_id: Number(form.dataset.city) });
       const res = await rpc<{ matched: number }>('submit_lead', { payload });
-      conversion('lead', { form: 'vendor_profile', vendors: res.matched });
+      leadSubmitted(form, { form: 'vendor_profile', vendors: res.matched, city: form.dataset.cityName, categories: [form.dataset.category ?? ''].filter(Boolean) });
       showSent(form, res.matched);
     } catch (ex) {
       err.textContent = friendlyError(ex);
+      leadError('vendor_profile', ex instanceof ApiError ? ex.code : 'network');
       btn.disabled = false;
     }
   });
