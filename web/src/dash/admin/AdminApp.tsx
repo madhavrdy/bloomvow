@@ -5,6 +5,7 @@ import { sb } from '../supabase';
 import { Auth, NewPassword } from '../Auth';
 import { useHash, loadRef, type Ref } from '../shared';
 import { Overview } from './Overview';
+import { Analytics } from './Analytics';
 import { Leads } from './Leads';
 import { Vendors } from './Vendors';
 import { Reviews } from './Reviews';
@@ -24,6 +25,7 @@ type Counts = { claims: number; reviews: number; comments: number };
 // Editors see the content screens (page content and blog).
 const NAV: { r: string; label: string; roles: Role[] }[] = [
   { r: 'overview', label: 'Overview', roles: ['admin'] },
+  { r: 'analytics', label: 'Analytics', roles: ['admin'] },
   { r: 'leads', label: 'Leads', roles: ['admin'] },
   { r: 'vendors', label: 'Vendors & claims', roles: ['admin'] },
   { r: 'reviews', label: 'Reviews', roles: ['admin'] },
@@ -104,6 +106,7 @@ function Gate({ session, siteName }: { session: Session; siteName: string }) {
       </nav>
       <main class="dmain">
         {current === 'overview' && <Overview ref_={ref} />}
+        {current === 'analytics' && <Analytics />}
         {current === 'leads' && <Leads ref_={ref} />}
         {current === 'vendors' && <Vendors ref_={ref} onChange={refreshCounts} />}
         {current === 'reviews' && <Reviews onChange={refreshCounts} />}

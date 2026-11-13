@@ -435,6 +435,27 @@ test('blog categories: create, rename, hide, delete with "move posts to"', async
   assert.equal(post.slug, 'honeymoons');
 });
 
+test('analytics: visitors, sources, funnel and lead attribution from the site\'s own tracking', async () => {
+  await q(`delete from events where visitor_id like 'e2evis%'`);
+  const hit = (p) => q('select track_hit($1::jsonb)', [JSON.stringify(p)]);
+  for (let i = 0; i < 3; i++) await hit({ kind: 'page_view', path: '/blog/e2e-analytics/', vid: `e2evis00${i}`, sid: `e2eses00${i}`, ref: 'www.google.com', dev: 'mobile' });
+  await hit({ kind: 'lead_start', path: '/get-matched/', vid: 'e2evis000', sid: 'e2eses000' });
+  await hit({ kind: 'lead', path: '/get-matched/', vid: 'e2evis000', sid: 'e2eses000' });
+  await go(admin, 'analytics');
+  await admin.locator('.kpi').first().waitFor();
+  const kpi = async (label) => Number((await admin.locator(`.kpi:has(span:text-is("${label}")) b`).innerText()).replace(/,/g, ''));
+  assert.ok(await kpi('Visitors') >= 3);
+  const search = admin.locator('section:has(h2:text-is("Where visits come from")) tr:has(td b:text-is("Search"))');
+  assert.ok(Number(await search.locator('td').nth(1).innerText()) >= 3);
+  assert.ok(Number(await search.locator('td').nth(2).innerText()) >= 1, 'the lead is credited to search');
+  assert.ok(await admin.locator('section:has(h2:text-is("Top pages")) tbody tr').count() > 0);
+  assert.match(await admin.locator('section:has(h2:text-is("Lead funnel"))').innerText(), /Sent a request\s*[1-9]/);
+  await admin.screenshot({ path: process.env.SHOT ?? '/dev/null', fullPage: true }).catch(() => {});
+  await admin.selectOption('select:near(:text("Range"))', '7');
+  await admin.locator('.kpi').first().waitFor();
+  assert.deepEqual(admin.errors ?? [], []);
+});
+
 test('blog posts: comment counts open a quick view of that post\'s comments', async () => {
   await go(admin, 'posts');
   const [{ pending }] = await q(`select count(*)::int pending from comments where post_id = '00000000-0000-0000-0000-0000000b1001' and status = 'pending'`);

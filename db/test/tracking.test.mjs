@@ -24,3 +24,42 @@ test('tracking IDs: admins save them, values are format-checked, others cannot c
   await assert.rejects(set('anon', null, good), /permission denied/, 'visitors cannot change settings at all');
   assert.deepEqual((await db.one(`select value from settings where key = 'tracking'`)).value, {});
 });
+
+test('own analytics: anonymous hits with source and device, admin-only report with channels and lead attribution', async () => {
+  const admin = await makeUser(db, 'stats@site.test', 'admin');
+  const vendor = await makeUser(db, 'v2@site.test');
+  const hit = (p) => db.anon('select track_hit($1::jsonb)', [JSON.stringify(p)]);
+  await hit({ kind: 'page_view', path: '/blog/a/', vid: 'visitor0001', sid: 'session0001', ref: 'www.google.com', dev: 'mobile' });
+  await hit({ kind: 'page_view', path: '/get-matched/', vid: 'visitor0001', sid: 'session0001', ref: 'celebrateio.com', dev: 'mobile' });
+  await hit({ kind: 'lead_start', path: '/get-matched/', vid: 'visitor0001', sid: 'session0001' });
+  await hit({ kind: 'lead', path: '/get-matched/', vid: 'visitor0001', sid: 'session0001' });
+  await hit({ kind: 'page_view', path: '/blog/a/', vid: 'visitor0002', sid: 'session0002', us: 'Newsletter', um: 'email', uc: 'nov<script>', dev: 'desktop' });
+  await hit({ kind: 'page_view', path: '/blog/b/', vid: 'visitor0003', sid: 'session0003', dev: 'tablet' });
+  // Junk is dropped or cleaned, never stored as given.
+  await hit({ kind: 'page_view', path: 'javascript:alert(1)', vid: 'x' });
+  await hit({ kind: 'page_view', path: '/blog/c/', vid: 'BAD ID!', sid: "'; drop", ref: '<b>', dev: 'phone' });
+  await assert.rejects(hit({ kind: 'impression', path: '/x/' }), /invalid_kind/);
+  await hit({ kind: 'view', path: '/vendor/x/' });   // a vendor view needs a vendor
+  const junk = await db.one(`select visitor_id, session_id, referrer, device from events where page_path = '/blog/c/'`);
+  assert.deepEqual(junk, { visitor_id: null, session_id: null, referrer: null, device: null });
+  assert.equal((await db.one(`select utm_campaign from events where visitor_id = 'visitor0002'`)).utm_campaign, 'novscript');
+  assert.equal((await db.one(`select referrer from events where page_path = '/get-matched/' and kind = 'page_view'`)).referrer, null, 'own site is not a source');
+
+  const r = (await db.user(admin, 'select admin_analytics(7) as r'))[0].r;
+  assert.equal(r.kpi.visitors, 3);
+  assert.equal(r.kpi.sessions, 3);
+  assert.equal(r.kpi.pageviews, 5);
+  assert.equal(r.kpi.form_starts, 1);
+  const ch = Object.fromEntries(r.channels.map((c) => [c.channel, c]));
+  assert.equal(ch.Search.sessions, 1);
+  assert.equal(ch.Search.leads, 1, 'the lead is credited to the session that came from Google');
+  assert.equal(ch.Email.sessions, 1);
+  assert.equal(ch.Direct.sessions, 1);
+  assert.deepEqual(r.funnel, { sessions: 3, started: 1, sent: 1 });
+  assert.equal(r.pages[0].path, '/blog/a/');
+  assert.equal(r.pages[0].visitors, 2);
+  assert.equal(r.series.length, 7);
+  assert.deepEqual(r.devices.map((d) => d.device).sort(), ['desktop', 'mobile', 'tablet']);
+  await assert.rejects(db.user(vendor, 'select admin_analytics(7)'), /forbidden/);
+  await assert.rejects(db.anon('select admin_analytics(7)'), /permission denied/);
+});

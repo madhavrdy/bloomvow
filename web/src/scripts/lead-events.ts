@@ -5,7 +5,7 @@
 //   generate_lead    the request was saved (GA4's recommended lead event; also sent to Google
 //                    Ads, Meta and Tag Manager through conversion() in api.ts)
 // No personal data (name, email, phone, message) is ever sent to analytics.
-import { conversion, analytics } from './api';
+import { conversion, analytics, track } from './api';
 
 const clip = (s: string, n = 100) => s.replace(/\s+/g, ' ').trim().slice(0, n);
 
@@ -28,6 +28,7 @@ export function leadSubmitted(f: HTMLFormElement, info: LeadInfo) {
   const fd = new FormData(f);
   const guests = Number(fd.get('guests') || 0);
   const date = String(fd.get('wedding_date') || '');
+  track(null, 'lead');
   conversion('lead', {
     lead_source: info.form,
     form_name: info.form,
@@ -50,6 +51,7 @@ export function watchLeadForm(f: HTMLFormElement, form: LeadInfo['form']) {
     if (started.has(f) || !t?.name || t.name === 'website') return;
     started.add(f);
     analytics('lead_form_start', { form_name: form, first_field: t.name });
+    track(null, 'lead_start');
   };
   f.addEventListener('input', once);
   f.addEventListener('change', once);

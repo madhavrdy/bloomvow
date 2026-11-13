@@ -80,6 +80,6 @@ const adClient = d.ads.client;
   {!bare && <Header />}
   <slot />
   {!bare && <Footer />}
-  {!bare && !noindex && <script>import '../scripts/pageview';</script>}
+  <script>import '../scripts/pageview';</script>
 </body>
 </html>
