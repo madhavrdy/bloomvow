@@ -158,6 +158,29 @@ test('indoor, outdoor and banquet hall styles', () => {
   assert.ok(!by('banquet-halls').test(n('Rosewood Gardens')));
 });
 
+test('more venue styles skip city names, hotel brands and fraternal lodges', () => {
+  const by = (slug: string) => VENUE_STYLES.find((s) => s.slug === slug)!;
+  const n = (name: string) => ({ name, setting: null });
+  assert.ok(by('rooftop').test(n('On Broadway Rooftop Event Space')));
+  assert.ok(by('restaurant').test(n("Louie's Chophouse")));
+  assert.ok(by('country-club').test(n('Green Valley Country Club')));
+  assert.ok(!by('country-club').test(n('Winter Park Golf Lessons')));
+  assert.ok(by('beach').test(n('North Beach Event Venue')));
+  assert.ok(!by('beach').test(n('Long Beach Petroleum Club')));
+  assert.ok(by('mountain').test(n('The Lodge at Bridal Veil Falls')));
+  assert.ok(!by('mountain').test(n('Elks Lodge')));
+  assert.ok(by('chapel').test(n('Forever Grand Wedding Chapel')));
+  assert.ok(!by('chapel').test(n('Best Western Wesley Chapel')));
+  assert.ok(by('museum').test(n('The Florida Aquarium')));
+  assert.ok(by('brewery').test(n('Eventide Brewing')));
+  assert.ok(by('small-intimate').test({ ...n('The Venue'), capacity_max: 40 }));
+  assert.ok(!by('small-intimate').test({ ...n('The Venue'), capacity_max: 200 }));
+  assert.ok(by('affordable').test({ ...n('The Venue'), price_from: 3500 }));
+  assert.ok(!by('affordable').test({ ...n('The Venue'), price_from: 9000 }));
+  assert.ok(by('historic').test({ ...n('The Venue'), details: { venue_type: ['Castle'] } }));
+  assert.equal(new Set(VENUE_STYLES.map((s) => s.slug)).size, VENUE_STYLES.length);
+});
+
 import { matchPages } from '../src/scripts/site-search';
 test('header search: every word must start a word in the title, common aliases work, bigger pages first', () => {
   const idx = [

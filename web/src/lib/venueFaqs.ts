@@ -101,16 +101,20 @@ export function venueFaqs(c: VenueFaqContext): Faq[] {
         ? `For a small or micro wedding in ${city}, start with the ${list(small.slice(0, 3).map(withN))} listed here, which often host smaller groups.`
         : `Small wedding venues in ${city} are best found by asking venues about private rooms or weekday packages for smaller groups.`;
     const loft = styleLink('loft');
+    const intimate = styleLink('small-intimate');
     faqs.push({
       q: `Where can I find small wedding venues in ${city} for an intimate celebration?`,
       a: `${lead} Capacity isn't listed for every venue yet, so include your guest count when you request pricing.`,
-      links: loft ? [{ href: loft.url, label: `Loft & studio venues in ${city}` }] : [],
+      links: [
+        ...(intimate ? [{ href: intimate.url, label: `Small & intimate venues in ${city}` }] : []),
+        ...(loft ? [{ href: loft.url, label: `Loft & studio venues in ${city}` }] : []),
+      ],
     });
   }
 
   // 4. Outdoor
   {
-    const outdoor = ['barn', 'garden', 'vineyard', 'waterfront', 'outdoor'].map(styleLink).filter(Boolean) as VenueFaqContext['styles'];
+    const outdoor = ['outdoor', 'garden', 'barn', 'vineyard', 'beach', 'waterfront', 'rooftop', 'mountain'].map(styleLink).filter(Boolean) as VenueFaqContext['styles'];
     const outKinds = ['barn', 'garden', 'water', 'winery', 'estate'].map(has).filter(Boolean) as { label: string; n: number }[];
     const lead = outKinds.length
       ? `Outdoor wedding venues in ${city} include ${list(outKinds.slice(0, 3).map(withN))}.`
