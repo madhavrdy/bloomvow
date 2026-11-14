@@ -131,3 +131,38 @@ export function listingSummary(d: SiteData, l: ListingPage, vendors: Vendor[], s
   if (replies.length >= 2) out.push(`Vendors who reply through this site typically answer within ${replyLabel(median(replies))}.`);
   return out;
 }
+
+// FAQs for a national vendor-type page (/categories/<slug>/), from the listings in every city.
+const round = (x: number | null) => (x == null ? x : x >= 1000 ? Math.round(x / 100) * 100 : Math.round(x / 10) * 10);
+export function categoryFaqs(cat: { name: string; singular: string }, listings: ListingPage[]): Faq[] {
+  const plural = cat.name.toLowerCase();
+  const vendors = [...new Map(listings.flatMap((l) => l.vendors).map((v) => [v.id, v])).values()];
+  const prices = vendors.map((v) => v.price_from).filter((p): p is number => p != null);
+  const byCount = [...listings].sort((a, b) => b.vendors.length - a.vendors.length);
+  const faqs: Faq[] = [];
+  if (prices.length >= 5) {
+    const priced = listings.map((l) => ({ l, m: median(l.vendors.map((v) => v.price_from).filter((p): p is number => p != null)), n: l.vendors.filter((v) => v.price_from != null).length }))
+      .filter((x) => x.m != null && x.n >= 3).sort((a, b) => a.m! - b.m!);
+    faqs.push({
+      q: `How much does a ${cat.singular.toLowerCase()} cost?`,
+      a: `Across the ${prices.length.toLocaleString('en-US')} ${plural} we list that show pricing, the typical starting price is about ${money(round(median(prices)))}`
+        + (priced.length >= 2 ? `. It varies by city: from about ${money(round(priced[0].m))} in ${priced[0].l.city.name} to about ${money(round(priced[priced.length - 1].m))} in ${priced[priced.length - 1].l.city.name}` : '')
+        + '. Final quotes depend on your date, guest count and package.',
+    });
+  }
+  if (byCount.length) {
+    faqs.push({
+      q: `Which cities have the most ${plural}?`,
+      a: `${byCount.slice(0, 3).map((l) => `${l.city.name} (${l.vendors.length})`).join(', ')} have the most ${plural} on our site. We list ${vendors.length.toLocaleString('en-US')} in ${listings.length} US cities.`,
+      links: byCount.slice(0, 3).map((l) => ({ href: l.url, label: `${cat.name} in ${l.city.name}` })),
+    });
+  }
+  const rated = vendors.filter((v) => v.rating && v.review_count >= 3);
+  if (rated.length >= 3) {
+    faqs.push({ q: `How do I find a good ${cat.singular.toLowerCase()}?`,
+      a: `Start with your city, then compare reviews, starting prices and what each package includes. ${rated.length.toLocaleString('en-US')} ${plural} here have three or more reviews from couples. Ask two or three for quotes on the same date so you can compare like for like.` });
+  }
+  faqs.push({ q: `How do I get quotes from ${plural}?`,
+    a: `Pick a city, open the ${plural} you like and choose "Request pricing", or use "Get free quotes" to describe your event once and hear back from several. It's free, and replies arrive in your inbox.` });
+  return faqs;
+}

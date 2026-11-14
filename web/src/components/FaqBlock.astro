@@ -5,6 +5,7 @@ const { faqs, title } = Astro.props;
 ---
 {faqs.length > 0 && (
   <section class="section wrap faq-block"><h2>{title}</h2>
-    {faqs.map((f, i) => <details class="faq" open={i === 0}><summary>{f.q}</summary><p>{f.a}</p></details>)}
+    {faqs.map((f, i) => <details class="faq" open={i === 0}><summary>{f.q}</summary><p>{f.a}</p>
+      {f.links && f.links.length > 0 && <p class="faq-links">{f.links.map((x) => <a href={x.href}>{x.label}</a>)}</p>}</details>)}
   </section>
 )}

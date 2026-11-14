@@ -1,13 +1,18 @@
 ---
+// National page for one vendor type, e.g. /categories/wedding-venues/.
+// Header with key numbers and a city picker, popular cities, highly rated vendors, prices by city,
+// latest updates, planning guides, the long guide, FAQs, every city by state and other vendor types.
 import Intro from '../../components/Intro.astro';
 import Guide from '../../components/Guide.astro';
-import FaqBlock from '../../components/FaqBlock.astro';
-import { contentFor } from '../../lib/content';
-import { faqJsonLd } from '../../lib/seo';
+import NewsUpdates from '../../components/NewsUpdates.astro';
+import PostCard from '../../components/PostCard.astro';
+import { contentFor, mergeFaqs } from '../../lib/content';
+import { faqJsonLd, breadcrumbJsonLd, categoryFaqs } from '../../lib/seo';
 import Base from '../../layouts/Base.astro';
 import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import VendorCard from '../../components/VendorCard.astro';
-import { getData, rankVendors, type Category } from '../../lib/data';
+import { getData, rankVendors, categoryImage, money as fmtMoney, median, type Category } from '../../lib/data';
+const money = (x: number | null | undefined) => fmtMoney(x == null ? x : x >= 1000 ? Math.round(x / 100) * 100 : Math.round(x / 10) * 10);
 
 export async function getStaticPaths() {
   const d = await getData();
@@ -16,30 +21,272 @@ export async function getStaticPaths() {
 interface Props { cat: Category }
 const { cat } = Astro.props;
 const d = await getData();
+const plural = cat.name.toLowerCase();
+const n = (x: number) => x.toLocaleString('en-US');
+
 const listings = [...(d.listingsByCategory.get(cat.id) ?? [])].sort((a, b) => b.vendors.length - a.vendors.length);
-const top = rankVendors(listings.flatMap((l) => l.vendors).filter((v) => v.rating && v.review_count >= 3)).slice(0, 8);
-const byRegion = d.regions.map((r) => ({ r, ls: listings.filter((l) => l.region.id === r.id) })).filter((x) => x.ls.length);
-const total = new Set(listings.flatMap((l) => l.vendors.map((v) => v.id))).size;
+const vendors = [...new Map(listings.flatMap((l) => l.vendors).map((v) => [v.id, v])).values()];
+const total = vendors.length;
+const prices = vendors.map((v) => v.price_from).filter((p): p is number => p != null);
+const typical = prices.length >= 5 ? money(median(prices)) : null;
+const reviewed = vendors.filter((v) => v.rating && v.review_count > 0);
+const avgRating = reviewed.length >= 5 ? (reviewed.reduce((a, v) => a + Number(v.rating), 0) / reviewed.length).toFixed(1) : null;
+
+// Highly rated first; topped up with featured and managed profiles so the row is never thin.
+const rated = rankVendors(vendors.filter((v) => v.rating && v.review_count >= 3));
+const extra = rankVendors(vendors.filter((v) => !rated.includes(v) && (v.featured || v.status === 'claimed' || (v.rating && v.review_count > 0))));
+const top = [...rated, ...extra].slice(0, 8);
+
+const cityPrice = (l: (typeof listings)[number]) => {
+  const p = l.vendors.map((v) => v.price_from).filter((x): x is number => x != null);
+  return p.length >= 3 ? { med: median(p)!, lo: Math.min(...p), n: p.length } : null;
+};
+const popular = listings.slice(0, 12).map((l) => ({ l, price: cityPrice(l) }));
+const priceRows = listings.map((l) => ({ l, price: cityPrice(l) })).filter((x) => x.price).slice(0, 10);
+const byRegion = d.regions.map((r) => ({ r, ls: listings.filter((l) => l.region.id === r.id).sort((a, b) => a.city.name.localeCompare(b.city.name)) })).filter((x) => x.ls.length);
+const guides = [...d.posts]
+  .filter((p) => p.vendor_category_id === cat.id || (!p.vendor_category_id && !p.city_id) || (!p.vendor_category_id && p.city_id))
+  .map((p) => ({ p, s: (p.vendor_category_id === cat.id ? 4 : 0) + (!p.city_id ? 1 : 0) }))
+  .sort((a, b) => b.s - a.s || b.p.published_at.localeCompare(a.p.published_at)).slice(0, 6).map((x) => x.p);
+const news = d.news.filter((x) => x.city_id === null && (x.category_id === cat.id || x.category_id === null))
+  .sort((a, b) => (a.category_id === cat.id ? 0 : 1) - (b.category_id === cat.id ? 0 : 1) || b.published_at.localeCompare(a.published_at)).slice(0, 4);
+const others = d.categories.filter((c) => c.id !== cat.id && d.listingsByCategory.has(c.id));
+
 const c = contentFor(d, `/categories/${cat.slug}/`, Astro.site?.host);
+const faqs = mergeFaqs(c.faqs, categoryFaqs(cat, listings));
+const crumbs = [{ name: 'Home', url: '/' }, { name: 'Categories', url: '/categories/' }, { name: cat.name }];
+const img = categoryImage(cat);
+const fallback = `/img/categories/${cat.slug}.svg`;
 ---
-<Base title={c.seoTitle ?? `${cat.name} near you`} image={c.hero?.url} jsonld={c.faqs.length ? [faqJsonLd(c.faqs)] : []} description={c.seoDescription ?? `Compare ${total} ${cat.name.toLowerCase()} in ${listings.length} US cities. See pricing, reviews and availability, then request quotes for free.`}>
-  <main class="wrap" style="padding-top:24px">
-    <Breadcrumbs items={[{ name: 'Home', url: '/' }, { name: 'Categories', url: '/categories/' }, { name: cat.name }]} />
-    <h1 class="serif" style="font-size:clamp(36px,5vw,52px);margin:16px 0 8px">{cat.name} near you</h1>
-    <Intro c={c} auto={`${total} ${cat.name.toLowerCase()} in ${listings.length} cities. Pick a city to compare.`} />
-    <section class="section">
-      <h2>Popular cities</h2>
-      <div class="tile-grid">{listings.slice(0, 12).map((l) => <a class="tile" href={l.url}><b>{l.city.name}, {l.region.code.toUpperCase()}</b><span>{l.vendors.length} {cat.name.toLowerCase()}</span></a>)}</div>
-    </section>
-    {top.length > 0 && <section class="section"><h2>Highly rated</h2><div class="card-grid">{top.map((v, i) => <VendorCard v={v} index={i} />)}</div></section>}
-    <section class="section">
+<Base title={c.seoTitle ?? `${cat.name} near you`} image={c.hero?.url} jsonld={[breadcrumbJsonLd(Astro.site, crumbs), ...(faqs.length ? [faqJsonLd(faqs)] : [])]}
+  description={c.seoDescription ?? `Compare ${n(total)} ${plural} in ${listings.length} US cities${typical ? `, typically from ${typical}` : ''}. See pricing and reviews, then request quotes for free.`}>
+  <section class="chero">
+    <div class="wrap chero-in">
+      <div class="chero-copy">
+        <Breadcrumbs items={crumbs} />
+        <h1 class="serif">{cat.name} near you</h1>
+        <Intro c={c} auto={cat.description ?? `Compare ${plural} across ${listings.length} US cities: starting prices, reviews and how quickly they reply. Pick your city, shortlist a few and ask for quotes in one go.`} />
+        <ul class="cstats" aria-label="At a glance">
+          <li><b>{n(total)}</b><span>{plural}</span></li>
+          <li><b>{listings.length}</b><span>{listings.length === 1 ? 'city' : 'cities'}</span></li>
+          {typical && <li><b>{typical}</b><span>typical starting price</span></li>}
+          {avgRating && <li><b>★ {avgRating}</b><span>average rating</span></li>}
+        </ul>
+        {listings.length > 0 && (
+          <form class="cpick" id="cpick" action="/search/" method="get">
+            <label for="cpick-city" class="visually-hidden">Choose your city</label>
+            <select id="cpick-city" name="city" required>
+              <option value="">Choose your city…</option>
+              {byRegion.map(({ r, ls }) => <optgroup label={r.name}>{ls.map((l) => <option value={l.url}>{l.city.name} ({l.vendors.length})</option>)}</optgroup>)}
+            </select>
+            <button class="btn btn-primary">Show {plural}</button>
+          </form>
+        )}
+        <p class="cquote">Planning several things at once? <a href="/get-matched/">Get free quotes from several vendors →</a></p>
+      </div>
+      <div class="chero-img" aria-hidden="true">
+        <img src={img} alt="" width="360" height="360" fetchpriority="high" onerror={img !== fallback ? `this.onerror=null;this.src='${fallback}'` : undefined} />
+      </div>
+    </div>
+  </section>
+
+  <main class="wrap">
+    {popular.length > 0 && (
+      <section class="section">
+        <div class="section-head"><h2>Popular cities</h2><a href="#all-cities" class="more">All {listings.length} cities ↓</a></div>
+        <div class="ctiles">
+          {popular.map(({ l, price }) => (
+            <a class="ctile" href={l.url}>
+              <span class="ctile-t"><b>{l.city.name}</b><span>{l.region.name}</span></span>
+              <span class="ctile-n"><b>{l.vendors.length}</b> {l.vendors.length === 1 ? cat.singular.toLowerCase() : plural}{price && <> · from {money(price.lo)}</>}</span>
+            </a>
+          ))}
+        </div>
+      </section>
+    )}
+
+    {top.length > 0 && (
+      <section class="section">
+        <div class="section-head"><h2>{rated.length >= 4 ? 'Highly rated' : `Popular ${plural}`}</h2><span class="muted hint">Swipe for more →</span></div>
+        <div class="rail">{top.map((v, i) => <div class="rail-i"><VendorCard v={v} index={i} /></div>)}</div>
+      </section>
+    )}
+
+    {priceRows.length >= 3 && (
+      <section class="section">
+        <h2>{cat.name} prices by city</h2>
+        <p class="muted sub">Starting prices listed by {plural} on our site. The typical price is the middle of the range; final quotes depend on your date, guest count and package.</p>
+        <div class="ptable" role="table" aria-label={`${cat.name} prices by city`}>
+          <div class="prow phead" role="row"><span role="columnheader">City</span><span role="columnheader">Typical starting price</span><span role="columnheader">From</span><span role="columnheader">Listed</span></div>
+          {priceRows.map(({ l, price }) => (
+            <a class="prow" role="row" href={l.url}>
+              <span role="cell" class="pcity"><b>{l.city.name}</b>, {l.region.code.toUpperCase()}</span>
+              <span role="cell" class="pmed"><span class="plabel">Typical </span>{money(price!.med)}</span>
+              <span role="cell"><span class="plabel">From </span>{money(price!.lo)}</span>
+              <span role="cell" class="pcount">{l.vendors.length} {plural}</span>
+            </a>
+          ))}
+        </div>
+      </section>
+    )}
+
+    <div class="cnews"><NewsUpdates items={news} city={0} category={cat.id} title={`${cat.name}: latest updates`} /></div>
+
+    {guides.length > 0 && (
+      <section class="section">
+        <div class="section-head"><h2>Planning guides</h2><a href="/blog/" class="more">All guides →</a></div>
+        <div class="rail rail-posts">{guides.map((p) => <div class="rail-i"><PostCard p={p} compact /></div>)}</div>
+      </section>
+    )}
+  </main>
+
+  <Guide c={c} title={`How to choose ${plural}`} />
+
+  <main class="wrap">
+    {faqs.length > 0 && (
+      <section class="section cfaq"><h2>{cat.name}: FAQs</h2>
+        {faqs.map((f, i) => <details class="faq" open={i === 0}><summary>{f.q}</summary><p>{f.a}</p>
+          {f.links && f.links.length > 0 && <p class="faq-links">{f.links.map((x) => <a href={x.href}>{x.label}</a>)}</p>}</details>)}
+      </section>
+    )}
+    <section class="section" id="all-cities">
       <h2>All cities by state</h2>
-      {byRegion.map(({ r, ls }) => (
-        <div style="margin-bottom:20px"><b>{r.name}</b>
-          <div class="links-grid" style="margin-top:8px">{ls.map((l) => <a href={l.url}>{l.city.name}</a>)}</div></div>
-      ))}
+      <div class="states">
+        {byRegion.map(({ r, ls }) => (
+          <div class="state"><b>{r.name}</b>
+            <ul>{ls.map((l) => <li><a href={l.url}>{l.city.name}</a> <span>{l.vendors.length}</span></li>)}</ul>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    {others.length > 0 && (
+      <section class="section">
+        <h2>Other vendor types</h2>
+        <div class="ochips">{others.map((o) => <a href={`/categories/${o.slug}/`}>{o.name}</a>)}</div>
+      </section>
+    )}
+
+    <section class="ccta">
+      <div><h2 class="serif">Not sure which {cat.singular.toLowerCase()} to choose?</h2><p>Tell us your date, city and budget once, and we'll match you with {plural} who are available.</p></div>
+      <a class="btn btn-primary btn-lg" href="/get-matched/">Get free quotes</a>
     </section>
   </main>
-  <Guide c={c} title={`How to choose ${cat.name.toLowerCase()}`} />
-  <FaqBlock faqs={c.faqs} title={`${cat.name}: FAQs`} />
 </Base>
+
+<script>
+  // City picker: go straight to the city page (the form still works without JavaScript via search).
+  const f = document.getElementById('cpick') as HTMLFormElement | null;
+  f?.addEventListener('submit', (e) => {
+    const v = (f.elements.namedItem('city') as HTMLSelectElement).value;
+    if (v.startsWith('/')) { e.preventDefault(); location.href = v; }
+  });
+  (document.getElementById('cpick-city') as HTMLSelectElement | null)?.addEventListener('change', (e) => {
+    const v = (e.currentTarget as HTMLSelectElement).value;
+    if (v.startsWith('/')) location.href = v;
+  });
+</script>
+
+<style>
+  .chero { background: linear-gradient(180deg, var(--rose-soft) 0%, #fff 100%); border-bottom: 1px solid var(--line); }
+  .chero-in { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 48px; align-items: center; padding-top: 24px; padding-bottom: 40px; }
+  .chero h1 { font-size: clamp(36px, 5vw, 56px); line-height: 1.05; margin: 16px 0 10px; }
+  .chero :global(.page-intro) { font-size: 17px; max-width: 640px; margin: 0; }
+  .chero-img { justify-self: end; width: 300px; height: 300px; border-radius: 32px; overflow: hidden; background: #fff; box-shadow: var(--shadow-sm); border: 1px solid var(--line); }
+  .chero-img img { width: 100%; height: 100%; object-fit: cover; }
+  .cstats { list-style: none; padding: 0; margin: 22px 0 0; display: flex; flex-wrap: wrap; gap: 10px; }
+  .cstats li { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 10px 16px; display: flex; flex-direction: column; min-width: 120px; }
+  .cstats b { font-size: 20px; color: var(--ink); line-height: 1.2; }
+  .cstats span { font-size: 13px; color: var(--ink-3); }
+  .cpick { display: flex; gap: 10px; margin-top: 22px; max-width: 560px; }
+  .cpick select { flex: 1; min-height: 50px; border: 1px solid var(--line); border-radius: 999px; padding: 0 18px; font: inherit; font-size: 16px; background: #fff; color: var(--ink); min-width: 0; }
+  .cpick .btn { white-space: nowrap; }
+  .cquote { margin: 14px 0 0; font-size: 15px; color: var(--ink-2); }
+  .cquote a { color: var(--rose-dark); font-weight: 600; text-decoration: none; }
+  .cquote a:hover { text-decoration: underline; }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  .more { font-size: 15px; color: var(--rose-dark); font-weight: 600; text-decoration: none; margin-bottom: 26px; }
+  .hint { display: none; font-size: 14px; margin-bottom: 26px; }
+  .sub { margin: -14px 0 18px; max-width: 720px; font-size: 15px; }
+
+  .ctiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .ctile { display: flex; flex-direction: column; gap: 6px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 16px; background: #fff; text-decoration: none; color: var(--ink); transition: border-color .15s, box-shadow .15s; }
+  .ctile:hover { border-color: var(--rose-tint); box-shadow: var(--shadow-sm); color: var(--ink); }
+  .ctile-t { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+  .ctile-t b { font-size: 16px; }
+  .ctile-t span { font-size: 13px; color: var(--ink-3); }
+  .ctile-n { font-size: 13px; color: var(--ink-2); line-height: 1.35; }
+  .ctile-n b { color: var(--rose-dark); font-size: 15px; }
+
+  .rail { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
+  .rail-posts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+  .ptable { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: #fff; }
+  .prow { display: grid; grid-template-columns: 2fr 1.4fr 1fr 1fr; gap: 12px; padding: 14px 20px; border-top: 1px solid var(--line); text-decoration: none; color: var(--ink-2); font-size: 15px; align-items: center; }
+  .prow:first-child { border-top: 0; }
+  a.prow:hover { background: var(--rose-soft); color: var(--ink); }
+  .phead { background: #faf7f8; font-size: 13px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: .4px; padding-top: 12px; padding-bottom: 12px; }
+  .pcity b { color: var(--ink); }
+  .pmed { font-weight: 600; color: var(--ink); }
+  .plabel { display: none; }
+
+  .cnews :global(.news) { margin-top: 56px; }
+  .cnews :global(.news h2) { font-size: clamp(32px, 4vw, 44px); font-weight: 400; }
+
+  .states { columns: 4 220px; column-gap: 32px; }
+  .state { break-inside: avoid; margin: 0 0 22px; }
+  .state b { display: block; font-size: 15px; margin-bottom: 6px; }
+  .state ul { list-style: none; margin: 0; padding: 0; }
+  .state li { display: flex; justify-content: space-between; gap: 8px; font-size: 15px; padding: 3px 0; border-bottom: 1px dashed var(--line); }
+  .state a { color: var(--ink-2); text-decoration: none; }
+  .state a:hover { color: var(--rose-dark); }
+  .state li span { color: var(--ink-3); font-size: 13px; }
+
+.cfaq { max-width: 860px; }
+  .cfaq :global(.faq-links) { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 14px; margin-top: 8px; }
+  .cfaq :global(.faq-links a) { color: var(--rose-dark); font-weight: 600; }
+  .ochips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .ochips a { border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px; font-size: 15px; text-decoration: none; color: var(--ink-2); background: #fff; }
+  .ochips a:hover { border-color: var(--rose-tint); color: var(--rose-dark); }
+
+  .ccta { margin: 56px 0; background: var(--rose-soft); border-radius: 24px; padding: 32px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: space-between; }
+  .ccta h2 { font-size: clamp(26px, 4vw, 34px); margin: 0 0 6px; font-weight: 400; }
+  .ccta p { margin: 0; color: var(--ink-2); max-width: 540px; }
+
+  @media (max-width: 1000px) {
+    .ctiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .rail { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .rail .rail-i:nth-child(n+7) { display: none; }
+  }
+  @media (max-width: 760px) {
+    .chero-in { grid-template-columns: 1fr; gap: 0; padding-bottom: 28px; }
+    .chero-img { display: none; }
+    .chero h1 { margin-top: 12px; }
+    .chero :global(.page-intro) { font-size: 16px; }
+    .cstats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .cstats li { min-width: 0; padding: 10px 12px; }
+    .cstats b { font-size: 18px; }
+    .cpick { flex-direction: column; }
+    .cpick .btn { width: 100%; }
+    .section h2 { font-size: 30px; }
+    .ctiles { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .ctile { gap: 4px; padding: 12px 14px; }
+    .hint { display: inline; }
+    /* Swipeable rows instead of eight full-width cards stacked down the page. */
+    .rail, .rail-posts { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: 16px; gap: 12px; margin: 0 -16px; padding: 0 16px 8px; scrollbar-width: none; }
+    .rail::-webkit-scrollbar { display: none; }
+    .rail-i, .rail .rail-i:nth-child(n+7) { display: block; flex: 0 0 78%; scroll-snap-align: start; }
+    .phead { display: none; }
+    .prow { grid-template-columns: 1fr auto; gap: 2px 12px; padding: 12px 16px; }
+    .pcity { grid-column: 1; }
+    .pmed { grid-column: 2; grid-row: 1; text-align: right; }
+    .prow > span:nth-child(3) { grid-column: 2; text-align: right; font-size: 13px; }
+    .pcount { grid-column: 1; grid-row: 2; font-size: 13px; color: var(--ink-3); }
+    .plabel { display: inline; font-weight: 400; color: var(--ink-3); font-size: 13px; }
+    .states { columns: 2; column-gap: 20px; }
+    .state li { font-size: 14px; }
+    .ccta { padding: 24px; margin: 40px 0; }
+    .ccta .btn { width: 100%; }
+  }
+</style>
