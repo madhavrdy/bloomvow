@@ -35,7 +35,10 @@ const avgRating = reviewed.length >= 5 ? (reviewed.reduce((a, v) => a + Number(v
 // Highly rated first; topped up with featured and managed profiles so the row is never thin.
 const rated = rankVendors(vendors.filter((v) => v.rating && v.review_count >= 3));
 const extra = rankVendors(vendors.filter((v) => !rated.includes(v) && (v.featured || v.status === 'claimed' || (v.rating && v.review_count > 0))));
-const top = [...rated, ...extra].slice(0, 8);
+const picked = [...rated, ...extra];
+// Few reviews yet: top up with the most popular listings (photos and details first).
+const fill = picked.length >= 8 ? [] : rankVendors(vendors.filter((v) => !picked.includes(v) && d.isRich(v))).concat(rankVendors(vendors.filter((v) => !picked.includes(v) && !d.isRich(v))));
+const top = [...picked, ...fill].slice(0, 8);
 
 const cityPrice = (l: (typeof listings)[number]) => {
   const p = l.vendors.map((v) => v.price_from).filter((x): x is number => x != null);
