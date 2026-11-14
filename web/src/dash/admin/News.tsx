@@ -8,7 +8,7 @@ type Item = { id: number; title: string; summary: string | null; url: string; so
   published_at: string; city_id: number | null; category_id: number | null; status: 'published' | 'pending' | 'hidden'; origin: 'auto' | 'manual' };
 type Opt = { id: number; name: string };
 type Target = { city_id: number | null; category_id: number | null; first_run_at: string | null; last_run_at: string | null; last_found: number | null };
-type Cfg = { approval?: boolean; paused?: boolean; sources?: string[]; blocked?: string };
+type Cfg = { approval?: boolean; paused?: boolean; sources?: string[]; local_sources?: string[]; blocked?: string };
 
 const STATUS: Record<Item['status'], [string, string]> = { published: ['Published', 's-replied'], pending: ['Waiting for approval', 's-new'], hidden: ['Hidden', 's-pending'] };
 const blank = (): Partial<Item> => ({ title: '', summary: '', url: '', source_name: '', published_at: new Date().toISOString().slice(0, 10), city_id: null, category_id: null, status: 'published' });
@@ -166,7 +166,7 @@ function Editor({ item, cities, cats, onClose, onSaved, onError }: {
           placeholder="One sentence in your own words, e.g. why it matters to couples." /></label>
         <label class="field">Link to the original story<input type="url" value={f.url ?? ''} onInput={(e) => set('url', e.currentTarget.value)} style={fieldStyle} /></label>
         <div style="display:flex;gap:12px;flex-wrap:wrap">
-          <label class="field" style="flex:1 1 200px">Publisher<input value={f.source_name ?? ''} maxLength={120} onInput={(e) => set('source_name', e.currentTarget.value)} style={fieldStyle} placeholder="e.g. The Knot" /></label>
+          <label class="field" style="flex:1 1 200px">Publisher<input value={f.source_name ?? ''} maxLength={120} onInput={(e) => set('source_name', e.currentTarget.value)} style={fieldStyle} placeholder="e.g. Austin American-Statesman" /></label>
           <label class="field" style="flex:0 1 180px">Story date<input type="date" value={f.published_at ?? ''} onInput={(e) => set('published_at', e.currentTarget.value)} style={fieldStyle} /></label>
         </div>
         <div style="display:flex;gap:12px;flex-wrap:wrap">
@@ -192,14 +192,16 @@ function Settings({ cfg, onSaved, onError }: { cfg: Cfg; onSaved: (c: Cfg) => vo
   const [approval, setApproval] = useState(!!cfg.approval);
   const [paused, setPaused] = useState(!!cfg.paused);
   const [sources, setSources] = useState((cfg.sources ?? []).join('\n'));
+  const [local, setLocal] = useState((cfg.local_sources ?? []).join('\n'));
   const [blocked, setBlocked] = useState(cfg.blocked ?? '');
   const [busy, setBusy] = useState(false);
   async function save(e: Event) {
     e.preventDefault();
-    const list = [...new Set(sources.split(/[\s,]+/).map((s) => s.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '')).filter(Boolean))];
-    const bad = list.find((s) => !/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(s));
+    const clean = (t: string) => [...new Set(t.split(/[\s,]+/).map((s) => s.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '')).filter(Boolean))];
+    const list = clean(sources), localList = clean(local);
+    const bad = [...list, ...localList].find((s) => !/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(s));
     if (bad) return onError(`"${bad}" isn't a website address like nytimes.com.`);
-    const value: Cfg = { approval, paused, sources: list, blocked: blocked.trim() };
+    const value: Cfg = { approval, paused, sources: list, local_sources: localList, blocked: blocked.trim() };
     setBusy(true);
     const { data, error } = await sb().from('settings').update({ value }).eq('key', 'news').select('value');
     setBusy(false);
@@ -213,10 +215,16 @@ function Settings({ cfg, onSaved, onError }: { cfg: Cfg; onSaved: (c: Cfg) => vo
         <span><b>Approve before publishing.</b> New items wait under "Waiting for approval" until you approve them.</span></label>
       <label style="display:flex;gap:10px;align-items:center"><input type="checkbox" checked={paused} onChange={(e) => setPaused(e.currentTarget.checked)} />
         <span><b>Pause collecting.</b> Nothing new is fetched; what's published stays.</span></label>
-      <label class="field">Credible sources ({sources.split(/\s+/).filter(Boolean).length}). Only stories from these websites are collected; one per line.
-        <textarea rows={8} value={sources} onInput={(e) => setSources(e.currentTarget.value)} spellcheck={false}
-          style="font-family:ui-monospace,Menlo,monospace;font-size:13px;width:100%;padding:10px;border:1px solid var(--ln);border-radius:10px" /></label>
-      <label class="field">Blocked words. Headlines containing any of these are skipped (separate with commas).
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <label class="field" style="flex:1 1 280px">National sources ({sources.split(/\s+/).filter(Boolean).length}): can appear on any page. One website per line.
+          <textarea rows={8} value={sources} onInput={(e) => setSources(e.currentTarget.value)} spellcheck={false}
+            style="font-family:ui-monospace,Menlo,monospace;font-size:13px;width:100%;padding:10px;border:1px solid var(--ln);border-radius:10px" /></label>
+        <label class="field" style="flex:1 1 280px">Local sources ({local.split(/\s+/).filter(Boolean).length}): city papers and TV, only used for their own city's news.
+          <textarea rows={8} value={local} onInput={(e) => setLocal(e.currentTarget.value)} spellcheck={false}
+            style="font-family:ui-monospace,Menlo,monospace;font-size:13px;width:100%;padding:10px;border:1px solid var(--ln);border-radius:10px" /></label>
+      </div>
+      <p class="muted" style="margin:0;font-size:13px">Leave out directory competitors (The Knot, WeddingWire, Zola…) and gossip sites; only stories from these websites are collected.</p>
+      <label class="field">Blocked words. Headlines with a word starting with any of these are skipped ("evacuat" also blocks evacuated and evacuation). Separate with commas.
         <textarea rows={4} value={blocked} onInput={(e) => setBlocked(e.currentTarget.value)}
           style="font-size:13px;width:100%;padding:10px;border:1px solid var(--ln);border-radius:10px" /></label>
       <button class="btn btn-acc" disabled={busy} style="justify-self:start">{busy ? 'Saving…' : 'Save settings'}</button>

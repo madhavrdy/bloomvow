@@ -5,7 +5,8 @@
 -- (local wedding & venue news) and each vendor type (national news about that service). A target
 -- is checked daily during its first 7 days, then weekly.
 -- Only items that pass every check are kept:
---   * from a credible publisher on the allow-list (Admin > News > Sources)
+--   * from a credible publisher on the allow-list (Admin > News > Sources): national sources
+--     for any page, local papers/TV only for their city's news
 --   * the headline is about weddings/events (and names the city, for city news)
 --   * nothing on the block-list: deaths, crime, accidents, disasters, lawsuits, closures...
 --   * published in the last 21 days
@@ -59,12 +60,16 @@ revoke all on news_targets from anon;
 -- Settings (Admin > News): approval, credible sources, blocked words.
 create or replace function news_settings_ok(v jsonb) returns boolean language sql immutable as $$
   select jsonb_typeof(v) = 'object'
-    and not exists (select 1 from jsonb_object_keys(v) k where k not in ('approval', 'sources', 'blocked', 'paused'))
+    and not exists (select 1 from jsonb_object_keys(v) k where k not in ('approval', 'sources', 'local_sources', 'blocked', 'paused'))
     and coalesce(jsonb_typeof(v->'approval'), 'boolean') = 'boolean'
     and coalesce(jsonb_typeof(v->'paused'), 'boolean') = 'boolean'
     and coalesce(jsonb_typeof(v->'sources'), 'array') = 'array'
     and jsonb_array_length(coalesce(v->'sources', '[]')) <= 500
     and not exists (select 1 from jsonb_array_elements(coalesce(v->'sources', '[]')) s
+                    where jsonb_typeof(s) <> 'string' or s #>> '{}' !~ '^[a-z0-9-]+(\.[a-z0-9-]+)+$')
+    and coalesce(jsonb_typeof(v->'local_sources'), 'array') = 'array'
+    and jsonb_array_length(coalesce(v->'local_sources', '[]')) <= 500
+    and not exists (select 1 from jsonb_array_elements(coalesce(v->'local_sources', '[]')) s
                     where jsonb_typeof(s) <> 'string' or s #>> '{}' !~ '^[a-z0-9-]+(\.[a-z0-9-]+)+$')
     and coalesce(jsonb_typeof(v->'blocked'), 'string') = 'string'
     and length(coalesce(v->>'blocked', '')) <= 4000
@@ -72,24 +77,24 @@ $$;
 alter table settings drop constraint if exists settings_news_check;
 alter table settings add constraint settings_news_check check (key <> 'news' or news_settings_ok(value));
 
+-- Blocked words match the start of a word ("evacuat" also catches evacuated, evacuation).
+-- National sources may appear on any page; local sources only for their own city's news.
+-- Directory competitors (The Knot, WeddingWire, Zola...) and celebrity/tabloid sites are left out.
 insert into settings (key, value) values ('news', jsonb_build_object(
   'approval', false,
   'paused', false,
-  'blocked', 'dies, died, dead, death, deaths, killed, kills, murder, shooting, shot, stabbed, stabbing, crash, collision, wreck, fire, blaze, burned, flood, flooding, storm, hurricane, tornado, earthquake, explosion, collapse, injured, injuries, hospitalized, heart stops, cardiac, arrest, arrested, charged, indicted, lawsuit, sued, sues, fraud, scam, theft, stolen, robbery, assault, abuse, harassment, police, crime, victim, missing, tragic, tragedy, mourn, mourning, funeral, obituary, memorial, vigil, overdose, disaster, evacuation, bankrupt, bankruptcy, closes, closing, closed, shut down, layoffs, divorce, scandal, outrage, brawl, fight, recall, protest, shutdown, politics, election',
+  'blocked', 'die, died, dead, death, kill, murder, shoot, shot, stab, gunfire, gunman, gunshot, crash, collision, wreck, fire, blaze, burn, flood, storm, hurricane, tornado, earthquake, explo, bomb, collapse, injur, hospital, heart stop, cardiac, arrest, charged, indict, lawsuit, sued, sues, suing, fraud, scam, theft, thief, stole, robb, assault, abus, harass, police, crime, criminal, victim, missing, disappear, tragic, traged, mourn, funeral, obituar, memorial, vigil, overdose, disaster, evacuat, homeless, bankrupt, closure, closes, closing, closed, shut down, shutdown, layoff, divorce, scandal, outrage, brawl, fight, recall, protest, politic, election, deport, immigration, war on, massacre, bloody, nightmare, horror, backlash, cheat, affair, late mother, late father, late daughter, late son, late husband, late wife, celebrit, kardashian, actress, actor, singer, rapper, influencer, reality star, reality tv, alum, exclusive, royal, prince, princess, viral, slams, feud, drama',
   'sources', to_jsonb(array[
-    -- national news
     'apnews.com', 'reuters.com', 'nytimes.com', 'washingtonpost.com', 'wsj.com', 'usatoday.com', 'npr.org', 'cnn.com', 'nbcnews.com',
-    'cbsnews.com', 'abcnews.go.com', 'forbes.com', 'bloomberg.com', 'axios.com', 'cnbc.com', 'time.com', 'today.com', 'goodmorningamerica.com',
-    -- weddings, events, lifestyle & travel
-    'theknot.com', 'weddingwire.com', 'brides.com', 'marthastewart.com', 'vogue.com', 'harpersbazaar.com', 'townandcountrymag.com',
-    'people.com', 'elle.com', 'glamour.com', 'cosmopolitan.com', 'housebeautiful.com', 'veranda.com', 'southernliving.com', 'bizbash.com',
-    'eventmarketer.com', 'specialevents.com', 'cntraveler.com', 'travelandleisure.com', 'fodors.com', 'afar.com', 'eater.com', 'timeout.com',
-    'thrillist.com', 'bonappetit.com', 'foodandwine.com', 'architecturaldigest.com', 'bizjournals.com', 'communityimpact.com', 'culturemap.com',
-    'patch.com',
-    -- city & regional papers and TV
+    'cbsnews.com', 'abcnews.go.com', 'forbes.com', 'bloomberg.com', 'axios.com', 'cnbc.com', 'time.com',
+    'brides.com', 'marthastewart.com', 'vogue.com', 'townandcountrymag.com', 'housebeautiful.com', 'veranda.com', 'southernliving.com',
+    'bizbash.com', 'eventmarketer.com', 'specialevents.com', 'cntraveler.com', 'travelandleisure.com', 'fodors.com', 'afar.com',
+    'eater.com', 'timeout.com', 'bonappetit.com', 'foodandwine.com', 'architecturaldigest.com']::text[]),
+  'local_sources', to_jsonb(array[
+    'bizjournals.com', 'communityimpact.com', 'culturemap.com', 'patch.com',
     'statesman.com', 'austinmonthly.com', 'austinchronicle.com', 'kxan.com', 'kvue.com', 'expressnews.com', 'mysanantonio.com', 'ksat.com',
     'dallasnews.com', 'dmagazine.com', 'wfaa.com', 'star-telegram.com', 'houstonchronicle.com', 'chron.com', 'houstoniamag.com', 'khou.com',
-    'tennessean.com', 'nashvillescene.com', 'wsmv.com', 'williamsonherald.com', 'ny1.com', 'nypost.com', 'nydailynews.com', 'brooklynpaper.com',
+    'tennessean.com', 'nashvillescene.com', 'wsmv.com', 'williamsonherald.com', 'ny1.com', 'nydailynews.com', 'brooklynpaper.com',
     'jerseydigs.com', 'nj.com', 'latimes.com', 'lamag.com', 'sandiegouniontribune.com', 'sandiegomagazine.com', 'sfchronicle.com', 'sfgate.com',
     'sfstandard.com', 'napavalleyregister.com', 'chicagotribune.com', 'chicagomag.com', 'suntimes.com', 'miamiherald.com', 'miaminewtimes.com',
     'orlandosentinel.com', 'orlandoweekly.com', 'tampabay.com', 'ajc.com', 'atlantamagazine.com', 'denverpost.com', '5280.com', 'dailycamera.com',
@@ -136,6 +141,14 @@ begin
 end $$;
 select news_seed_targets();
 
+-- Two headlines about the same story (shares most of its longer words).
+create or replace function news_similar(a text, b text) returns boolean language sql immutable as $$
+  with wa as (select distinct w from regexp_split_to_table(lower(a), '[^a-z0-9]+') w where length(w) > 3),
+       wb as (select distinct w from regexp_split_to_table(lower(b), '[^a-z0-9]+') w where length(w) > 3)
+  select (select count(*) from wa join wb using (w))::numeric
+         / greatest(least((select count(*) from wa), (select count(*) from wb)), 1) >= 0.6
+$$;
+
 -- Daily for a target's first 7 days, then weekly.
 create or replace function news_target_due(t news_targets) returns boolean language sql stable as $$
   select t.active and t.request_id is null and (
@@ -156,7 +169,9 @@ create or replace function news_parse(t news_targets, body text) returns int
 language plpgsql security definer set search_path = public as $$
 declare
   cfg jsonb := coalesce((select value from settings where key = 'news'), '{}');
-  sources text[] := array(select jsonb_array_elements_text(coalesce(cfg->'sources', '[]')));
+  sources text[] := array(select jsonb_array_elements_text(coalesce(cfg->'sources', '[]'))
+                          union all
+                          select jsonb_array_elements_text(coalesce(cfg->'local_sources', '[]')) where t.city_id is not null);
   blocked text := news_block_regex();
   city_re text;
   doc xml;
@@ -188,7 +203,8 @@ begin
       continue when clean !~* t.must_match;
       continue when city_re is not null and clean !~* city_re;
       continue when blocked is not null and clean ~* blocked;
-      continue when exists (select 1 from news_items where lower(title) = lower(clean));
+      continue when exists (select 1 from news_items where lower(title) = lower(clean)
+                              or (published_at > pub - interval '7 days' and city_id is not distinct from t.city_id and news_similar(title, clean)));
       insert into news_items (title, url, source_name, source_domain, published_at, city_id, category_id, status, origin)
       values (left(clean, 300), it.link, left(it.src, 120), it.dom, pub, t.city_id, t.category_id,
               case when coalesce((cfg->>'approval')::boolean, false) then 'pending' else 'published' end, 'auto')

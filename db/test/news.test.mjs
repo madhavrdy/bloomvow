@@ -30,11 +30,15 @@ test('only credible, relevant, recent and non-tragic headlines are kept', async 
     item('Austin bridal show returns this January', 'KXAN', 'https://www.kxan.com', 40),               // too old
     item('Austin venue owner charged with fraud', 'KXAN', 'https://www.kxan.com'),                     // blocked word
     item('Austin wedding season: five event spaces booking fast', 'CultureMap Austin', 'https://austin.culturemap.com'),
+    item('Austin wedding season: five event spaces are booking fast', 'KXAN', 'https://www.kxan.com'),         // same story twice
+    item('Austin wedding planner wins People Exclusive award', 'Austin American-Statesman', 'https://www.statesman.com'), // celebrity/tabloid cue
+    item('Austin wedding venue evacuated', 'KXAN', 'https://www.kxan.com'),                                    // word stem
+    item('Austin wedding fair this weekend', 'KXAN', 'https://www.kxan.com'),
   );
   const n = (await db.one(`select news_parse(t, $2) as n from news_targets t where t.id = $1`, [t.id, body])).n;
-  assert.equal(n, 2);
+  assert.equal(n, 3);
   const titles = (await db.sql(`select title, source_name, city_id, status from news_items order by title`));
-  assert.deepEqual(titles.map((x) => x.title), ['Austin wedding season: five event spaces booking fast', 'New Austin wedding venue opens in former train depot']);
+  assert.deepEqual(titles.map((x) => x.title), ['Austin wedding fair this weekend', 'Austin wedding season: five event spaces booking fast', 'New Austin wedding venue opens in former train depot']);
   assert.ok(titles.every((x) => x.city_id === austin && x.status === 'published'));
   // The same headline again is not added twice.
   assert.equal((await db.one(`select news_parse(t, $2) as n from news_targets t where t.id = $1`, [t.id, body])).n, 0);
@@ -45,6 +49,19 @@ test('only credible, relevant, recent and non-tragic headlines are kept', async 
   await db.sql(`update settings set value = value || '{"approval": false}' where key = 'news'`);
 });
 
+test('national pages only take national sources; local papers count only for their own city', async () => {
+  const t = await db.one(`select * from news_targets where category_id = $1 and city_id is null`, [venues]);
+  const body = rss(
+    item('New wedding venue opens in Ohio barn', 'Patch', 'https://patch.com'),                         // local source
+    item('Event venue trends for 2027 weddings', 'BizBash', 'https://www.bizbash.com'),                 // national
+    item('Wedding venue directory picks', 'The Knot', 'https://www.theknot.com'),                        // competitor, not listed
+  );
+  assert.equal((await db.one(`select news_parse(t, $2) as n from news_targets t where t.id = $1`, [t.id, body])).n, 1);
+  assert.ok((await db.one(`select count(*)::int n from news_items where title = 'Event venue trends for 2027 weddings'`)).n === 1);
+  const cfg = (await db.one(`select value from settings where key = 'news'`)).value;
+  assert.ok(![...cfg.sources, ...cfg.local_sources].some((d) => /theknot|weddingwire|zola/.test(d)), 'no competitor directories');
+});
+
 test('pages get the most specific items first, only published and recent ones', async () => {
   await db.sql(`insert into news_items (title, url, source_name, published_at, city_id, category_id, origin) values
     ('Venue news for Austin', 'https://x.test/1', 'KXAN', now() - interval '2 days', $1, $2, 'manual'),
@@ -52,7 +69,7 @@ test('pages get the most specific items first, only published and recent ones', 
     ('Hidden item', 'https://x.test/3', 'KXAN', now(), $1, $2, 'manual'),
     ('Old item', 'https://x.test/4', 'KXAN', now() - interval '100 days', $1, $2, 'manual')`, [austin, venues]);
   await db.sql(`update news_items set status = 'hidden' where title = 'Hidden item'`);
-  const r = (await db.anon('select news_for($1, $2, 4) as r', [austin, venues]))[0].r;
+  const r = (await db.anon('select news_for($1, $2, 8) as r', [austin, venues]))[0].r;
   assert.equal(r[0].title, 'Venue news for Austin');
   assert.ok(!r.some((x) => /Hidden|Old/.test(x.title)));
   assert.ok(r.findIndex((x) => x.title === 'National venue trend') > r.findIndex((x) => /Austin wedding/.test(x.title)), 'city news before national');
