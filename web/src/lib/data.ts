@@ -264,6 +264,7 @@ function build(d: Awaited<ReturnType<typeof load>>) {
     minToIndex, budgetBands, tracking, ads, robotsTxt, urls, cityVendorCount,
     styleListings, contentByPath, nearbyFor, teamFor, kmFrom,
     posts, postsByAuthor, blogCategories, blogCategoryById, postsByCategory, commentsByPost, guidesFor, relatedPosts, news: d.news as NewsItem[],
+    costGuides: setting('cost_guide') ?? {},
   };
 }
 

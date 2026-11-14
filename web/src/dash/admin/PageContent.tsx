@@ -6,6 +6,7 @@ import { Toast, useToast, fmtDate, fmtNum } from '../shared';
 import { renderMarkdown } from '../../lib/markdown';
 import { csvToObjects } from './csv';
 import { shrinkImage, extOf, MAX_ORIGINAL } from '../image';
+import { DEFAULT_COSTS, type CostGuide } from '../../lib/costGuide';
 
 type PageInfo = { path: string; title: string; type: string; vendors: number; indexable: boolean };
 type Faq = { q: string; a: string };
@@ -211,6 +212,63 @@ function Editor({ info, initial, onClose }: { info: PageInfo; initial: Row; onCl
           <label class="btn btn-outline btn-sm">Upload image<input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" onChange={upload} /></label>
         </div>
       </div>
+      {/^\/categories\/[a-z0-9-]+\/$/.test(info.path) && <CostPanel slug={info.path.split('/')[2]} />}
     </form>
+  );
+}
+
+// "What it costs" figure on a vendor-type page. Stored in settings.cost_guide (admins only).
+function CostPanel({ slug }: { slug: string }) {
+  const def = DEFAULT_COSTS[slug] ?? null;
+  const [all, setAll] = useState<Record<string, Partial<CostGuide> | null> | null>(null);
+  const [f, setF] = useState({ amount: '', perPerson: false, label: '', source: '', url: '', asOf: '', basis: '' });
+  const [msg, setMsg] = useState(''); const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    sb().from('settings').select('value').eq('key', 'cost_guide').maybeSingle().then(({ data }) => {
+      const v = (data?.value ?? {}) as Record<string, Partial<CostGuide> | null>;
+      setAll(v);
+      const cur = v[slug] === null ? null : { ...(def ?? {}), ...(v[slug] ?? {}) } as Partial<CostGuide>;
+      setF({ amount: cur?.amount ? String(cur.amount) : '', perPerson: !!cur?.perPerson, label: cur?.label ?? '', source: cur?.source ?? '', url: cur?.url ?? '', asOf: cur?.asOf ?? '', basis: cur?.basis ?? '' });
+    });
+  }, [slug]);
+  async function write(next: Record<string, Partial<CostGuide> | null>, ok: string) {
+    setBusy(true); setErr(''); setMsg('');
+    const { data, error } = await sb().from('settings').upsert({ key: 'cost_guide', value: next }).select('key');
+    setBusy(false);
+    if (error || !data?.length) return setErr(error ? friendly(error) : 'Only admins can change cost figures.');
+    setAll(next); setMsg(ok);
+  }
+  function save() {
+    const amount = Number(f.amount.replace(/[$,\s]/g, ''));
+    if (!(amount > 0)) return setErr('Enter the average cost as a number, e.g. 12900.');
+    if (!f.source.trim() || !/^https:\/\/\S+$/.test(f.url.trim())) return setErr('Name the source and link to it (https://…), so visitors can check the figure.');
+    write({ ...(all ?? {}), [slug]: { amount, perPerson: f.perPerson, label: f.label.trim() || 'average cost', source: f.source.trim(), url: f.url.trim(), asOf: f.asOf.trim(), basis: f.basis.trim() || undefined } },
+      'Saved. It appears on the site after the next rebuild.');
+  }
+  const field = (k: keyof typeof f, label: string, ph = '') => (
+    <label class="field grow">{label}<input value={String(f[k])} placeholder={ph} onInput={(e) => setF({ ...f, [k]: (e.target as HTMLInputElement).value })} /></label>);
+  if (!all) return null;
+  return (
+    <div class="panel" style="display:flex;flex-direction:column;gap:12px;margin-top:16px" aria-label="Typical cost">
+      <b>Typical cost ("What it costs" box on this page)</b>
+      <p class="muted" style="margin:0;font-size:13px">Shown while vendors haven't listed their own prices. Always use a published, credible source and link to it.
+        {all[slug] === null ? ' Currently hidden on the page.' : !all[slug] && def ? ` Using the default from ${def.source} (${def.asOf}).` : ''}</p>
+      <div class="row" style="gap:12px;flex-wrap:wrap;align-items:flex-end">
+        {field('amount', 'Average cost (USD)', 'e.g. 12900')}
+        <label class="row" style="gap:8px;align-items:center;min-height:44px"><input type="checkbox" checked={f.perPerson} onChange={(e) => setF({ ...f, perPerson: e.currentTarget.checked })} /> Per guest</label>
+        {field('label', 'Label', 'average wedding venue cost')}
+      </div>
+      <div class="row" style="gap:12px;flex-wrap:wrap">
+        {field('source', 'Source', 'e.g. NerdWallet')}{field('url', 'Source link', 'https://…')}{field('asOf', 'As of', 'e.g. July 2026')}
+      </div>
+      {field('basis', 'Based on (optional)', 'e.g. a survey of 10,000 couples')}
+      {err && <p class="form-error" role="alert" style="margin:0">{err}</p>}
+      {msg && <p role="status" style="margin:0">{msg}</p>}
+      <div class="row" style="gap:8px;flex-wrap:wrap">
+        <button type="button" class="btn btn-primary btn-sm" disabled={busy} onClick={save}>Save cost</button>
+        {def && all[slug] !== undefined && <button type="button" class="btn btn-outline btn-sm" disabled={busy} onClick={() => { const n = { ...all }; delete n[slug]; write(n, 'Back to the default figure.'); }}>Use default</button>}
+        {all[slug] !== null && <button type="button" class="btn btn-outline btn-sm" disabled={busy} onClick={() => write({ ...all, [slug]: null }, 'Hidden. The cost box shows only the price tips.')}>Hide figure</button>}
+      </div>
+    </div>
   );
 }

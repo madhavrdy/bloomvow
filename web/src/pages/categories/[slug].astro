@@ -7,6 +7,7 @@ import Guide from '../../components/Guide.astro';
 import NewsUpdates from '../../components/NewsUpdates.astro';
 import PostCard from '../../components/PostCard.astro';
 import { contentFor, mergeFaqs } from '../../lib/content';
+import { costGuideFor, COST_FACTORS } from '../../lib/costGuide';
 import { faqJsonLd, breadcrumbJsonLd, categoryFaqs } from '../../lib/seo';
 import Base from '../../layouts/Base.astro';
 import Breadcrumbs from '../../components/Breadcrumbs.astro';
@@ -56,7 +57,15 @@ const news = d.news.filter((x) => x.city_id === null && (x.category_id === cat.i
 const others = d.categories.filter((c) => c.id !== cat.id && d.listingsByCategory.has(c.id));
 
 const c = contentFor(d, `/categories/${cat.slug}/`, Astro.site?.host);
-const faqs = mergeFaqs(c.faqs, categoryFaqs(cat, listings));
+const guide = costGuideFor(cat.slug, d.costGuides);
+const factors = COST_FACTORS[cat.slug] ?? [];
+const guideAmount = guide ? `${fmtMoney(guide.amount)}${guide.perPerson ? ' per guest' : ''}` : null;
+// When vendors haven't listed prices, the published average answers the cost question.
+const guideFaq = guide && !typical ? [{
+  q: `How much does a ${cat.singular.toLowerCase()} cost?`,
+  a: `The ${guide.label} in the US is about ${guideAmount}, according to ${guide.source} (${guide.asOf}${guide.basis ? `, based on ${guide.basis}` : ''}). Prices vary a lot by city, date and what's included, so ask two or three ${plural} for quotes on the same date.`,
+}] : [];
+const faqs = mergeFaqs(c.faqs, [...guideFaq, ...categoryFaqs(cat, listings)]);
 const crumbs = [{ name: 'Home', url: '/' }, { name: 'Categories', url: '/categories/' }, { name: cat.name }];
 const img = categoryImage(cat);
 const fallback = `/img/categories/${cat.slug}.svg`;
@@ -72,7 +81,8 @@ const fallback = `/img/categories/${cat.slug}.svg`;
         <ul class="cstats" aria-label="At a glance">
           <li><b>{n(total)}</b><span>{plural}</span></li>
           <li><b>{listings.length}</b><span>{listings.length === 1 ? 'city' : 'cities'}</span></li>
-          {typical && <li><b>{typical}</b><span>typical starting price</span></li>}
+          {typical ? <li><b>{typical}</b><span>typical starting price</span></li>
+            : guideAmount && <li><b>{guideAmount}</b><span>US average cost</span></li>}
           {avgRating && <li><b>★ {avgRating}</b><span>average rating</span></li>}
         </ul>
         {listings.length > 0 && (
@@ -112,6 +122,29 @@ const fallback = `/img/categories/${cat.slug}.svg`;
       <section class="section">
         <div class="section-head"><h2>{rated.length >= 4 ? 'Highly rated' : `Popular ${plural}`}</h2><span class="muted hint">Swipe for more →</span></div>
         <div class="rail">{top.map((v, i) => <div class="rail-i"><VendorCard v={v} index={i} /></div>)}</div>
+      </section>
+    )}
+
+    {(guide || factors.length > 0) && (
+      <section class="section" id="cost">
+        <h2>What {plural} cost</h2>
+        <div class="cost">
+          {guide && (
+            <div class="cost-fig">
+              <span class="cost-k">US average</span>
+              <b>{fmtMoney(guide.amount)}</b>
+              <span class="cost-u">{guide.perPerson ? 'per guest' : guide.label.replace(/^average /, '')}</span>
+              <p class="cost-src">Source: <a href={guide.url} target="_blank" rel="noopener nofollow">{guide.source}</a>, {guide.asOf}{guide.basis ? `, based on ${guide.basis}` : ''}.</p>
+            </div>
+          )}
+          {factors.length > 0 && (
+            <div class="cost-why">
+              <b>What changes the price</b>
+              <ul>{factors.map((f) => <li>{f}</li>)}</ul>
+              <p class="cost-cta">{priceRows.length >= 3 ? <>See prices by city below, or <a href="/get-matched/">get quotes for your date →</a></> : <>Prices vary by city. <a href="/get-matched/">Get quotes for your date →</a></>}</p>
+            </div>
+          )}
+        </div>
       </section>
     )}
 
@@ -249,6 +282,20 @@ const fallback = `/img/categories/${cat.slug}.svg`;
 .cfaq { max-width: 860px; }
   .cfaq :global(.faq-links) { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 14px; margin-top: 8px; }
   .cfaq :global(.faq-links a) { color: var(--rose-dark); font-weight: 600; }
+.cost { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 20px; align-items: stretch; }
+  .cost-fig { background: var(--rose-soft); border-radius: 20px; padding: 24px 26px; display: flex; flex-direction: column; }
+  .cost-k { font-size: 13px; font-weight: 600; letter-spacing: .4px; text-transform: uppercase; color: var(--rose-dark); }
+  .cost-fig b { font-family: var(--serif); font-weight: 400; font-size: 56px; line-height: 1.05; color: var(--ink); margin: 6px 0 2px; }
+  .cost-u { font-size: 15px; color: var(--ink-2); }
+  .cost-src { margin: auto 0 0; padding-top: 18px; font-size: 12px; color: var(--ink-3); line-height: 1.45; }
+  .cost-src a { color: var(--ink-2); }
+  .cost-why { border: 1px solid var(--line); border-radius: 20px; padding: 22px 26px; background: #fff; }
+  .cost-why > b { font-size: 16px; }
+  .cost-why ul { margin: 10px 0 0; padding-left: 20px; color: var(--ink-2); font-size: 15px; line-height: 1.55; }
+  .cost-why li { margin-bottom: 6px; }
+  .cost-cta { margin: 12px 0 0; font-size: 15px; color: var(--ink-2); }
+  .cost-cta a { color: var(--rose-dark); font-weight: 600; text-decoration: none; }
+  .cost-cta a:hover { text-decoration: underline; }
   .ochips { display: flex; flex-wrap: wrap; gap: 8px; }
   .ochips a { border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px; font-size: 15px; text-decoration: none; color: var(--ink-2); background: #fff; }
   .ochips a:hover { border-color: var(--rose-tint); color: var(--rose-dark); }
@@ -288,6 +335,10 @@ const fallback = `/img/categories/${cat.slug}.svg`;
     .pcount { grid-column: 1; grid-row: 2; font-size: 13px; color: var(--ink-3); }
     .plabel { display: inline; font-weight: 400; color: var(--ink-3); font-size: 13px; }
     .states { columns: 2; column-gap: 20px; }
+    .cost { grid-template-columns: 1fr; gap: 12px; }
+    .cost-fig { padding: 20px; }
+    .cost-fig b { font-size: 46px; }
+    .cost-why { padding: 18px 20px; }
     .state li { font-size: 14px; }
     .ccta { padding: 24px; margin: 40px 0; }
     .ccta .btn { width: 100%; }
