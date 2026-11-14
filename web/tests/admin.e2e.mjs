@@ -581,3 +581,62 @@ test('SEO files: edit robots.txt with checks, blocking the site needs a second c
   assert.equal((await q(`select value from settings where key = 'robots_txt'`))[0].value, '');
   assert.deepEqual(admin.errors, []);
 });
+
+test('news & updates: add by hand, edit, hide and delete; the listing page follows straight away', async () => {
+  await q(`delete from news_items where url like 'https://news.example.com/%'`);
+  await go(admin, 'news');
+  await admin.click('button:has-text("+ Add update")');
+  const dlg = admin.locator('form.qv[role=dialog]');
+  await dlg.locator('label:has-text("Headline") input').fill('Austin bridal show returns in January');
+  await dlg.locator('label:has-text("Link to the original story") input').fill('https://news.example.com/austin-bridal-show');
+  await dlg.locator('label:has-text("Publisher") input').fill('KXAN');
+  await dlg.locator('label:has-text("Show in city") select').selectOption({ label: 'Austin' });
+  await dlg.locator('button:has-text("Save")').click();
+  await admin.waitForSelector('td a:has-text("Austin bridal show returns in January")');
+  const [row] = await q(`select id, status, origin, city_id from news_items where url = 'https://news.example.com/austin-bridal-show'`);
+  assert.equal(row.status, 'published');
+  assert.equal(row.origin, 'manual');
+
+  // Public page shows it (fetched live, so no rebuild needed).
+  const pub = await browser.newPage();
+  await pub.goto(`${SITE}/us/texas/austin/wedding-venues/`);
+  await pub.waitForSelector('section.news:not([hidden]) a:has-text("Austin bridal show returns in January")');
+  assert.match(await pub.locator('section.news h2').innerText(), /Austin wedding venues: latest updates/);
+
+  // Edit
+  await admin.click('tr:has-text("Austin bridal show") button:has-text("Edit")');
+  await dlg.locator('label:has-text("Short note") textarea').fill('Over 100 local vendors in one place.');
+  await dlg.locator('button:has-text("Save")').click();
+  await admin.waitForSelector('td:has-text("Over 100 local vendors")');
+  // Hide: gone from the page
+  await admin.click('tr:has-text("Austin bridal show") button:has-text("Hide")');
+  await admin.waitForSelector('tr:has-text("Austin bridal show") .chip-s:has-text("Hidden")');
+  await pub.reload();
+  await pub.waitForFunction(() => !document.querySelector('section.news')?.textContent?.includes('Austin bridal show'));
+  // Delete
+  await admin.click('tr:has-text("Austin bridal show") button:has-text("Delete")');
+  await admin.waitForSelector('tr:has-text("Austin bridal show")', { state: 'detached' });
+  assert.equal((await q(`select count(*)::int n from news_items where id = $1`, [row.id]))[0].n, 0);
+  await pub.close();
+  assert.deepEqual(admin.errors ?? [], []);
+});
+
+test('news settings: approval and sources are saved; bad source refused', async () => {
+  await go(admin, 'news');
+  await admin.click('button:has-text("Settings & sources")');
+  const form = admin.locator('form[aria-label="News settings"]');
+  await form.locator('label:has-text("Approve before publishing") input').check();
+  await form.locator('textarea').first().fill('nytimes.com\nhttps://www.theknot.com/content\nstatesman.com');
+  await form.locator('button:has-text("Save settings")').click();
+  await admin.waitForSelector('.toast:has-text("Settings saved")');
+  const [{ value }] = await q(`select value from settings where key = 'news'`);
+  assert.equal(value.approval, true);
+  assert.deepEqual(value.sources, ['nytimes.com', 'theknot.com', 'statesman.com']);
+  await form.locator('textarea').first().fill('not a site');
+  await form.locator('button:has-text("Save settings")').click();
+  await admin.waitForSelector('.toast:has-text("isn\'t a website address")');
+  await form.locator('label:has-text("Approve before publishing") input').uncheck();
+  await form.locator('textarea').first().fill('nytimes.com\ntheknot.com\nstatesman.com');
+  await form.locator('button:has-text("Save settings")').click();
+  await admin.waitForSelector('.toast:has-text("Settings saved")');
+});

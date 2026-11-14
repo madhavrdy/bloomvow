@@ -6,6 +6,7 @@ import { Auth, NewPassword } from '../Auth';
 import { useHash, loadRef, type Ref } from '../shared';
 import { Overview } from './Overview';
 import { Analytics } from './Analytics';
+import { News } from './News';
 import { Leads } from './Leads';
 import { Vendors } from './Vendors';
 import { Reviews } from './Reviews';
@@ -36,6 +37,7 @@ const NAV: { r: string; label: string; roles: Role[] }[] = [
   { r: 'comments', label: 'Comments', roles: ['admin'] },
   { r: 'ads', label: 'Ads', roles: ['admin'] },
   { r: 'tracking', label: 'Tracking & analytics', roles: ['admin'] },
+  { r: 'news', label: 'News & updates', roles: ['admin'] },
   { r: 'seo', label: 'SEO files', roles: ['admin'] },
   { r: 'team', label: 'Team', roles: ['admin'] },
 ];
@@ -107,6 +109,7 @@ function Gate({ session, siteName }: { session: Session; siteName: string }) {
       <main class="dmain">
         {current === 'overview' && <Overview ref_={ref} />}
         {current === 'analytics' && <Analytics />}
+        {current === 'news' && <News />}
         {current === 'leads' && <Leads ref_={ref} />}
         {current === 'vendors' && <Vendors ref_={ref} onChange={refreshCounts} />}
         {current === 'reviews' && <Reviews onChange={refreshCounts} />}

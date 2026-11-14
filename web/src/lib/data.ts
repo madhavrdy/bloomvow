@@ -88,7 +88,7 @@ export function getData() {
 }
 
 async function load() {
-  const [countries, regions, cities, categories, settings, vendors, vendorCities, packages, photos, reviews, hidden, blogCategories, posts, comments, pageContent, popularity] = await Promise.all([
+  const [countries, regions, cities, categories, settings, vendors, vendorCities, packages, photos, reviews, hidden, blogCategories, posts, comments, pageContent, popularity, news] = await Promise.all([
     rest<Country>('countries', 'select=*&active=eq.true&order=code'),
     rest<Region>('regions', 'select=*&order=name'),
     rest<City>('cities', 'select=*&order=name'),
@@ -105,8 +105,9 @@ async function load() {
     rest<Comment>('public_comments', 'select=*&order=created_at,id'),
     rest<PageContentRow>('page_content', 'select=*&order=path'),
     rest<{ vendor_id: string; activity: number }>('vendor_popularity', 'select=vendor_id,activity&order=vendor_id'),
+    rest<NewsItem>('news_items', `select=id,title,summary,url,source_name,published_at,city_id,category_id&published_at=gt.${new Date(Date.now() - 90 * 86400000).toISOString()}&order=published_at.desc,id`),
   ]);
-  return { countries, regions, cities, categories, settings, vendors, vendorCities, packages, photos, reviews, hidden, blogCategories, posts, comments, pageContent, popularity };
+  return { countries, regions, cities, categories, settings, vendors, vendorCities, packages, photos, reviews, hidden, blogCategories, posts, comments, pageContent, popularity, news };
 }
 
 function group<T, K>(rows: T[], key: (r: T) => K): Map<K, T[]> {
@@ -246,7 +247,16 @@ function build(d: Awaited<ReturnType<typeof load>>) {
   const activeCities = cities.filter((c) => listingsByCity.has(c.id));
   const cityVendorCount = (c: City) => new Set((listingsByCity.get(c.id) ?? []).flatMap((l) => l.vendors.map((v) => v.id))).size;
 
+  // News & updates for a listing page (same order as news_for() in migration 036): this city
+  // and vendor type, then this city, then this vendor type, then general.
+  const newsFor = (cityId: number, catId: number, limit = 4) => d.news
+    .filter((n) => (n.city_id === cityId || n.city_id === null) && (n.category_id === catId || n.category_id === null))
+    .map((n) => ({ n, rk: n.city_id === cityId && n.category_id === catId ? 1 : n.city_id === cityId ? 2 : n.category_id === catId ? 3 : 4 }))
+    .sort((a, b) => a.rk - b.rk || b.n.published_at.localeCompare(a.n.published_at))
+    .slice(0, limit).map((x) => x.n);
+
   return {
+    newsFor,
     countries: d.countries, regions, cities, activeCities, categories: d.categories,
     vendors, isRich, vendorIndexable, vendorById, vendorBySlug, listings, listingsByCity, listingsByCategory,
     countryByCode, regionById, cityById, categoryById,
@@ -258,6 +268,7 @@ function build(d: Awaited<ReturnType<typeof load>>) {
 }
 
 export type SiteData = Awaited<ReturnType<typeof getData>>;
+export type NewsItem = { id: number; title: string; summary: string | null; url: string; source_name: string; published_at: string; city_id: number | null; category_id: number | null };
 
 // ---------------------------------------------------------------- helpers
 export const money = (n: number | null | undefined, currency = 'USD') =>

@@ -1,0 +1,38 @@
+---
+// "Latest updates" on listing pages: short news snapshots from credible publishers (Admin > News).
+// Rendered at build time for search engines, then refreshed in the browser so edits and
+// deletions in Admin show up straight away.
+import type { NewsItem } from '../lib/data';
+interface Props { items: NewsItem[]; city: number; category: number; title: string }
+const { items, city, category, title } = Astro.props;
+const fmt = (d: string) => new Date(d).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+---
+<section class="news" data-news-city={city} data-news-cat={category} hidden={items.length === 0} aria-labelledby="news-h">
+  <h2 id="news-h" class="serif">{title}</h2>
+  <ol class="news-list">
+    {items.map((n) => (
+      <li>
+        <time datetime={n.published_at.slice(0, 10)}>{fmt(n.published_at)}</time>
+        <p><a href={n.url} target="_blank" rel="noopener nofollow">{n.title}</a>{n.summary && <span class="news-sum"> {n.summary}</span>}</p>
+        <span class="news-src">{n.source_name}</span>
+      </li>
+    ))}
+  </ol>
+  <p class="news-note">Headlines from the publishers named; we link to the original stories.</p>
+</section>
+<script>
+  import { rpc } from '../scripts/api';
+  type Row = { title: string; summary: string | null; url: string; source: string; date: string };
+  const box = document.querySelector<HTMLElement>('section.news[data-news-city]');
+  if (box) {
+    const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+    const fmt = (d: string) => new Date(d).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+    rpc<Row[]>('news_for', { p_city: Number(box.dataset.newsCity), p_category: Number(box.dataset.newsCat), p_limit: 4 }).then((rows) => {
+      const list = box.querySelector('.news-list')!;
+      list.innerHTML = rows.filter((r) => /^https?:\/\//.test(r.url)).map((r) => `<li><time datetime="${esc(r.date)}">${fmt(r.date)}</time>`
+        + `<p><a href="${esc(r.url)}" target="_blank" rel="noopener nofollow">${esc(r.title)}</a>${r.summary ? `<span class="news-sum"> ${esc(r.summary)}</span>` : ''}</p>`
+        + `<span class="news-src">${esc(r.source)}</span></li>`).join('');
+      box.hidden = rows.length === 0;
+    }).catch(() => { /* keep what the page was built with */ });
+  }
+</script>

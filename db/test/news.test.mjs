@@ -1,0 +1,86 @@
+// News & updates: only credible, relevant, non-tragic, recent items are kept; pages get the most
+// specific items first; targets run daily for a week, then weekly; only admins can change items.
+import { test, before, after } from 'node:test';
+import assert from 'node:assert/strict';
+import { freshDb, makeUser, cityId } from './helpers.mjs';
+
+let db, admin, vendor, austin, venues;
+before(async () => {
+  db = await freshDb('bv_test_news');
+  admin = await makeUser(db, 'news-admin@site.test', 'admin');
+  vendor = await makeUser(db, 'news-vendor@site.test');
+  austin = await cityId(db, 'Austin');
+  venues = (await db.one(`select id from categories where slug = 'wedding-venues'`)).id;
+});
+after(() => db?.close());
+
+const day = (d) => new Date(Date.now() - d * 86400000).toUTCString();
+const item = (title, src, url, ago = 1, link = `https://news.google.com/rss/articles/${Math.random().toString(36).slice(2)}`) =>
+  `<item><title>${title} - ${src}</title><link>${link}</link><pubDate>${day(ago)}</pubDate><source url="${url}">${src}</source></item>`;
+const rss = (...items) => `<?xml version="1.0"?><rss version="2.0"><channel><title>x</title>${items.join('')}</channel></rss>`;
+
+test('only credible, relevant, recent and non-tragic headlines are kept', async () => {
+  const t = await db.one(`select * from news_targets where city_id = $1 and category_id is null`, [austin]);
+  const body = rss(
+    item('New Austin wedding venue opens in former train depot', 'Austin American-Statesman', 'https://www.statesman.com'),
+    item('Austin couple&#39;s wedding goes viral', 'Some Blog', 'https://randomblog.example'),            // not credible
+    item('Austin wedding guests injured in bus crash', 'KXAN', 'https://www.kxan.com'),                 // tragedy
+    item('Austin restaurant week returns', 'Austin American-Statesman', 'https://www.statesman.com'),   // not about weddings
+    item('Dallas wedding venue adds rooftop', 'The Dallas Morning News', 'https://www.dallasnews.com'),  // not this city
+    item('Austin bridal show returns this January', 'KXAN', 'https://www.kxan.com', 40),               // too old
+    item('Austin venue owner charged with fraud', 'KXAN', 'https://www.kxan.com'),                     // blocked word
+    item('Austin wedding season: five event spaces booking fast', 'CultureMap Austin', 'https://austin.culturemap.com'),
+  );
+  const n = (await db.one(`select news_parse(t, $2) as n from news_targets t where t.id = $1`, [t.id, body])).n;
+  assert.equal(n, 2);
+  const titles = (await db.sql(`select title, source_name, city_id, status from news_items order by title`));
+  assert.deepEqual(titles.map((x) => x.title), ['Austin wedding season: five event spaces booking fast', 'New Austin wedding venue opens in former train depot']);
+  assert.ok(titles.every((x) => x.city_id === austin && x.status === 'published'));
+  // The same headline again is not added twice.
+  assert.equal((await db.one(`select news_parse(t, $2) as n from news_targets t where t.id = $1`, [t.id, body])).n, 0);
+  // Approval on: new items wait for an admin.
+  await db.sql(`update settings set value = value || '{"approval": true}' where key = 'news'`);
+  await db.one(`select news_parse(t, $2) as n from news_targets t where t.id = $1`, [t.id, rss(item('Austin wedding planners share 2027 trends', 'KXAN', 'https://www.kxan.com'))]);
+  assert.equal((await db.one(`select status from news_items where title like 'Austin wedding planners%'`)).status, 'pending');
+  await db.sql(`update settings set value = value || '{"approval": false}' where key = 'news'`);
+});
+
+test('pages get the most specific items first, only published and recent ones', async () => {
+  await db.sql(`insert into news_items (title, url, source_name, published_at, city_id, category_id, origin) values
+    ('Venue news for Austin', 'https://x.test/1', 'KXAN', now() - interval '2 days', $1, $2, 'manual'),
+    ('National venue trend', 'https://x.test/2', 'Brides', now() - interval '1 day', null, $2, 'manual'),
+    ('Hidden item', 'https://x.test/3', 'KXAN', now(), $1, $2, 'manual'),
+    ('Old item', 'https://x.test/4', 'KXAN', now() - interval '100 days', $1, $2, 'manual')`, [austin, venues]);
+  await db.sql(`update news_items set status = 'hidden' where title = 'Hidden item'`);
+  const r = (await db.anon('select news_for($1, $2, 4) as r', [austin, venues]))[0].r;
+  assert.equal(r[0].title, 'Venue news for Austin');
+  assert.ok(!r.some((x) => /Hidden|Old/.test(x.title)));
+  assert.ok(r.findIndex((x) => x.title === 'National venue trend') > r.findIndex((x) => /Austin wedding/.test(x.title)), 'city news before national');
+  // Visitors only ever see published items.
+  const seen = await db.anon(`select title from news_items`);
+  assert.ok(!seen.some((x) => x.title === 'Hidden item'));
+});
+
+test('admins edit, hide and delete; nobody else can', async () => {
+  const [{ id }] = await db.sql(`select id from news_items where title = 'National venue trend'`);
+  await db.user(admin, `update news_items set title = 'National venue trends for 2027', summary = 'Short note' where id = $1`, [id]);
+  assert.equal((await db.one(`select title from news_items where id = $1`, [id])).title, 'National venue trends for 2027');
+  await assert.rejects(db.anon(`update news_items set title = 'x' where id = $1`, [id]), /permission denied/);
+  const r = await db.user(vendor, `update news_items set title = 'hacked' where id = $1 returning id`, [id]);
+  assert.equal(r.length, 0, 'RLS: a vendor changes nothing');
+  await db.user(admin, `delete from news_items where id = $1`, [id]);
+  assert.equal((await db.sql(`select 1 from news_items where id = $1`, [id])).length, 0);
+  await assert.rejects(db.anon(`select * from news_targets`), /permission denied/);
+  await assert.rejects(db.user(vendor, `select admin_news_refresh()`), /forbidden/);
+  await assert.rejects(db.user(admin, `update settings set value = '{"sources": ["not a domain"]}' where key = 'news'`), /check constraint/);
+});
+
+test('targets: daily during the first week, then weekly', async () => {
+  const due = async (first, last) => (await db.one(`select news_target_due(t) as d from (select (n).* from (select row(0, null::int, null::int, 'q', 're', $1::timestamptz, $2::timestamptz, null::bigint, 0, true)::news_targets as n) z) t`, [first, last])).d;
+  const ago = (h) => new Date(Date.now() - h * 3600000).toISOString();
+  assert.equal(await due(null, null), true, 'never run');
+  assert.equal(await due(ago(48), ago(21)), true, 'first week, last run 21h ago');
+  assert.equal(await due(ago(48), ago(5)), false, 'first week, ran 5h ago');
+  assert.equal(await due(ago(24 * 10), ago(24 * 3)), false, 'second week, ran 3 days ago');
+  assert.equal(await due(ago(24 * 10), ago(24 * 7)), true, 'second week, ran 7 days ago');
+});

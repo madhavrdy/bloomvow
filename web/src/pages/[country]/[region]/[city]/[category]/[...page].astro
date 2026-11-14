@@ -5,6 +5,7 @@ import VendorRow from '../../../../../components/VendorRow.astro';
 import AdSlot from '../../../../../components/AdSlot.astro';
 import { getData, money, type ListingPage } from '../../../../../lib/data';
 import Guides from '../../../../../components/Guides.astro';
+import NewsUpdates from '../../../../../components/NewsUpdates.astro';
 import { venueFaqs } from '../../../../../lib/venueFaqs';
 import { listingFaqs, listingIntro, faqJsonLd, breadcrumbJsonLd, itemListJsonLd } from '../../../../../lib/seo';
 import { kmBetween, niceRound } from '../../../../../lib/geo';
@@ -177,6 +178,7 @@ const pageUrl = (n: number) => (n === 1 ? l.url : `${l.url}page/${n}/`);
   {pageNo === 1 && <Guide c={c} title={`${heading}: the guide`} />}
   <main class="wrap">
     {pageNo === 1 && <Guides cityId={city.id} categoryId={cat.id} title={`Planning guides: ${cat.name.toLowerCase()} in ${city.name}`} />}
+    {pageNo === 1 && <NewsUpdates items={d.newsFor(city.id, cat.id)} city={city.id} category={cat.id} title={`${city.name} ${cat.name.toLowerCase()}: latest updates`} />}
   </main>
 
   <section class="bg2">
