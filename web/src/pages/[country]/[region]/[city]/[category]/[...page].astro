@@ -177,7 +177,6 @@ const pageUrl = (n: number) => (n === 1 ? l.url : `${l.url}page/${n}/`);
   </main>
   {pageNo === 1 && <Guide c={c} title={`${heading}: the guide`} />}
   <main class="wrap">
-    {pageNo === 1 && <Guides cityId={city.id} categoryId={cat.id} title={`Planning guides: ${cat.name.toLowerCase()} in ${city.name}`} />}
     {pageNo === 1 && <NewsUpdates items={d.newsFor(city.id, cat.id)} city={city.id} category={cat.id} title={`${city.name} ${cat.name.toLowerCase()}: latest updates`} />}
   </main>
 
@@ -199,6 +198,7 @@ const pageUrl = (n: number) => (n === 1 ? l.url : `${l.url}page/${n}/`);
       </div>
     </div>
   </section>
+  {pageNo === 1 && <div class="wrap"><Guides cityId={city.id} categoryId={cat.id} title={`Planning guides: ${cat.name.toLowerCase()} in ${city.name}`} /></div>}
 </Base>
 
 <script>
