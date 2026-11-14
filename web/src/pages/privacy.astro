@@ -1,9 +1,95 @@
 ---
 import Base from '../layouts/Base.astro';
+import { SITE_NAME, CONTACT_EMAIL } from '../config';
+const updated = 'November 14, 2026';
+const site = SITE_NAME;
 ---
-<Base title="Privacy policy" description="Privacy policy">
-  <main class="wrap" style="padding-top:32px;max-width:760px;min-height:50vh">
-    <h1 class="serif" style="font-size:48px;margin:0 0 16px">Privacy policy</h1>
-    <p style="font-size:17px;line-height:1.65">[PLACEHOLDER: your privacy policy. It must explain that lead form details (name, email, phone, wedding date, guest count, budget, message) are shared with the vendors a couple contacts or is matched with, how long data is kept, how to request deletion, and that the site uses Google Analytics, Google Ads and the Meta Pixel (cookies) to measure visits and ads, with links to opt out. Have this reviewed by a lawyer before launch.]</p>
+<Base title="Privacy policy" description={`How ${site} collects, uses and shares your information, and the choices you have.`}>
+  <main class="wrap" style="padding-top:32px;padding-bottom:56px">
+    <article class="prose" style="margin:0 auto">
+      <h1 class="serif" style="font-size:48px;margin:0 0 8px;line-height:1.1;color:var(--ink)">Privacy policy</h1>
+      <p style="color:var(--ink-3, #6b6478);margin-top:0">Last updated {updated}</p>
+
+      <p>{site} helps people find and contact event vendors: venues, photographers, caterers and more. This policy explains what information we collect, how we use it, who we share it with, and the choices you have. It applies to our website and the emails we send.</p>
+      <p>Questions or requests: email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</p>
+
+      <h2>The short version</h2>
+      <ul>
+        <li>When you ask vendors for quotes, we share your request and contact details with the vendors it goes to, so they can reply.</li>
+        <li>We don't sell your information.</li>
+        <li>We count visits with our own privacy-friendly tool (no cookies, no IP addresses). If enabled, Google and Meta tools also measure visits and ads and may use cookies.</li>
+        <li>You can ask us to see, correct or delete your information at any time.</li>
+      </ul>
+
+      <h2>Information we collect</h2>
+      <h3>When you request quotes</h3>
+      <p>When you use a request form (on a vendor's page, "Get matched" or "Request pricing"), we collect your name, email address, phone number, event date, number of guests, budget range, city, the types of vendors you're looking for, and any message you write.</p>
+      <h3>Your inbox (My {site})</h3>
+      <p>Your requests and the conversations with vendors are kept so you can read and answer them in My {site}. You sign in with a personal link we email you; it works for 90 days. We store only a scrambled (hashed) version of each link, never the link itself. Once you open it, the link is remembered in your browser until you sign out.</p>
+      <h3>Reviews and blog comments</h3>
+      <p>If you write a review or comment, we collect your name, email address and what you write. Your name and text are published after moderation; your email address is never shown.</p>
+      <h3>Vendor accounts</h3>
+      <p>If you list or claim a business, we collect your account email, a password (stored securely by our login provider, never readable by us), your business details, photos and the replies you send to customers. Business listings may also include publicly available business information (name, address, phone, website) from open data sources such as Overture Maps.</p>
+      <h3>How you use the site</h3>
+      <p>Our own visit counter records the pages you view, the website that sent you here (for example google.com), any campaign tags in the link (utm_ tags), and whether you use a phone, tablet or computer. It uses a random ID kept in your browser's storage to tell visits apart. It does not use cookies and does not store your IP address. We also count when someone views a vendor's profile or clicks to call, visit their website or get directions.</p>
+      <h3>Saved in your browser</h3>
+      <p>Your shortlist, and a few settings that make the site work, are saved only in your browser. Clearing your browser data removes them.</p>
+
+      <h2>How we use your information</h2>
+      <ul>
+        <li>To send your request to the vendors you choose or that match it, and to let you and them message each other.</li>
+        <li>To email you about your requests: confirmations, vendor replies and sign-in links.</li>
+        <li>To email vendors about new leads and customer messages, and to help them manage their listing.</li>
+        <li>To keep the site safe: preventing spam and abuse, and limiting how many requests, reviews or messages can be sent.</li>
+        <li>To understand which pages are useful and improve the site, and to show vendors how their listing is performing (as totals only, never who a visitor was).</li>
+        <li>To show advertising, as described below.</li>
+      </ul>
+
+      <h2>Who we share it with</h2>
+      <h3>Vendors</h3>
+      <p>Your request (name, contact details, event details and message) is shared with each vendor it is sent to. Vendors who manage their listing on {site} see it in their dashboard. Vendors who haven't claimed their listing yet are only told that a request is waiting; they see your details after they claim the listing and we confirm they run the business. Vendors are independent businesses and handle the information they receive under their own privacy practices.</p>
+      <h3>Service providers</h3>
+      <p>We use trusted companies to run the site. They process information only on our behalf:</p>
+      <ul>
+        <li><b>Supabase</b>: database, logins and photo storage</li>
+        <li><b>Hostinger</b>: website hosting</li>
+        <li><b>Resend</b>: sending our emails</li>
+        <li><b>GitHub</b>: building the site and storing encrypted backups</li>
+      </ul>
+      <h3>Analytics and advertising partners</h3>
+      <p>We may use Google Analytics, Google Tag Manager, Google Ads, Google AdSense and the Meta Pixel. These tools may set cookies or similar technologies to measure visits, understand which ads work and show ads. Google AdSense may show ads on our blog based on your interests. We send these tools details about a request, like the type of vendor, city and guest count, but never your name, email, phone number or message.</p>
+      <ul>
+        <li>Google: <a href="https://policies.google.com/technologies/partner-sites" rel="noopener nofollow">how Google uses information from sites that use its services</a>; turn off personalized ads in <a href="https://adssettings.google.com" rel="noopener nofollow">Google Ad Settings</a>; use the <a href="https://tools.google.com/dlpage/gaoptout" rel="noopener nofollow">Google Analytics opt-out add-on</a>.</li>
+        <li>Meta: manage ad preferences in your <a href="https://www.facebook.com/adpreferences" rel="noopener nofollow">Facebook ad settings</a>.</li>
+        <li>You can also block or delete cookies in your browser settings, and opt out of interest-based ads from many companies at <a href="https://optout.aboutads.info" rel="noopener nofollow">optout.aboutads.info</a>.</li>
+      </ul>
+      <h3>Other cases</h3>
+      <p>We may share information if the law requires it, to protect the rights and safety of our users or others, or as part of a merger or sale of our business (in which case this policy would continue to apply). We do not sell your personal information.</p>
+
+      <h2>How long we keep it</h2>
+      <ul>
+        <li>Requests and conversations: shown in your inbox for 12 months, and kept while they're useful to you and the vendors involved. You can ask us to delete them at any time.</li>
+        <li>Detailed visit records: 120 days; after that only daily totals are kept.</li>
+        <li>Inbox sign-in links: 90 days.</li>
+        <li>Vendor accounts and listings: while the account is active, and for a reasonable time afterwards for our records.</li>
+        <li>Encrypted backups: 30 days.</li>
+      </ul>
+
+      <h2>Your choices and rights</h2>
+      <p>You can ask us to tell you what information we hold about you, correct it, delete it, or stop sending you emails. Email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> from the address you used and we'll respond within 30 days. Deleting your information from {site} doesn't remove copies a vendor already received; contact that vendor directly for those.</p>
+      <p>Depending on where you live (for example California and other US states), you may have additional rights, such as to know what personal information we collect and share, to delete or correct it, and to opt out of "sharing" for targeted advertising. To opt out of advertising cookies, use the links above or contact us. We won't treat you differently for using these rights.</p>
+
+      <h2>Security</h2>
+      <p>We protect your information with secure connections (HTTPS), access controls so that only the right people can see it, and encrypted backups. No system is perfectly secure, so please don't send card or bank details in messages.</p>
+
+      <h2>Children</h2>
+      <p>{site} is meant for adults planning events. It is not directed at children under 16, and we don't knowingly collect their information. If you believe a child has given us information, contact us and we'll delete it.</p>
+
+      <h2>Changes to this policy</h2>
+      <p>We'll update this page when our practices change and adjust the date at the top. If a change is significant, we'll let you know on the site or by email.</p>
+
+      <h2>Contact</h2>
+      <p>{site} · <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a></p>
+    </article>
   </main>
 </Base>
