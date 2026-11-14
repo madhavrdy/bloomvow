@@ -66,7 +66,8 @@ test('vendor reply: updates status, emails the couple, tracks reply time; others
   assert.ok(row.replied_at && row.opened_at);
   const n = await db.one(`select * from notifications where kind = 'reply_to_couple' and payload->>'lead_id' = $1`, [leadId]);
   assert.equal(n.payload.reply, 'Your date is open!');
-  assert.equal(n.payload.reply_to, 'alice@cedarhollow.example');
+  assert.equal(n.payload.reply_to, undefined, 'customers answer on the site, not by email');
+  assert.ok((await db.one(`select count(*)::int n from lead_messages where lead_id = $1 and sender = 'vendor' and body = 'Your date is open!'`, [leadId])).n >= 1);
   assert.equal((await db.one('select avg_reply_minutes from vendors where id = $1', [va.id])).avg_reply_minutes, 90);
 
   const [booked] = await db.user(alice, 'select (vendor_reply($1, $2, null, $3)).*', [leadId, va.id, 'booked']);

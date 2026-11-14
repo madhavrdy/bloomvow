@@ -19,6 +19,8 @@ export function templates(first: string, date: string, business: string) {
   ];
 }
 
+type Msg = { lead_id: string; sender: 'vendor' | 'customer'; body: string; created_at: string; read_at: string | null };
+
 const sourceLabel = (s: string) => ({ profile: 'your profile', matched: 'Get matched', bulk: 'Request from several' } as Record<string, string>)[s] ?? s;
 
 export function Leads({ listing, ref_, onChange }: { listing: Listing; ref_: Ref; onChange: () => void }) {
@@ -29,8 +31,11 @@ export function Leads({ listing, ref_, onChange }: { listing: Listing; ref_: Ref
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [toast, setToast] = useToast();
+  const [msgs, setMsgs] = useState<Msg[]>([]);
 
   async function load() {
+    must<Msg[]>(sb().from('lead_messages').select('lead_id,sender,body,created_at,read_at').eq('vendor_id', listing.id)
+      .order('created_at').limit(5000) as never).then(setMsgs).catch(() => setMsgs([]));
     const rows = await must<LeadItem[]>(sb().from('lead_recipients')
       .select('lead_id,vendor_id,status,sent_at,opened_at,replied_at,reply,leads(couple_name,email,phone,wedding_date,date_flexible,guests,budget_band,message,source,city_id,created_at)')
       .eq('vendor_id', listing.id).order('sent_at', { ascending: false }).limit(500) as never);
@@ -41,13 +46,17 @@ export function Leads({ listing, ref_, onChange }: { listing: Listing; ref_: Ref
 
   const shown = useMemo(() => (items ?? []).filter((i) => filter === 'all' || (filter === 'open' ? i.status === 'new' : i.status === filter)), [items, filter]);
   const cur = items?.find((i) => i.lead_id === sel) ?? null;
+  const thread = useMemo(() => msgs.filter((m) => m.lead_id === sel), [msgs, sel]);
+  const unreadFrom = (id: string) => msgs.some((m) => m.lead_id === id && m.sender === 'customer' && !m.read_at);
 
   function open(id: string, rows = items ?? []) {
     setSel(id); setReply(''); setErr('');
     const it = rows.find((r) => r.lead_id === id);
-    if (it && !it.opened_at) {
+    if (it && (!it.opened_at || unreadFrom(id))) {
       sb().rpc('mark_lead_opened', { p_lead: id, p_vendor: listing.id }).then(() => {
-        setItems((xs) => xs?.map((x) => (x.lead_id === id ? { ...x, opened_at: new Date().toISOString() } : x)) ?? null);
+        const now = new Date().toISOString();
+        setItems((xs) => xs?.map((x) => (x.lead_id === id ? { ...x, opened_at: x.opened_at ?? now } : x)) ?? null);
+        setMsgs((ms) => ms.map((m) => (m.lead_id === id && m.sender === 'customer' && !m.read_at ? { ...m, read_at: now } : m)));
       });
     }
   }
@@ -83,7 +92,7 @@ export function Leads({ listing, ref_, onChange }: { listing: Listing; ref_: Ref
           <section class="inbox-list" aria-label="Lead list">
             {shown.length === 0 && <p class="empty">Nothing here.</p>}
             {shown.map((i) => (
-              <button type="button" aria-current={i.lead_id === sel ? 'true' : undefined} class={i.opened_at ? '' : 'unread'} onClick={() => open(i.lead_id)}>
+              <button type="button" aria-current={i.lead_id === sel ? 'true' : undefined} class={i.opened_at && !unreadFrom(i.lead_id) ? '' : 'unread'} onClick={() => open(i.lead_id)}>
                 <span style="display:flex;justify-content:space-between;gap:8px;width:100%"><b style="font-size:15px">{i.leads.couple_name}</b><span class="muted" style="font-size:12px">{ago(i.sent_at)}</span></span>
                 <span class="muted" style="font-size:13px">{i.leads.wedding_date ? fmtDate(i.leads.wedding_date) : 'Date flexible'}{i.leads.guests ? ` · ${i.leads.guests} guests` : ''}</span>
                 <span class={`chip-s s-${i.status}`} style="align-self:flex-start">{statusLabel(i.status)}</span>
@@ -107,12 +116,17 @@ export function Leads({ listing, ref_, onChange }: { listing: Listing; ref_: Ref
                 <div><span>City</span><b>{ref_.cityById.get(cur.leads.city_id)?.label ?? ''}</b></div>
               </div>
               {cur.leads.message && <div class="msg">{cur.leads.message}</div>}
-              {cur.reply && <div class="msg" style="background:var(--acc-soft)"><b style="display:block;margin-bottom:4px">Your reply · {cur.replied_at && ago(cur.replied_at)}</b>{cur.reply}</div>}
+              {thread.length > 0 ? (
+                <div class="thread" aria-label="Conversation">
+                  {thread.map((m) => <div class={`bubble ${m.sender === 'vendor' ? 'me' : 'them'}`}>
+                    <span class="who">{m.sender === 'vendor' ? 'You' : cur.leads.couple_name} · {ago(m.created_at)}</span>{m.body}</div>)}
+                </div>
+              ) : cur.reply && <div class="msg" style="background:var(--acc-soft)"><b style="display:block;margin-bottom:4px">Your reply · {cur.replied_at && ago(cur.replied_at)}</b>{cur.reply}</div>}
               <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
                 <span class="muted" style="font-size:13px;font-weight:600">Quick replies:</span>
                 {templates(first, date, listing.name).map((t) => <button type="button" class="btn btn-outline btn-sm" onClick={() => setReply(t.text)}>{t.label}</button>)}
               </div>
-              <label class="field">{cur.reply ? 'Send another message' : 'Your reply'}
+              <label class="field">{thread.length || cur.reply ? 'Send another message' : 'Your reply'}
                 <textarea rows={5} value={reply} onInput={(e) => setReply(e.currentTarget.value)} placeholder="Couples who get a reply within an hour are far more likely to book a visit." />
               </label>
               {err && <p class="form-error" role="alert">{err}</p>}
@@ -124,7 +138,7 @@ export function Leads({ listing, ref_, onChange }: { listing: Listing; ref_: Ref
                 </div>
                 <button type="button" class="btn btn-acc btn-lg" disabled={busy || !reply.trim()} onClick={() => update(null, reply)}>Send reply</button>
               </div>
-              <p class="muted" style="margin:0;font-size:12px">Your reply is emailed to the couple from us, with your email as the reply-to address.</p>
+              <p class="muted" style="margin:0;font-size:12px">We email the customer that you replied; they read it and answer in their inbox on our site, and their answers appear here (we email you too).</p>
             </section>
           )}
         </div>

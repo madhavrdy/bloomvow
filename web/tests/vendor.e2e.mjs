@@ -189,7 +189,7 @@ test('analytics is not offered for a listing whose claim is not approved', async
   }
 });
 
-test('lead inbox: opening marks read, quick reply sends an email to the couple, status updates', async () => {
+test('lead inbox: opening marks read, quick reply goes into the conversation and the customer is emailed, status updates', async () => {
   const [v] = await q(`select id from vendors where owner_id = $1`, [DANA]);
   const p = await newPage();
   await signIn(p, 'dana@vendor.local');
@@ -217,7 +217,9 @@ test('lead inbox: opening marks read, quick reply sends an email to the couple, 
   assert.equal(after.reply, text);
   const [mail] = await q(`select to_email, payload from notifications where kind = 'reply_to_couple' and payload->>'lead_id' = $1`, [lead.lead_id]);
   assert.match(mail.to_email, /@example\.com$/);
-  assert.equal(mail.payload.reply_to, 'dana@vendor.local');
+  assert.equal(mail.payload.reply_to, undefined, 'the customer answers in their inbox on the site');
+  await p.waitForSelector('.thread .bubble.me');
+  assert.equal((await q(`select count(*)::int n from lead_messages where lead_id = $1 and vendor_id = $2 and sender = 'vendor'`, [lead.lead_id, v.id]))[0].n, 1);
 
   await p.click('.seg[aria-label="Lead status"] button:text-is("Booked")');
   await p.waitForFunction(() => document.querySelector('.toast')?.textContent?.includes('booked'));

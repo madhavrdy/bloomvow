@@ -65,7 +65,7 @@ export function Analytics() {
           <label style="display:flex;gap:8px;align-items:center;font-size:14px">Range
             <select value={days} onChange={(e) => setDays(Number(e.currentTarget.value))} style={sel}>
               <option value={1}>Today</option><option value={7}>Last 7 days</option><option value={30}>Last 30 days</option>
-              <option value={90}>Last 90 days</option><option value={365}>Last 12 months</option>
+              <option value={90}>Last 90 days</option>
             </select></label>
         </div>
       </div>

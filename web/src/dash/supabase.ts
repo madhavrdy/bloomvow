@@ -26,6 +26,7 @@ const messages: Record<string, string> = {
   'Invalid login credentials': 'That email and password don\'t match. Try again or reset your password.',
   'User already registered': 'An account with this email already exists. Sign in instead.',
   invalid_status: 'That status is not available.',
+  invalid_message: 'Please write a message (up to 4,000 characters).',
   claim_needs_owner: 'A listing can only be Claimed once someone has claimed it. It has no claim waiting, so it stays Unclaimed.',
   choose_claim: 'Several people asked to claim this listing. Approve the right one under Vendors › Claims.',
   invalid_phone: 'Please enter a valid phone number, like (212) 423-0172. Outside the US and Canada, start with + and the country code.',

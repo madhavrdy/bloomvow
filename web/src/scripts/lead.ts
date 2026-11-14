@@ -57,5 +57,5 @@ export function leadPayload<E extends Record<string, unknown>>(fd: FormData, ext
 export function showSent(form: HTMLElement, matched: number) {
   const n = Math.max(matched, 1);
   form.innerHTML = `<div class="form-ok" role="status"><b style="font-size:18px">Request sent${n > 1 ? ` to ${n} vendors` : ''}!</b>
-    <p style="margin:8px 0 0">Vendors reply by email, usually within a day. Check your inbox (and spam folder) for their replies.</p></div>`;
+    <p style="margin:8px 0 0">Vendors usually reply within a day. We'll email you a link to your inbox on this site, where you can read and answer their replies (check your spam folder too).</p></div>`;
 }

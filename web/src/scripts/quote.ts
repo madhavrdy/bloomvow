@@ -97,7 +97,7 @@ export function initQuote() {
       done.hidden = false;
       document.getElementById('done-title')!.textContent = res.matched > 0 ? `Request sent to ${res.matched} vendors` : 'Request received';
       document.getElementById('done-text')!.textContent = res.matched > 0
-        ? `We sent your details to vendors in and around ${city.name} who fit your request. Most reply within a day by email.`
+        ? `We sent your details to vendors in and around ${city.name} who fit your request. Most reply within a day; we'll email you a link to read and answer their replies in your inbox here.`
         : `We don't have a matching vendor in ${city.name} yet. Our team will look for vendors who fit and get back to you by email.`;
       const link = document.getElementById('done-link') as HTMLAnchorElement;
       link.href = city.url; link.textContent = `Browse ${city.name.split(',')[0]} vendors`;

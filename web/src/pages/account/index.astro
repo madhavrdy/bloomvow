@@ -1,0 +1,10 @@
+---
+import Base from '../../layouts/Base.astro';
+import '../../dash/dash.css';
+import { CustomerApp } from '../../dash/customer/CustomerApp';
+import { SITE_NAME } from '../../config';
+---
+<Base title={`My ${SITE_NAME}`} description="Your requests and vendor replies in one place." noindex bare>
+  <CustomerApp client:only="preact" siteName={SITE_NAME} />
+  <noscript><p style="padding:24px">Your inbox needs JavaScript turned on.</p></noscript>
+</Base>
