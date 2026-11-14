@@ -194,3 +194,19 @@ test('vendor analytics: only the owner of a claimed listing (or an admin) can re
   await assert.rejects(db.user(alice, 'select vendor_analytics($1, 30)', [va.id]), /forbidden/);
   await db.one(`update vendors set status = 'claimed' where id = $1 returning id`, [va.id]);
 });
+
+test('admin: setting a listing to Claimed approves its one waiting claim, so the vendor gets the dashboard', async () => {
+  const carol = await makeUser(db, 'carol@lakeview.example');
+  const vc = await makeVendor(db, { name: 'Lakeview Hall', status: 'unclaimed' });
+  await db.user(carol, `select request_claim($1, null, 'I own it')`, [vc.id]);
+  assert.equal((await db.one(`select status from claims where vendor_id = $1`, [vc.id])).status, 'pending');
+  await db.user(admin, `select admin_set_vendor($1, 'claimed')`, [vc.id]);
+  const v = await db.one(`select status, owner_id from vendors where id = $1`, [vc.id]);
+  assert.equal(v.status, 'claimed');
+  assert.equal(v.owner_id, carol);
+  assert.equal((await db.one(`select status from claims where vendor_id = $1`, [vc.id])).status, 'approved');
+  assert.equal((await db.user(carol, `select count(*)::int n from vendors where owner_id = auth.uid()`))[0].n, 1);
+  // No claim waiting: Claimed is refused.
+  const vd = await makeVendor(db, { name: 'Nobody Barn', status: 'unclaimed' });
+  await assert.rejects(db.user(admin, `select admin_set_vendor($1, 'claimed')`, [vd.id]), /claim_needs_owner/);
+});
