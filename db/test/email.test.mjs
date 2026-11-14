@@ -54,10 +54,21 @@ test('new lead: vendor gets a short email without the customer\'s details; custo
 
   // A rejected send is retried up to 5 attempts, then left for an admin to look at.
   await db.sql(`insert into notifications (kind, to_email, payload) values ('claim_decided', 'owner@x.test', '{"approved": true}')`);
-  for (let i = 0; i < 6; i++) { await run(); await db.sql('update sent_log set status = 422 where status is null'); }
+  // (each retry waits longer: move the clock forward by clearing the wait)
+  for (let i = 0; i < 6; i++) { await run(); await db.sql('update sent_log set status = 422 where status is null'); await run(); await db.sql('update notifications set next_attempt_at = null'); }
   const n = await db.one(`select attempts, sent_at, error from notifications where to_email = 'owner@x.test'`);
   assert.deepEqual({ attempts: n.attempts, sent: n.sent_at }, { attempts: 5, sent: null });
   assert.match(n.error, /422/);
+  // "Domain not verified" / "too many requests" wait 10 minutes and don't use up a try.
+  await db.sql(`insert into notifications (kind, to_email, payload) values ('claim_decided', 'soft@x.test', '{"approved": true}')`);
+  await run(); await db.sql(`update sent_log set status = 429 where status is null`); await run();
+  const soft = await db.one(`select attempts, next_attempt_at > now() + interval '9 minutes' as waits from notifications where to_email = 'soft@x.test'`);
+  assert.deepEqual(soft, { attempts: 0, waits: true });
+  await db.sql(`update notifications set sent_at = now() where to_email = 'soft@x.test'`);
+  // At most 8 a minute (Resend allows 10 requests a second).
+  await db.sql(`insert into notifications (kind, to_email, payload) select 'claim_decided', 'many' || g || '@x.test', '{"approved": true}' from generate_series(1, 12) g`);
+  assert.equal((await run()).queued, 8);
+  await db.sql(`update notifications set sent_at = now() where to_email like 'many%'`);
   // Emails that waited more than 7 days are dropped, not sent late.
   await db.sql(`insert into notifications (kind, to_email, payload, created_at) values ('claim_decided', 'late@x.test', '{"approved": true}', now() - interval '8 days')`);
   await run();
