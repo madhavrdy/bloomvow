@@ -5,10 +5,13 @@ import { sb, friendly, must } from '../supabase';
 import { Toast, useToast, ago } from '../shared';
 
 type Item = { id: number; title: string; summary: string | null; url: string; source_name: string; source_domain: string | null;
-  published_at: string; city_id: number | null; category_id: number | null; status: 'published' | 'pending' | 'hidden'; origin: 'auto' | 'manual' };
+  published_at: string; city_id: number | null; category_id: number | null; status: 'published' | 'pending' | 'hidden'; origin: 'auto' | 'manual';
+  ai_draft: string | null; ai_status: 'asked' | 'review' | 'skipped' | 'failed' | 'approved' | 'dismissed' | null; ai_error: string | null };
 type Opt = { id: number; name: string };
 type Target = { city_id: number | null; category_id: number | null; first_run_at: string | null; last_run_at: string | null; last_found: number | null };
-type Cfg = { approval?: boolean; paused?: boolean; sources?: string[]; local_sources?: string[]; blocked?: string };
+type Cfg = { approval?: boolean; paused?: boolean; sources?: string[]; local_sources?: string[]; blocked?: string;
+  ai?: boolean; ai_model?: string; ai_monthly_cap?: number };
+type AiStatus = { key_saved: boolean; this_month: number; to_review: number };
 
 const STATUS: Record<Item['status'], [string, string]> = { published: ['Published', 's-replied'], pending: ['Waiting for approval', 's-new'], hidden: ['Hidden', 's-pending'] };
 const blank = (): Partial<Item> => ({ title: '', summary: '', url: '', source_name: '', published_at: new Date().toISOString().slice(0, 10), city_id: null, category_id: null, status: 'published' });
@@ -19,7 +22,8 @@ export function News() {
   const [cats, setCats] = useState<Opt[]>([]);
   const [targets, setTargets] = useState<Target[]>([]);
   const [cfg, setCfg] = useState<Cfg | null>(null);
-  const [filter, setFilter] = useState<'all' | Item['status']>('all');
+  const [filter, setFilter] = useState<'all' | Item['status'] | 'review'>('all');
+  const [ai, setAi] = useState<AiStatus | null>(null);
   const [city, setCity] = useState('');
   const [q, setQ] = useState('');
   const [edit, setEdit] = useState<Partial<Item> | null>(null);
@@ -35,16 +39,18 @@ export function News() {
       sb().from('settings').select('value').eq('key', 'news').maybeSingle(),
     ]);
     setItems(its); setCities(cs); setCats(ks); setTargets(ts); setCfg((st.data?.value as Cfg) ?? {});
+    sb().rpc('admin_news_ai_status').then(({ data }) => setAi((data as AiStatus) ?? null));
   }
   useEffect(() => { load().catch((e) => setToast(friendly(e))); }, []);
 
   const cityName = (id: number | null) => (id == null ? 'All cities' : cities.find((c) => c.id === id)?.name ?? '?');
   const catName = (id: number | null) => (id == null ? 'All vendor types' : cats.find((c) => c.id === id)?.name ?? '?');
-  const shown = useMemo(() => (items ?? []).filter((i) => (filter === 'all' || i.status === filter)
+  const shown = useMemo(() => (items ?? []).filter((i) => (filter === 'all' || (filter === 'review' ? i.ai_status === 'review' : i.status === filter))
     && (city === '' || String(i.city_id ?? 'none') === city)
     && (!q.trim() || (i.title + ' ' + i.source_name + ' ' + (i.summary ?? '')).toLowerCase().includes(q.trim().toLowerCase()))), [items, filter, city, q]);
   const counts = useMemo(() => ({ all: items?.length ?? 0, published: items?.filter((i) => i.status === 'published').length ?? 0,
-    pending: items?.filter((i) => i.status === 'pending').length ?? 0, hidden: items?.filter((i) => i.status === 'hidden').length ?? 0 }), [items]);
+    pending: items?.filter((i) => i.status === 'pending').length ?? 0, hidden: items?.filter((i) => i.status === 'hidden').length ?? 0,
+    review: items?.filter((i) => i.ai_status === 'review').length ?? 0 }), [items]);
   const inFirstWeek = targets.filter((t) => t.first_run_at && Date.now() - Date.parse(t.first_run_at) < 7 * 86400000).length;
   const lastRun = targets.reduce<string | null>((a, t) => (t.last_run_at && (!a || t.last_run_at > a) ? t.last_run_at : a), null);
 
@@ -59,6 +65,20 @@ export function News() {
     const { error } = await sb().from('news_items').delete().eq('id', it.id);
     if (error) return setToast(friendly(error));
     setItems((xs) => xs!.filter((x) => x.id !== it.id)); setToast('Deleted.');
+  }
+  async function takeaway(it: Item, use: boolean) {
+    const patch = use ? { summary: it.ai_draft, ai_status: 'approved' as const } : { ai_status: 'dismissed' as const };
+    const { error } = await sb().from('news_items').update(patch).eq('id', it.id);
+    if (error) return setToast(friendly(error));
+    setItems((xs) => xs!.map((x) => (x.id === it.id ? { ...x, ...patch } : x)));
+    setToast(use ? (it.status === 'published' ? 'Takeaway added. It shows on the site now.' : 'Takeaway added.') : 'Draft dismissed.');
+  }
+  async function redraft(it: Item) {
+    const patch = { ai_status: null, ai_draft: null, ai_error: null };
+    const { error } = await sb().from('news_items').update(patch).eq('id', it.id);
+    if (error) return setToast(friendly(error));
+    setItems((xs) => xs!.map((x) => (x.id === it.id ? { ...x, ...patch } : x)));
+    setToast('A new draft arrives within about 5 minutes.');
   }
   async function refresh() {
     const { data, error } = await sb().rpc('admin_news_refresh');
@@ -82,13 +102,13 @@ export function News() {
         {' '}{cfg.paused ? <b>Collecting is paused.</b> : <>{inFirstWeek} of {targets.length} are in their first (daily) week{lastRun ? `; last check ${ago(lastRun)}` : '; first check within 5 minutes'}.</>}
       </p>
 
-      {showSettings && <Settings cfg={cfg} onSaved={(c) => { setCfg(c); setToast('Settings saved.'); }} onError={setToast} />}
+      {showSettings && <Settings cfg={cfg} ai={ai} onSaved={(c) => { setCfg(c); setToast('Settings saved.'); }} onError={setToast} />}
 
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
         <div class="seg" role="group" aria-label="Status">
-          {(['all', 'published', 'pending', 'hidden'] as const).map((f) => (
+          {(['all', 'published', 'pending', 'hidden', 'review'] as const).map((f) => (
             <button type="button" aria-pressed={filter === f} onClick={() => setFilter(f)}>
-              {f === 'all' ? 'All' : STATUS[f][0]} ({counts[f]})</button>))}
+              {f === 'all' ? 'All' : f === 'review' ? 'Takeaways to review' : STATUS[f][0]} ({counts[f]})</button>))}
         </div>
         <select aria-label="City" value={city} onChange={(e) => setCity(e.currentTarget.value)} style="min-height:40px;border:1px solid var(--ln);border-radius:10px;padding:0 10px">
           <option value="">Any city</option><option value="none">All cities (national)</option>
@@ -108,6 +128,20 @@ export function News() {
                 <td style="padding-left:16px;max-width:520px">
                   <a href={it.url} target="_blank" rel="noopener" style="font-weight:600">{it.title}</a>
                   {it.summary && <span class="muted" style="display:block;font-size:13px">{it.summary}</span>}
+                  {it.ai_status === 'review' && it.ai_draft && (
+                    <div class="ai-draft">
+                      <span class="ai-draft-label">Suggested takeaway · AI draft, not shown on the site yet</span>
+                      <span>{it.ai_draft}</span>
+                      <span style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+                        <button type="button" class="btn btn-acc btn-sm" onClick={() => takeaway(it, true)}>Use takeaway</button>
+                        <button type="button" class="btn btn-outline btn-sm" onClick={() => setEdit({ ...it, summary: it.ai_draft })}>Edit, then use</button>
+                        <button type="button" class="btn btn-outline btn-sm" onClick={() => takeaway(it, false)}>Dismiss</button>
+                      </span>
+                    </div>)}
+                  {(it.ai_status === 'skipped' || it.ai_status === 'failed' || it.ai_status === 'dismissed') && !it.summary && (
+                    <span class="muted" style="display:block;font-size:12px">
+                      {it.ai_status === 'skipped' ? 'No takeaway: the AI judged this headline not useful for couples.' : it.ai_status === 'failed' ? `Takeaway draft failed${it.ai_error ? ` (${it.ai_error})` : ''}.` : 'Takeaway draft dismissed.'}
+                      {' '}<button type="button" class="linkish" onClick={() => redraft(it)}>Draft again</button></span>)}
                   <span class="muted" style="display:block;font-size:12px">{it.source_name} · {new Date(it.published_at).toLocaleDateString()}{it.origin === 'manual' ? ' · added by hand' : ''}</span>
                 </td>
                 <td style="font-size:13px">{cityName(it.city_id)}<br /><span class="muted">{catName(it.category_id)}</span></td>
@@ -147,7 +181,8 @@ function Editor({ item, cities, cats, onClose, onSaved, onError }: {
     if (!(f.source_name ?? '').trim()) return setErr('Name the publisher.');
     if (!f.published_at) return setErr('Pick the story date.');
     const row = { title: f.title!.trim(), summary: (f.summary ?? '').trim() || null, url: f.url!.trim(), source_name: f.source_name!.trim(),
-      published_at: new Date(f.published_at + 'T12:00:00Z').toISOString(), city_id: f.city_id ?? null, category_id: f.category_id ?? null, status: f.status ?? 'published' };
+      published_at: new Date(f.published_at + 'T12:00:00Z').toISOString(), city_id: f.city_id ?? null, category_id: f.category_id ?? null, status: f.status ?? 'published',
+      ...(item.ai_status === 'review' ? { ai_status: (f.summary ?? '').trim() ? 'approved' : 'review' } : {}) };
     setBusy(true);
     const res = f.id ? await sb().from('news_items').update(row).eq('id', f.id).select().single()
                      : await sb().from('news_items').insert({ ...row, origin: 'manual' }).select().single();
@@ -162,8 +197,8 @@ function Editor({ item, cities, cats, onClose, onSaved, onError }: {
         <div class="dhead" style="margin:0"><h2 style="margin:0;font-size:20px">{f.id ? 'Edit update' : 'Add update'}</h2>
           <button type="button" class="btn btn-outline btn-sm" onClick={onClose}>Close</button></div>
         <label class="field">Headline<input value={f.title ?? ''} maxLength={300} onInput={(e) => set('title', e.currentTarget.value)} style={fieldStyle} /></label>
-        <label class="field">Short note (optional)<textarea rows={3} maxLength={600} value={f.summary ?? ''} onInput={(e) => set('summary', e.currentTarget.value)} style={fieldStyle}
-          placeholder="One sentence in your own words, e.g. why it matters to couples." /></label>
+        <label class="field">Takeaway (optional)<textarea rows={3} maxLength={600} value={f.summary ?? ''} onInput={(e) => set('summary', e.currentTarget.value)} style={fieldStyle}
+          placeholder="One or two sentences in your own words: what it means for couples." /></label>
         <label class="field">Link to the original story<input type="url" value={f.url ?? ''} onInput={(e) => set('url', e.currentTarget.value)} style={fieldStyle} /></label>
         <div style="display:flex;gap:12px;flex-wrap:wrap">
           <label class="field" style="flex:1 1 200px">Publisher<input value={f.source_name ?? ''} maxLength={120} onInput={(e) => set('source_name', e.currentTarget.value)} style={fieldStyle} placeholder="e.g. Austin American-Statesman" /></label>
@@ -188,7 +223,12 @@ function Editor({ item, cities, cats, onClose, onSaved, onError }: {
   );
 }
 
-function Settings({ cfg, onSaved, onError }: { cfg: Cfg; onSaved: (c: Cfg) => void; onError: (m: string) => void }) {
+const MODELS = [['claude-sonnet-5-5', 'Claude Sonnet 5.5 (better writing, about $0.003 a draft)'], ['claude-haiku-5-5', 'Claude Haiku 5.5 (cheapest, about $0.0002 a draft)']];
+
+function Settings({ cfg, ai, onSaved, onError }: { cfg: Cfg; ai: AiStatus | null; onSaved: (c: Cfg) => void; onError: (m: string) => void }) {
+  const [aiOn, setAiOn] = useState(cfg.ai ?? true);
+  const [model, setModel] = useState(cfg.ai_model ?? 'claude-sonnet-5-5');
+  const [cap, setCap] = useState(String(cfg.ai_monthly_cap ?? 600));
   const [approval, setApproval] = useState(!!cfg.approval);
   const [paused, setPaused] = useState(!!cfg.paused);
   const [sources, setSources] = useState((cfg.sources ?? []).join('\n'));
@@ -201,7 +241,9 @@ function Settings({ cfg, onSaved, onError }: { cfg: Cfg; onSaved: (c: Cfg) => vo
     const list = clean(sources), localList = clean(local);
     const bad = [...list, ...localList].find((s) => !/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(s));
     if (bad) return onError(`"${bad}" isn't a website address like nytimes.com.`);
-    const value: Cfg = { approval, paused, sources: list, local_sources: localList, blocked: blocked.trim() };
+    const capN = Math.round(Number(cap));
+    if (!Number.isFinite(capN) || capN < 0 || capN > 5000) return onError('Monthly limit must be a number from 0 to 5000.');
+    const value: Cfg = { approval, paused, sources: list, local_sources: localList, blocked: blocked.trim(), ai: aiOn, ai_model: model, ai_monthly_cap: capN };
     setBusy(true);
     const { data, error } = await sb().from('settings').update({ value }).eq('key', 'news').select('value');
     setBusy(false);
@@ -215,6 +257,23 @@ function Settings({ cfg, onSaved, onError }: { cfg: Cfg; onSaved: (c: Cfg) => vo
         <span><b>Approve before publishing.</b> New items wait under "Waiting for approval" until you approve them.</span></label>
       <label style="display:flex;gap:10px;align-items:center"><input type="checkbox" checked={paused} onChange={(e) => setPaused(e.currentTarget.checked)} />
         <span><b>Pause collecting.</b> Nothing new is fetched; what's published stays.</span></label>
+      <fieldset class="ai-set">
+        <legend>AI takeaways</legend>
+        <label style="display:flex;gap:10px;align-items:center"><input type="checkbox" checked={aiOn} onChange={(e) => setAiOn(e.currentTarget.checked)} />
+          <span><b>Draft a takeaway for each new headline.</b> Drafts wait under "Takeaways to review"; nothing shows on the site until you use it.</span></label>
+        <p class="muted" style="margin:0;font-size:13px">
+          {ai == null ? 'Checking the API key…' : ai.key_saved
+            ? <>API key saved. {ai.this_month} drafts this month.</>
+            : <><b>No API key saved yet</b>, so no drafts are made. In Supabase: Project Settings › Vault › New secret, name <code>anthropic_api_key</code>, value: your key from platform.claude.com.</>}
+        </p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <label class="field" style="flex:2 1 280px">Model
+            <select value={model} onChange={(e) => setModel(e.currentTarget.value)} style="min-height:40px;border:1px solid var(--ln);border-radius:10px;padding:0 10px">
+              {MODELS.map(([v, l]) => <option value={v}>{l}</option>)}</select></label>
+          <label class="field" style="flex:1 1 160px">Monthly limit (drafts)
+            <input type="number" min={0} max={5000} value={cap} onInput={(e) => setCap(e.currentTarget.value)} style="min-height:40px;border:1px solid var(--ln);border-radius:10px;padding:0 10px" /></label>
+        </div>
+      </fieldset>
       <div style="display:flex;gap:12px;flex-wrap:wrap">
         <label class="field" style="flex:1 1 280px">National sources ({sources.split(/\s+/).filter(Boolean).length}): can appear on any page. One website per line.
           <textarea rows={8} value={sources} onInput={(e) => setSources(e.currentTarget.value)} spellcheck={false}

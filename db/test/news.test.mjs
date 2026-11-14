@@ -109,3 +109,71 @@ test('internal news functions cannot be called by signed-in users', async () => 
   }
   await assert.rejects(db.user(vendor, `select news_parse((select t from news_targets t limit 1), '<rss/>')`), /permission denied/);
 });
+
+test('AI takeaways: drafted only with a key, wait for review, never shown until an admin uses them', async () => {
+  // Stand-ins for pg_net: record what would be sent; answers are set by the test.
+  await db.sql(`create table ai_log (id bigserial primary key, body jsonb, key text, status int, answer text)`);
+  await db.sql(`create or replace function news_ai_post(body jsonb, api_key text) returns bigint language sql as
+    $$ insert into ai_log (body, key) values (body, api_key) returning id $$`);
+  await db.sql(`create or replace function news_ai_result(rid bigint, out status int, out body text) language sql as
+    $$ select status, answer from ai_log where id = rid $$`);
+  await db.sql(`delete from news_items`);
+  await db.sql(`insert into news_items (title, url, source_name, published_at, city_id, category_id, origin) values
+    ('New Austin wedding venue opens downtown', 'https://x.test/a1', 'KXAN', now(), $1, null, 'auto'),
+    ('Wedding venue trends for 2027', 'https://x.test/a2', 'Brides', now(), null, $2, 'auto'),
+    ('Austin bride and groom profile', 'https://x.test/a3', 'KXAN', now(), $1, null, 'auto'),
+    ('Austin venue added by hand', 'https://x.test/a4', 'KXAN', now(), $1, null, 'manual'),
+    ('Austin event space news', 'https://x.test/a5', 'KXAN', now(), $1, null, 'auto'),
+    ('Austin hotel ballroom news', 'https://x.test/a6', 'KXAN', now(), $1, null, 'auto')`, [austin, venues]);
+  const step = () => db.one('select news_ai_step() as r').then((x) => x.r);
+
+  assert.equal((await step()).asked, 0, 'no key: nothing is sent');
+  await db.client.query(`set bloomvow.test_ai_key = 'sk-test'`);
+  assert.equal((await step()).asked, 5, 'automatic items only');
+  const sent = await db.sql(`select a.id, a.body, a.key, n.title from ai_log a join news_items n on n.ai_request_id = a.id order by a.id`);
+  assert.equal(sent[0].key, 'sk-test');
+  assert.equal(sent[0].body.model, 'claude-sonnet-5-5');
+  assert.match(sent[0].body.system, /Never invent/);
+  const prompt = sent.find((s) => s.title.startsWith('New Austin')).body.messages[0].content;
+  assert.match(prompt, /Headline: New Austin wedding venue opens downtown/);
+  assert.match(prompt, /Shown on: wedding vendor pages for Austin, Texas/);
+  assert.match(sent.find((s) => s.title.startsWith('Wedding venue trends')).body.messages[0].content, /wedding venues pages for US cities/);
+
+  const answer = (title, status, text) => db.sql(`update ai_log set status = $2, answer = $3 where id = (select ai_request_id from news_items where title = $1)`,
+    [title, status, JSON.stringify({ content: [{ type: 'text', text }] })]);
+  await answer('New Austin wedding venue opens downtown', 200, '"A new option for spring dates: ask about opening offers and how far ahead weekends are booking."');
+  await answer('Wedding venue trends for 2027', 200, 'Worth a look before you tour venues; compare what each includes.');
+  await answer('Austin bride and groom profile', 200, 'SKIP');
+  await answer('Austin event space news', 200, 'Book early, see www.example.com for details on this.');
+  await db.sql(`update ai_log set status = 529, answer = '{}' where id = (select ai_request_id from news_items where title = 'Austin hotel ballroom news')`);
+  const r = await step();
+  assert.equal(r.drafted, 2);
+  const st = Object.fromEntries((await db.sql(`select title, ai_status, ai_draft, summary from news_items`)).map((x) => [x.title, x]));
+  assert.equal(st['New Austin wedding venue opens downtown'].ai_status, 'review');
+  assert.equal(st['New Austin wedding venue opens downtown'].ai_draft, 'A new option for spring dates: ask about opening offers and how far ahead weekends are booking.');
+  assert.equal(st['New Austin wedding venue opens downtown'].summary, null, 'not shown until approved');
+  assert.equal(st['Austin bride and groom profile'].ai_status, 'skipped');
+  assert.equal(st['Austin event space news'].ai_status, 'skipped', 'links are not allowed');
+  assert.equal(st['Austin venue added by hand'].ai_status, null);
+  assert.equal(st['Austin hotel ballroom news'].ai_status, 'asked', 'overloaded: asked again');
+  assert.equal(r.asked, 1);
+
+  // Visitors never see drafts; an admin uses one and it becomes the summary.
+  const pub = (await db.anon('select news_for($1, $2, 8) as r', [austin, venues]))[0].r;
+  assert.ok(pub.every((x) => x.summary === null));
+  await db.user(admin, `update news_items set summary = ai_draft, ai_status = 'approved' where title = 'New Austin wedding venue opens downtown'`);
+  const pub2 = (await db.anon('select news_for($1, $2, 8) as r', [austin, venues]))[0].r;
+  assert.match(pub2.find((x) => x.title.startsWith('New Austin')).summary, /opening offers/);
+  const s = (await db.user(admin, 'select admin_news_ai_status() as s'))[0].s;
+  assert.equal(s.key_saved, true); assert.equal(s.to_review, 1);
+  await assert.rejects(db.user(vendor, 'select admin_news_ai_status()'), /forbidden/);
+  await assert.rejects(db.anon('select news_ai_step()'), /permission denied/);
+
+  // Monthly cap.
+  await db.sql(`update settings set value = value || '{"ai_monthly_cap": 0}' where key = 'news'`);
+  await db.sql(`update news_items set ai_status = null where title = 'Austin venue added by hand'`);
+  await db.sql(`insert into news_items (title, url, source_name, published_at, city_id, origin) values ('Austin wedding fair returns', 'https://x.test/a7', 'KXAN', now(), $1, 'auto')`, [austin]);
+  assert.equal((await step()).asked, 0, 'cap reached');
+  await assert.rejects(db.user(admin, `update settings set value = value || '{"ai_model": "gpt-4"}' where key = 'news'`), /check constraint/);
+  await db.client.query(`reset bloomvow.test_ai_key`);
+});

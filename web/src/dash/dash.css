@@ -264,3 +264,9 @@
 .biz-grid .field { grid-column: 1 / -1; }
 .biz-grid .field.biz-half { grid-column: auto; }
 @media (max-width: 600px) { .biz-grid { grid-template-columns: 1fr; } .biz-grid .field.biz-half { grid-column: 1 / -1; } }
+/* Admin > News: AI takeaway drafts */
+.ai-draft { margin-top: 8px; padding: 10px 12px; border: 1px dashed var(--acc, #b8325e); border-radius: 10px; background: var(--acc-soft, #fbf1f3); display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+.ai-draft-label { font-size: 12px; font-weight: 600; color: var(--acc, #b8325e); }
+.ai-set { border: 1px solid var(--ln); border-radius: 12px; padding: 12px 14px; display: grid; gap: 10px; margin: 0; }
+.ai-set legend { font-weight: 700; padding: 0 6px; }
+.linkish { background: none; border: 0; padding: 0; color: var(--acc, #b8325e); text-decoration: underline; cursor: pointer; font: inherit; }

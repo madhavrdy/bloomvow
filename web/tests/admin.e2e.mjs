@@ -626,7 +626,7 @@ test('news & updates: add by hand, edit, hide and delete; the listing page follo
 
   // Edit
   await admin.click('tr:has-text("Austin bridal show") button:has-text("Edit")');
-  await dlg.locator('label:has-text("Short note") textarea').fill('Over 100 local vendors in one place.');
+  await dlg.locator('label:has-text("Takeaway") textarea').fill('Over 100 local vendors in one place.');
   await dlg.locator('button:has-text("Save")').click();
   await admin.waitForSelector('td:has-text("Over 100 local vendors")');
   // Hide: gone from the page
@@ -659,8 +659,38 @@ test('news settings: approval and sources are saved; bad source refused', async 
   await admin.waitForSelector('.toast:has-text("isn\'t a website address")');
   await form.locator('label:has-text("Approve before publishing") input').uncheck();
   await form.locator('textarea').first().fill('nytimes.com\nbrides.com\nstatesman.com');
+  await form.locator('label:has-text("Model") select').selectOption('claude-haiku-5-5');
+  await form.locator('label:has-text("Monthly limit") input').fill('300');
   await form.locator('button:has-text("Save settings")').click();
   await admin.waitForSelector('.toast:has-text("Settings saved")');
+  const [{ value: v2 }] = await q(`select value from settings where key = 'news'`);
+  assert.deepEqual([v2.ai, v2.ai_model, v2.ai_monthly_cap], [true, 'claude-haiku-5-5', 300]);
+  assert.match(await form.innerText(), /No API key saved yet/);
+});
+
+test('news takeaways: an AI draft waits for review; "Use takeaway" puts it on the page, "Dismiss" does not', async () => {
+  await q(`delete from news_items where url like 'https://news.example.com/%'`);
+  const austin = (await q(`select id from cities where name = 'Austin'`))[0].id;
+  await q(`insert into news_items (title, url, source_name, published_at, city_id, origin, ai_status, ai_draft) values
+    ('Austin wedding venue opens in old rail depot', 'https://news.example.com/depot', 'KXAN', now(), $1, 'auto', 'review', 'A new spring option: ask about opening dates and how far ahead weekends book.'),
+    ('Austin wedding expo adds second weekend', 'https://news.example.com/expo', 'KXAN', now(), $1, 'auto', 'review', 'Handy if you want to meet several vendors in one afternoon.')`, [austin]);
+  await go(admin, 'news'); await admin.reload(); await admin.waitForSelector('.dmain h1');
+  await admin.click('button:has-text("Takeaways to review (2)")');
+  await admin.click('tr:has-text("old rail depot") button:has-text("Use takeaway")');
+  await admin.waitForSelector('.toast:has-text("Takeaway added")');
+  await admin.click('tr:has-text("second weekend") button:has-text("Dismiss")');
+  await admin.waitForSelector('.toast:has-text("Draft dismissed")');
+  const rows = Object.fromEntries((await q(`select url, summary, ai_status from news_items where url like 'https://news.example.com/%'`)).map((r) => [r.url, r]));
+  assert.equal(rows['https://news.example.com/depot'].ai_status, 'approved');
+  assert.match(rows['https://news.example.com/depot'].summary, /opening dates/);
+  assert.equal(rows['https://news.example.com/expo'].summary, null);
+  const pub = await browser.newPage();
+  await pub.goto(`${SITE}/us/texas/austin/wedding-venues/`);
+  await pub.waitForSelector('section.news:not([hidden]) :text("ask about opening dates")');
+  assert.ok(!(await pub.locator('section.news').innerText()).includes('meet several vendors'));
+  await pub.close();
+  await q(`delete from news_items where url like 'https://news.example.com/%'`);
+  assert.deepEqual(admin.errors ?? [], []);
 });
 
 test('business details: admin saves email and mailing address; bad ZIP is rejected', async () => {
