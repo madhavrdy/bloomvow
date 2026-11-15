@@ -508,8 +508,8 @@ test('comments: delete removes a comment for good (after confirming)', async () 
   await admin.locator('[aria-label="Comment by Cheap Pills"] button:has-text("Delete")').click();
   await toast(admin, /1 comment deleted/);
   assert.equal((await q(`select count(*)::int n from comments where author_name = 'Cheap Pills'`))[0].n, 0);
-  assert.equal(await admin.locator('[aria-label="Comment by Cheap Pills"]').count(), 0);
-  assert.match(await admin.locator('.seg button:has-text("Spam")').innerText(), /0/);
+  await admin.locator('[aria-label="Comment by Cheap Pills"]').waitFor({ state: 'detached' });
+  await admin.locator('.seg button:has-text("Spam") .cm-count:text-is("0")').waitFor();
 });
 
 test('team: make someone an editor', async () => {
