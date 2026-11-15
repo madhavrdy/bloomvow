@@ -59,6 +59,19 @@ export function Comments({ onChange, postId }: { onChange: () => void; postId?: 
     setToast(`${data} comment${data === 1 ? '' : 's'} ${to === 'approved' ? 'approved' : to === 'spam' ? 'marked as spam' : to === 'rejected' ? 'rejected' : to}`);
     load(); onChange();
   }
+  // Permanent: removes the comments (and any replies under them) from the site and the database.
+  async function remove(ids: string[]) {
+    if (!ids.length || !rows) return;
+    const picked = rows.filter((r) => ids.includes(r.id));
+    const replies = rows.filter((r) => r.parent_id && ids.includes(r.parent_id) && !ids.includes(r.id)).length;
+    const what = ids.length === 1 ? `this comment by ${picked[0]?.author_name ?? 'this person'}` : `${ids.length} comments`;
+    if (!confirm(`Permanently delete ${what}${replies ? ` and ${replies} repl${replies === 1 ? 'y' : 'ies'} under it` : ''}? This can't be undone. To just hide a comment, use ${status === 'approved' ? 'Unpublish' : 'Reject'} instead.`)) return;
+    const { data, error } = await sb().from('comments').delete().in('id', ids).select('id');
+    if (error) return setToast(friendly(error));
+    if (!data?.length) return setToast('Nothing was deleted. Only admins can delete comments.');
+    setToast(`${data.length} comment${data.length === 1 ? '' : 's'} deleted`);
+    load(); onChange();
+  }
   async function send(c: C) {
     if (!compose || text.trim().length < 2) return;
     setBusy(true);
@@ -111,6 +124,7 @@ export function Comments({ onChange, postId }: { onChange: () => void; postId?: 
             {c.status === 'approved' && <button class="btn btn-outline btn-sm" onClick={() => moderate([c.id], 'rejected')}>Unpublish</button>}
             {c.status === 'pending' && <button class="btn btn-outline btn-sm" onClick={() => moderate([c.id], 'rejected')}>Reject</button>}
             {c.status !== 'spam' && !c.is_staff && <button class="btn btn-outline btn-sm cm-spam" onClick={() => moderate([c.id], 'spam')}>Spam</button>}
+            <button class="btn btn-outline btn-sm cm-del" onClick={() => remove([c.id])}>Delete</button>
             {c.status === 'approved' && <a class="cm-view" href={`/blog/${c.posts.slug}/#c-${c.id}`} target="_blank" rel="noopener">View on site ↗</a>}
           </div>
           {open && (
@@ -148,6 +162,7 @@ export function Comments({ onChange, postId }: { onChange: () => void; postId?: 
             {status !== 'approved' && <button class="btn btn-green btn-sm" onClick={() => moderate([...sel], 'approved')}>Approve</button>}
             {status !== 'rejected' && <button class="btn btn-outline btn-sm" onClick={() => moderate([...sel], 'rejected')}>{status === 'approved' ? 'Unpublish' : 'Reject'}</button>}
             {status !== 'spam' && <button class="btn btn-outline btn-sm" onClick={() => moderate([...sel], 'spam')}>Spam</button>}
+            <button class="btn btn-outline btn-sm cm-del" onClick={() => remove([...sel])}>Delete</button>
           </>}
         </>}
       </div>

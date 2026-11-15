@@ -250,3 +250,5 @@
   .cm-compose { grid-template-columns: 1fr; }
   .cm-compose .cm-av { display: none; }
 }
+.cm-del { color: #b42318; border-color: #f2c9c4; }
+.cm-del:hover { background: #fdf1ef; border-color: #b42318; }
