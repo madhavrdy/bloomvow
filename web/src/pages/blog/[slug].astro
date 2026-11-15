@@ -9,6 +9,7 @@ import PostCard from '../../components/PostCard.astro';
 import { getData, categoryImage, type Post } from '../../lib/data';
 import { renderMarkdown, plainText, readingMinutes } from '../../lib/markdown';
 import { faqJsonLd, breadcrumbJsonLd } from '../../lib/seo';
+import { initials, hue } from '../../lib/commentLook';
 import { SITE_NAME } from '../../config';
 
 export async function getStaticPaths() {
@@ -106,37 +107,61 @@ const article = {
     </article>
 
     <section class="comments" id="comments" aria-labelledby="comments-h">
-      <h2 id="comments-h" class="serif">{comments.length ? `${comments.length} comment${comments.length > 1 ? 's' : ''}` : 'Comments'}</h2>
+      <div class="cmt-top">
+        <div>
+          <h2 id="comments-h" class="serif">{comments.length ? `${comments.length} comment${comments.length > 1 ? 's' : ''}` : 'Comments'}</h2>
+          <p class="cmt-sub">Questions, tips and experiences from couples planning their day.</p>
+        </div>
+        {p.comments_open && <button type="button" class="btn btn-outline btn-sm" id="cmt-write" hidden={!comments.length}>Write a comment</button>}
+      </div>
+      <p class="cmt-empty" id="cmt-empty" hidden={comments.length > 0}>{p.comments_open ? 'No comments yet. Be the first to ask a question or share a tip.' : 'No comments yet.'}</p>
       <div id="cmt-list" data-post={p.id} data-open={p.comments_open ? '1' : ''} data-staff={`${SITE_NAME} team`}>
       {top.map((c) => (
-        <div class="cmt" id={`c-${c.id}`}>
-          <div class="cmt-head"><b>{c.author_name}</b>{c.is_staff && <span class="badge badge-green">{SITE_NAME} team</span>}<time class="muted" datetime={c.created_at}>{fmt(c.created_at)}</time></div>
-          <p>{c.body}</p>
-          {p.comments_open && <button type="button" class="linkish" data-reply={c.id} data-reply-name={c.author_name}>Reply</button>}
-          {replies(c.id).map((r) => (
-            <div class="cmt cmt-reply" id={`c-${r.id}`}>
-              <div class="cmt-head"><b>{r.author_name}</b>{r.is_staff && <span class="badge badge-green">{SITE_NAME} team</span>}<time class="muted" datetime={r.created_at}>{fmt(r.created_at)}</time></div>
-              <p>{r.body}</p>
-            </div>
-          ))}
-        </div>
+        <article class="cmt" id={`c-${c.id}`}>
+          <span class:list={['cmt-av', { 'cmt-av-team': c.is_staff }]} style={c.is_staff ? undefined : `--h:${hue(c.author_name)}`} aria-hidden="true">{c.is_staff ? '' : initials(c.author_name)}</span>
+          <div class="cmt-main">
+            <header class="cmt-head"><b class="cmt-name">{c.author_name}</b>{c.is_staff && <span class="cmt-team">Team</span>}<time class="cmt-time" datetime={c.created_at} title={fmt(c.created_at)}>{fmt(c.created_at)}</time></header>
+            <p class="cmt-body">{c.body}</p>
+            {p.comments_open && <div class="cmt-actions"><button type="button" class="cmt-act" data-reply={c.id} data-reply-name={c.author_name}>Reply</button></div>}
+            {replies(c.id).length > 0 && (
+              <div class="cmt-replies">
+                {replies(c.id).map((r) => (
+                  <article class="cmt is-reply" id={`c-${r.id}`}>
+                    <span class:list={['cmt-av', { 'cmt-av-team': r.is_staff }]} style={r.is_staff ? undefined : `--h:${hue(r.author_name)}`} aria-hidden="true">{r.is_staff ? '' : initials(r.author_name)}</span>
+                    <div class="cmt-main">
+                      <header class="cmt-head"><b class="cmt-name">{r.author_name}</b>{r.is_staff && <span class="cmt-team">Team</span>}<time class="cmt-time" datetime={r.created_at} title={fmt(r.created_at)}>{fmt(r.created_at)}</time></header>
+                      <p class="cmt-body">{r.body}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+            <div class="cmt-slot"></div>
+          </div>
+        </article>
       ))}
       </div>
+      <div id="cmt-form-home">
       {p.comments_open ? (
         <form id="comment-form" class="cmt-form" data-post={p.id} novalidate>
-          <h3 style="margin:0">Leave a comment</h3>
-          <p class="muted" id="replying" hidden style="margin:0">Replying to <b></b> · <button type="button" class="linkish" id="cancel-reply">Cancel</button></p>
-          <p class="muted" style="margin:0;font-size:14px">Comments are checked before they appear. Your email is never shown.</p>
-          <div class="cmt-row">
-            <label class="field">Name<input name="name" required maxlength="80" autocomplete="name" /></label>
-            <label class="field">Email<input name="email" type="email" required maxlength="254" autocomplete="email" /></label>
+          <div class="cmt-form-head">
+            <h3 class="cmt-form-title">Leave a comment</h3>
+            <button type="button" class="cmt-act" id="cancel-reply" hidden>Cancel</button>
           </div>
-          <label class="field">Comment<textarea name="body" required rows="5" maxlength="3000"></textarea></label>
+          <label class="field">Your comment<textarea name="body" required rows="4" maxlength="3000" placeholder="Share a question, a tip or your experience…"></textarea><span class="cmt-count" aria-live="polite"></span></label>
+          <div class="cmt-row">
+            <label class="field">Name<input name="name" required maxlength="80" autocomplete="name" placeholder="Shown with your comment" /></label>
+            <label class="field">Email<input name="email" type="email" required maxlength="254" autocomplete="email" placeholder="Never shown" /></label>
+          </div>
           <label class="hp" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off" /></label>
           <p class="form-error" role="alert"></p>
-          <div><button class="btn btn-primary" type="submit">Post comment</button></div>
+          <div class="cmt-form-foot">
+            <p class="cmt-note">Comments are checked by our team before they appear. Your email is never shown or shared.</p>
+            <button class="btn btn-primary" type="submit">Post comment</button>
+          </div>
         </form>
-      ) : <p class="muted">Comments are closed for this article.</p>}
+      ) : <p class="cmt-closed">Comments are closed for this article.</p>}
+      </div>
     </section>
 
     {related.length > 0 && <section class="section"><h2>You might also like</h2><div class="post-grid">{related.map((r) => <PostCard p={r} />)}</div></section>}
@@ -148,14 +173,67 @@ const article = {
   refreshComments();
 </script>
 <style>
-  .comments { max-width: 760px; margin-top: 56px; }
-  .comments h2 { font-size: 34px; margin: 0 0 16px; }
-  .cmt { border-top: 1px solid var(--line); padding: 16px 0; }
-  .cmt p { margin: 6px 0; white-space: pre-line; }
-  .cmt-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 15px; }
-  .cmt-reply { margin-left: 24px; border-top: 0; border-left: 3px solid var(--line); padding: 4px 0 4px 16px; margin-top: 8px; }
-  .linkish { background: none; border: 0; padding: 0; color: var(--rose-dark); font: inherit; font-weight: 600; font-size: 14px; cursor: pointer; }
-  .cmt-form { display: flex; flex-direction: column; gap: 14px; border: 1px solid var(--line); border-radius: 18px; padding: 20px; margin-top: 16px; }
-  .cmt-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
   .post-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px; }
+</style>
+<style is:global>
+  /* Blog comments (also styles comments added by the live refresh, so global under .comments). */
+  .comments { max-width: 760px; margin-top: 64px; padding-top: 40px; border-top: 1px solid var(--line); }
+  .comments .cmt-top { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 20px; }
+  .comments h2 { font-size: 36px; margin: 0; font-weight: 400; }
+  .comments .cmt-sub { margin: 4px 0 0; color: var(--ink-3); font-size: 15px; }
+  .comments .cmt-empty { background: var(--rose-soft); border-radius: 16px; padding: 18px 20px; margin: 0 0 20px; color: var(--ink-2); }
+  .comments .cmt { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 14px; padding: 20px 0; border-top: 1px solid var(--line); scroll-margin-top: 90px; }
+  .comments #cmt-list > .cmt:first-child { border-top: 0; padding-top: 4px; }
+  .comments .cmt-av { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 15px; letter-spacing: .3px;
+    color: hsl(var(--h, 340) 45% 32%); background: hsl(var(--h, 340) 60% 93%); }
+  .comments .cmt-av-team { background: url('/favicon.svg') center / cover no-repeat; }
+  .comments .cmt-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; line-height: 1.3; }
+  .comments .cmt-name { font-size: 16px; color: var(--ink); }
+  .comments .cmt-team { font-size: 12px; font-weight: 600; color: var(--rose-dark); background: var(--rose-soft); border-radius: 999px; padding: 2px 10px; }
+  .comments .cmt-time { font-size: 13px; color: var(--ink-3); }
+  .comments .cmt-time::before { content: '·'; margin-right: 8px; color: var(--line); }
+  .comments .cmt-body { margin: 6px 0 0; white-space: pre-line; line-height: 1.65; color: var(--ink-2); font-size: 16px; overflow-wrap: anywhere; }
+  .comments .cmt-actions { margin-top: 8px; display: flex; gap: 16px; }
+  .comments .cmt-act { background: none; border: 0; padding: 4px 0; color: var(--rose-dark); font: inherit; font-weight: 600; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  .comments .cmt-act[data-reply]::before { content: ''; width: 14px; height: 14px; background: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 14 4 9l5-5'/%3E%3Cpath d='M4 9h10.5a5.5 5.5 0 0 1 0 11H11'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 14 4 9l5-5'/%3E%3Cpath d='M4 9h10.5a5.5 5.5 0 0 1 0 11H11'/%3E%3C/svg%3E") center / contain no-repeat; }
+  .comments .cmt-act:hover { text-decoration: underline; }
+  .comments .cmt-replies { margin-top: 14px; padding-left: 18px; border-left: 2px solid var(--line); display: flex; flex-direction: column; gap: 4px; }
+  .comments .cmt.is-reply { grid-template-columns: 34px minmax(0, 1fr); gap: 12px; padding: 12px 0 8px; border-top: 0; }
+  .comments .cmt.is-reply .cmt-av { width: 34px; height: 34px; font-size: 13px; }
+  .comments .cmt.is-reply .cmt-body { font-size: 15px; }
+  .comments .cmt.is-target > .cmt-main { animation: cmt-flash 2.4s ease-out; border-radius: 12px; }
+  @keyframes cmt-flash { 0%, 40% { background: var(--rose-soft); box-shadow: 0 0 0 8px var(--rose-soft); } 100% { background: transparent; box-shadow: 0 0 0 8px transparent; } }
+  .comments .cmt-slot:empty { display: none; }
+  .comments .cmt-slot { margin-top: 14px; }
+  .comments .cmt-form { display: flex; flex-direction: column; gap: 14px; border: 1px solid var(--line); border-radius: 20px; padding: 22px; margin-top: 24px; background: #fff; box-shadow: var(--shadow-sm); }
+  .comments .cmt-slot .cmt-form { margin-top: 0; border-color: var(--rose-tint); }
+  .comments .cmt-form-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .comments .cmt-form-title { margin: 0; font-size: 19px; }
+  .comments .cmt-form textarea { min-height: 110px; resize: vertical; }
+  .comments .cmt-count { font-size: 12px; color: var(--ink-3); align-self: flex-end; }
+  .comments .cmt-count:empty { display: none; }
+  .comments .cmt-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .comments .cmt-form .form-error:empty { display: none; }
+  .comments .cmt-form-foot { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+  .comments .cmt-note { margin: 0; font-size: 13px; color: var(--ink-3); max-width: 380px; line-height: 1.45; }
+  .comments .cmt-form-foot .btn { white-space: nowrap; }
+  .comments .cmt-ok { margin-top: 20px; background: #eef7f1; border: 1px solid #cfe7d8; color: #1f5137; border-radius: 16px; padding: 16px 18px; line-height: 1.5; }
+  .comments .cmt-closed { color: var(--ink-3); margin-top: 20px; }
+  @media (max-width: 640px) {
+    .comments { margin-top: 48px; padding-top: 32px; }
+    .comments h2 { font-size: 30px; }
+    .comments .cmt-top { align-items: flex-start; flex-direction: column; gap: 12px; }
+    .comments .cmt { grid-template-columns: 36px minmax(0, 1fr); gap: 12px; }
+    .comments .cmt-av { width: 36px; height: 36px; font-size: 13px; }
+    .comments .cmt-replies { padding-left: 12px; }
+    .comments .cmt.is-reply { grid-template-columns: 30px minmax(0, 1fr); gap: 10px; }
+    .comments .cmt.is-reply .cmt-av { width: 30px; height: 30px; font-size: 12px; }
+    .comments .cmt-body { font-size: 15px; }
+    .comments .cmt-form { padding: 18px; border-radius: 18px; }
+    .comments .cmt-row { grid-template-columns: 1fr; }
+    .comments .cmt-form-foot { flex-direction: column-reverse; align-items: stretch; }
+    .comments .cmt-form-foot .btn { width: 100%; }
+  }
 </style>

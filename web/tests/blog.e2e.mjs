@@ -60,7 +60,7 @@ test('post page: breadcrumb, TOC, schema, approved comments with staff reply, re
   assert.equal((h.match(/class="cmt" id=/g) ?? []).length, 1);
   const [{ n }] = await q(`select count(*)::int n from comments c join posts p on p.id = c.post_id where p.slug = 'how-much-does-a-wedding-venue-cost-in-austin' and c.status = 'approved' and c.parent_id is null`);
   await p.waitForFunction((want) => document.querySelectorAll('#cmt-list > .cmt').length === want, n);
-  assert.match(await p.locator('.cmt-reply', { hasText: 'Fridays can save' }).innerText(), /Bloomvow team[\s\S]*Fridays can save/);
+  assert.match(await p.locator('.cmt.is-reply', { hasText: 'Fridays can save' }).innerText(), /Team[\s\S]*Fridays can save/);
   assert.equal(await p.locator('.post-cta a:has-text("wedding venues in Austin")').count(), 1);
   assert.deepEqual(p.errors, []);
 });
@@ -74,10 +74,11 @@ test('comment form: friendly errors, honeypot, reply goes in held for moderation
   await p.click('#comment-form button[type=submit]');
   await p.locator('#comment-form .form-error:has-text("valid email")').waitFor();
   await p.click('.cmt button[data-reply]');
-  assert.match(await p.locator('#replying').innerText(), /Replying to Priya/);
+  assert.match(await p.locator('#comment-form .cmt-form-title').innerText(), /Reply to Priya/);
+  assert.equal(await p.locator('.cmt .cmt-slot #comment-form').count(), 1, 'the form opens under the comment');
   await p.fill('#comment-form [name=email]', 'lena@example.com');
   await p.click('#comment-form button[type=submit]');
-  await p.locator('.form-ok:has-text("awaiting moderation")').waitFor();
+  await p.locator('.cmt-ok:has-text("once our team has checked it")').waitFor();
   const [c] = await q(`select c.status, p.author_name as parent from comments c join comments p on p.id = c.parent_id where c.author_email = 'lena@example.com'`);
   assert.deepEqual({ ...c }, { status: 'pending', parent: 'Priya' });
 });
@@ -86,13 +87,15 @@ test('a comment or reply approved after the site was built shows right away', as
   await q(`update comments set status = 'approved' where author_email = 'lena@example.com'`);
   const p = await page();
   await p.goto(`${SITE}${POST}`);
-  const reply = p.locator('.cmt-reply:has-text("Are weekday prices much lower?")');
+  const reply = p.locator('.cmt.is-reply:has-text("Are weekday prices much lower?")');
   await reply.waitFor();
-  assert.match(await p.locator('.cmt:not(.cmt-reply)', { has: reply }).innerText(), /^Priya/, 'shown under the comment it replies to');
+  assert.match(await p.locator('#cmt-list > .cmt', { has: reply }).locator('.cmt-name').first().innerText(), /^Priya/, 'shown under the comment it replies to');
   assert.match(await p.locator('#comments-h').innerText(), /\d+ comments/);
   // Reply still works on the refreshed list; text is shown as text, never HTML.
   await p.click('.cmt button[data-reply]');
-  assert.match(await p.locator('#replying').innerText(), /Replying to Priya/);
+  assert.match(await p.locator('#comment-form .cmt-form-title').innerText(), /Reply to Priya/);
+  await p.click('#cancel-reply');
+  assert.equal(await p.locator('#cmt-form-home #comment-form').count(), 1, 'cancel puts the form back');
   await q(`update comments set status = 'pending' where author_email = 'lena@example.com'`);
   assert.deepEqual(p.errors, []);
 });

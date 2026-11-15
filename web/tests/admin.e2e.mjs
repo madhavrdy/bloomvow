@@ -475,12 +475,13 @@ test('comments: bulk spam, approve, admin reply goes live', async () => {
   await go(admin, 'comments');
   await admin.waitForSelector('[aria-label^="Comment by"]');
   await admin.locator('[aria-label="Comment by Cheap Pills"] input[type=checkbox]').check();
-  await admin.click('button:has-text("Spam selected")');
+  await admin.click('.cm-bar button:has-text("Spam")');
   await toast(admin, /1 comment marked as spam/);
   await admin.locator('[aria-label="Comment by Sam"] button:has-text("Reply")').click();
+  assert.match(await admin.locator('[aria-label="Comment by Sam"] .cm-head').innerText(), /First comment/);
   await admin.fill('[aria-label="Comment by Sam"] textarea', 'Good question! Most venues price catering separately.');
   await admin.click('button:has-text("Publish reply")');
-  await toast(admin, /Reply published/);
+  await toast(admin, /Reply published and comment approved/);
   const rows = await q(`select author_name, status, is_staff, parent_id is not null as is_reply from comments where post_id = '00000000-0000-0000-0000-0000000b1001' order by created_at`);
   const byName = Object.fromEntries(rows.map((r) => [r.author_name + (r.is_staff ? '*' : ''), r]));
   assert.equal(byName['Cheap Pills'].status, 'spam');
@@ -489,6 +490,16 @@ test('comments: bulk spam, approve, admin reply goes live', async () => {
   assert.equal(staff.status, 'approved');
   assert.equal(staff.is_reply, true);
   assert.equal((await q(`select count(*)::int n from comments where status = 'pending'`))[0].n, 0);
+  // Approved shows the conversation as a thread; the team reply can be edited.
+  await admin.click('.seg button:has-text("Approved")');
+  const thread = admin.locator('.cm-thread', { has: admin.locator('[aria-label="Comment by Sam"]') });
+  await thread.locator('.cm-replies .cm-staff').waitFor();
+  await thread.locator('.cm-staff button:has-text("Edit")').click();
+  await thread.locator('.cm-staff textarea').fill('Good question! Most venues price catering separately, so ask for an itemised quote.');
+  await thread.locator('.cm-staff button:has-text("Save")').click();
+  await toast(admin, /Reply updated/);
+  assert.match((await q(`select body from comments where is_staff and post_id = '00000000-0000-0000-0000-0000000b1001' order by created_at desc limit 1`))[0].body, /itemised quote/);
+  assert.deepEqual(admin.errors ?? [], []);
 });
 
 test('team: make someone an editor', async () => {
