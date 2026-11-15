@@ -1,5 +1,6 @@
 // Fills the shared /blog-post/?p=<slug> page for a post published since the last site build.
 // As soon as the rebuilt page exists, readers are sent to /blog/<slug>/ instead.
+import { initToc } from './toc';
 import { renderMarkdown, readingMinutes, plainText } from '../lib/markdown';
 
 const meta = () => document.querySelector<HTMLMetaElement>('meta[name="bv-api"]')!;
@@ -40,15 +41,20 @@ export async function initBlogFallback() {
     }
     const { html, headings } = renderMarkdown(p.body, location.host);  // Markdown is rendered safely (raw HTML escaped)
     $('bp-body').innerHTML = html;
-    if (headings.length >= 3) {
+    const h2s = headings.filter((h) => h.depth === 2);
+    const items = h2s.length >= 3 ? h2s : headings;
+    if (items.length >= 3) {
       const toc = $('bp-toc');
       const ol = toc.querySelector('ol')!;
-      for (const h of headings) {
+      toc.querySelector('.toc-n')!.textContent = `${items.length} sections`;
+      for (const h of items) {
         const li = document.createElement('li'); li.className = `d${h.depth}`;
         const a = document.createElement('a'); a.href = `#${h.id}`; a.textContent = new DOMParser().parseFromString(h.text, 'text/html').body.textContent ?? '';
         li.append(a); ol.append(li);
       }
-      toc.hidden = false;
+      $('bp-side').hidden = false;
+      $('bp-layout').classList.add('has-toc');
+      initToc();
     }
     $('bp-loading').hidden = true; $('bp-page').hidden = false;
     if (location.hash) document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView();

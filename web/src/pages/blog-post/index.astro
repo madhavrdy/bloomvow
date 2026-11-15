@@ -21,8 +21,10 @@ import Base from '../../layouts/Base.astro';
           <p id="bp-meta" class="muted post-meta"></p>
         </header>
         <img id="bp-cover" class="post-cover" hidden alt="" />
-        <div class="post-layout">
-          <nav id="bp-toc" class="toc" aria-label="On this page" hidden><b>On this page</b><ol></ol></nav>
+        <div class="post-layout" id="bp-layout">
+          <aside class="post-side" id="bp-side" hidden>
+            <details id="bp-toc" class="toc" aria-label="In this article"><summary><span class="toc-title">In this article</span><span class="toc-n"></span></summary><ol></ol></details>
+          </aside>
           <div id="bp-body" class="prose"></div>
         </div>
         <p class="post-cta"><a class="btn btn-primary btn-lg" href="/get-matched/">Get free quotes</a> <a class="btn btn-outline btn-lg" href="/blog/">More articles</a></p>

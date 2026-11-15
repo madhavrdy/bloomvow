@@ -21,6 +21,9 @@ const { p } = Astro.props;
 const d = await getData();
 const cat = d.blogCategoryById.get(p.category_id)!;
 const { html: rawHtml, headings } = renderMarkdown(p.body, Astro.site?.host);
+// Contents: the main sections only (sub-headings too when there are few main ones).
+const h2s = headings.filter((h) => h.depth === 2);
+const tocItems = h2s.length >= 3 ? h2s : headings;
 // Inside the article, between sections (inserted before a section heading, so each lands at
 // the end of the section above it):
 // * AdSense: after the intro (or after the first section if the post opens with a heading) and
@@ -76,6 +79,7 @@ const article = {
 };
 ---
 <Base title={p.seo_title || p.title} description={desc} image={p.cover_url ?? undefined} ogType="article" jsonld={[article, breadcrumbJsonLd(Astro.site, crumbs), ...(faqs.length ? [faqJsonLd(faqs)] : [])]} rss>
+  <div class="read-progress" aria-hidden="true"><span></span></div>
   <main class="wrap" style="padding-top:24px">
     <Breadcrumbs items={crumbs} />
     <article class="post">
@@ -90,15 +94,15 @@ const article = {
         </p>
       </header>
       {p.cover_url && <img class="post-cover" src={p.cover_url} alt={p.cover_alt ?? ''} fetchpriority="high" />}
-      <div class="post-layout">
-        {headings.length >= 3 && (
-          <div class="post-side">
-            <nav class="toc" aria-label="On this page">
-              <b>On this page</b>
-              <ol>{headings.map((h) => <li class={`d${h.depth}`}><a href={`#${h.id}`}>{h.text}</a></li>)}</ol>
-            </nav>
+      <div class:list={['post-layout', { 'has-toc': tocItems.length >= 3 }]}>
+        {tocItems.length >= 3 && (
+          <aside class="post-side">
+            <details class="toc" aria-label="In this article">
+              <summary><span class="toc-title">In this article</span><span class="toc-n">{tocItems.length} sections</span></summary>
+              <ol>{tocItems.map((h) => <li class={`d${h.depth}`}><a href={`#${h.id}`}>{h.text}</a></li>)}</ol>
+            </details>
             <AdSlot placement="post_side" class="side-ad" />
-          </div>
+          </aside>
         )}
         <div class="prose" set:html={html} />
       </div>
@@ -106,6 +110,7 @@ const article = {
       {cta && <p class="post-cta"><a class="btn btn-primary btn-lg" href={cta.url}>{cta.text}</a> <a class="btn btn-outline btn-lg" href={`/get-matched/${city ? `?city=${city.id}` : ''}`}>Get free quotes</a></p>}
     </article>
 
+    {tocItems.length >= 3 && <button type="button" class="toc-fab" hidden aria-label="Show contents">Contents</button>}
     <section class="comments" id="comments" aria-labelledby="comments-h">
       <div class="cmt-top">
         <div>
@@ -169,6 +174,8 @@ const article = {
 </Base>
 <script>
   import { initComments, refreshComments } from '../../scripts/comments';
+  import { initToc } from '../../scripts/toc';
+  initToc();
   initComments();
   refreshComments();
 </script>

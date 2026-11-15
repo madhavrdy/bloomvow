@@ -56,6 +56,11 @@ test('post page: breadcrumb, TOC, schema, approved comments with staff reply, re
   assert.equal(await p.locator('.toc li').count(), 3);
   await p.click('.toc a:has-text("How to save")');
   assert.match(p.url(), /#how-to-save$/);
+  assert.equal(await p.locator('details.toc').getAttribute('open'), '', 'open as a sidebar on wide screens');
+  await p.setViewportSize({ width: 390, height: 800 });
+  await p.waitForFunction(() => !document.querySelector('details.toc').open);
+  assert.ok((await p.locator('details.toc summary').innerText()).includes('3 sections'), 'collapsed on phones, with the section count');
+  await p.setViewportSize({ width: 1280, height: 800 });
   // The built page has the comments approved at build time; the live list adds any approved since.
   assert.equal((h.match(/class="cmt" id=/g) ?? []).length, 1);
   const [{ n }] = await q(`select count(*)::int n from comments c join posts p on p.id = c.post_id where p.slug = 'how-much-does-a-wedding-venue-cost-in-austin' and c.status = 'approved' and c.parent_id is null`);
