@@ -63,7 +63,7 @@ export function Tracking() {
   if (!saved) return <p class="muted">Loading…</p>;
   return (
     <>
-      <div class="dhead"><h1>Tracking & analytics</h1></div>
+      <div class="dhead"><h1>Tracking codes</h1></div>
       <p class="muted" style="margin:0 0 16px;max-width:720px">Paste an ID, or the whole snippet the tool gives you and we'll pick out the ID. Tags load on the public site only (not on this admin or the vendor dashboard). Changes go live with the next site update.</p>
       <form onSubmit={save} style="display:grid;gap:16px;max-width:720px" aria-label="Tracking settings">
         {GROUPS.map((g) => (

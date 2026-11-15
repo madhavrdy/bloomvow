@@ -21,6 +21,9 @@
 .side .who select { font: inherit; font-size: 13px; border: 1px solid var(--ln); border-radius: 8px; padding: 4px; max-width: 160px; }
 .mono { width: 40px; height: 40px; border-radius: 10px; background: #d5e2dc; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; flex: 0 0 auto; }
 .side .spacer { flex: 1; }
+.side .side-group { font-size: 11px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--mut, #6b6478); padding: 16px 12px 4px; }
+.admin .side .side-group { color: #8f879d; }
+.admin .side a { padding-top: 9px; padding-bottom: 9px; }
 .dmain { flex: 999 1 560px; min-width: 0; padding: 28px 32px 48px; display: flex; flex-direction: column; gap: 22px; }
 .dhead { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
 .dhead h1 { margin: 0; font-size: 28px; }
@@ -89,7 +92,7 @@
     box-shadow: 0 4px 16px rgba(31, 26, 46, .06); }
   .side::-webkit-scrollbar { display: none; }
   .side { -webkit-mask-image: linear-gradient(to right, #000 82%, transparent); mask-image: linear-gradient(to right, #000 82%, transparent); padding-right: 48px; }
-  .side .tag, .side .spacer, .side .mono { display: none; }
+  .side .tag, .side .spacer, .side .mono, .side .side-group { display: none; }
   .side .who:not(:has(select)) { display: none; }
   .side .logo { font-size: 20px !important; padding: 0 8px 0 4px; flex: 0 0 auto; gap: 6px; }
   .side .logo .logo-mark { width: 24px; height: 24px; }

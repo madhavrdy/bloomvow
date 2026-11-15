@@ -24,22 +24,23 @@ export type Role = 'admin' | 'editor';
 type Counts = { claims: number; reviews: number; comments: number };
 
 // Editors see the content screens (page content and blog).
-const NAV: { r: string; label: string; roles: Role[] }[] = [
-  { r: 'overview', label: 'Overview', roles: ['admin'] },
-  { r: 'analytics', label: 'Analytics', roles: ['admin'] },
-  { r: 'leads', label: 'Leads', roles: ['admin'] },
-  { r: 'vendors', label: 'Vendors & claims', roles: ['admin'] },
-  { r: 'reviews', label: 'Reviews', roles: ['admin'] },
-  { r: 'taxonomy', label: 'Cities & categories', roles: ['admin'] },
-  { r: 'pages', label: 'Page content', roles: ['admin', 'editor'] },
-  { r: 'posts', label: 'Blog posts', roles: ['admin', 'editor'] },
-  { r: 'blog-categories', label: 'Blog categories', roles: ['admin', 'editor'] },
-  { r: 'comments', label: 'Comments', roles: ['admin'] },
-  { r: 'ads', label: 'Ads', roles: ['admin'] },
-  { r: 'tracking', label: 'Tracking & analytics', roles: ['admin'] },
-  { r: 'news', label: 'News & updates', roles: ['admin'] },
-  { r: 'seo', label: 'SEO files', roles: ['admin'] },
-  { r: 'team', label: 'Team', roles: ['admin'] },
+// Grouped by job, most-used first within each group. Editors only see the groups they can use.
+const NAV: { r: string; label: string; roles: Role[]; group: string }[] = [
+  { r: 'overview', label: 'Overview', roles: ['admin'], group: 'Dashboard' },
+  { r: 'analytics', label: 'Analytics', roles: ['admin'], group: 'Dashboard' },
+  { r: 'leads', label: 'Leads', roles: ['admin'], group: 'Customers & vendors' },
+  { r: 'vendors', label: 'Vendors & claims', roles: ['admin'], group: 'Customers & vendors' },
+  { r: 'reviews', label: 'Reviews', roles: ['admin'], group: 'Customers & vendors' },
+  { r: 'pages', label: 'Page content', roles: ['admin', 'editor'], group: 'Site content' },
+  { r: 'taxonomy', label: 'Cities & categories', roles: ['admin'], group: 'Site content' },
+  { r: 'news', label: 'News & updates', roles: ['admin'], group: 'Site content' },
+  { r: 'posts', label: 'Blog posts', roles: ['admin', 'editor'], group: 'Blog' },
+  { r: 'comments', label: 'Comments', roles: ['admin'], group: 'Blog' },
+  { r: 'blog-categories', label: 'Blog categories', roles: ['admin', 'editor'], group: 'Blog' },
+  { r: 'seo', label: 'SEO files', roles: ['admin'], group: 'Marketing & SEO' },
+  { r: 'tracking', label: 'Tracking codes', roles: ['admin'], group: 'Marketing & SEO' },
+  { r: 'ads', label: 'Ads', roles: ['admin'], group: 'Marketing & SEO' },
+  { r: 'team', label: 'Team', roles: ['admin'], group: 'Settings' },
 ];
 
 export function AdminApp({ siteName }: { siteName: string }) {
@@ -97,11 +98,12 @@ function Gate({ session, siteName }: { session: Session; siteName: string }) {
       <nav class="side" aria-label="Admin">
         <a href="/" class="logo" aria-label={`${siteName} home`} dangerouslySetInnerHTML={{ __html: logoHtml(siteName, 'light', 30) }} />
         <span class="tag">{r === 'admin' ? 'Admin' : 'Editor'}</span>
-        {allowed.map((n) => (
+        {allowed.map((n, i) => <>
+          {(i === 0 || allowed[i - 1].group !== n.group) && <span class="side-group">{n.group}</span>}
           <a href={`#${n.r}`} aria-current={current === n.r ? 'page' : undefined}>
             {n.label}{badge(n.r) > 0 && <span class="count">{badge(n.r)}</span>}
           </a>
-        ))}
+        </>)}
         <span class="spacer" />
         <span style="font-size:12px;padding:0 12px;color:#b7b0c4">{session.user.email}</span>
         <button type="button" class="navbtn" onClick={() => sb().auth.signOut()}>Sign out</button>
