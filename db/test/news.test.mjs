@@ -101,3 +101,11 @@ test('targets: daily during the first week, then weekly', async () => {
   assert.equal(await due(ago(24 * 10), ago(24 * 3)), false, 'second week, ran 3 days ago');
   assert.equal(await due(ago(24 * 10), ago(24 * 7)), true, 'second week, ran 7 days ago');
 });
+
+test('internal news functions cannot be called by signed-in users', async () => {
+  for (const f of ['select news_fetch()', 'select news_seed_targets()']) {
+    await assert.rejects(db.user(vendor, f), /permission denied/);
+    await assert.rejects(db.anon(f), /permission denied/);
+  }
+  await assert.rejects(db.user(vendor, `select news_parse((select t from news_targets t limit 1), '<rss/>')`), /permission denied/);
+});
