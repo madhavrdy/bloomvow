@@ -2,7 +2,6 @@
 // One shared, noindex page for basic listings: /vendor/?v=<slug>
 // Details load in the browser from the public API (see scripts/basic-vendor.ts).
 import Base from '../../layouts/Base.astro';
-const today = new Date().toISOString().slice(0, 10);
 ---
 <Base title="Wedding vendor" description="Wedding vendor details, pricing requests and contact information." noindex>
   <main class="wrap" style="padding:24px 0 64px" id="basic-vendor">
@@ -39,7 +38,7 @@ const today = new Date().toISOString().slice(0, 10);
           <form id="lead-form" class="lead-card" data-source="profile" novalidate>
             <span class="serif" style="font-size:28px;line-height:1.1">Check availability &amp; pricing</span>
             <div class="two">
-              <label class="field">Wedding date<input type="date" name="wedding_date" min={today} /></label>
+              <label class="field">Wedding date<input type="date" name="wedding_date" data-today="min" /></label>
               <label class="field">Guests<input type="number" name="guests" min="1" max="3000" inputmode="numeric" placeholder="150" /></label>
             </div>
             <label class="field">Full name<input name="couple_name" required maxlength="120" autocomplete="name" /></label>

@@ -80,6 +80,11 @@ const adClient = d.ads.client;
   {!bare && <Header />}
   <slot />
   {!bare && <Footer />}
-  <script>import '../scripts/pageview';</script>
+  <script>
+    import '../scripts/pageview';
+    // Date fields limited to today: set in the browser so pages don't change every day (keeps uploads small).
+    const today = new Date().toISOString().slice(0, 10);
+    document.querySelectorAll<HTMLInputElement>('input[data-today]').forEach((i) => i.setAttribute(i.dataset.today === 'max' ? 'max' : 'min', today));
+  </script>
 </body>
 </html>

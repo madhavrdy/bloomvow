@@ -66,7 +66,6 @@ const faqs = [
 ];
 const updated = v.updated_at;
 const fmtDate = (s: string | null) => (s ? new Date(s).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '');
-const today = new Date().toISOString().slice(0, 10);
 // "At a glance": the key facts in one box near the top, one short line each (same idea as the listing pages).
 const listOf = (k: string) => (Array.isArray(det[k]) ? (det[k] as string[]) : []);
 const lc = (x: string) => x.charAt(0).toLowerCase() + x.slice(1);
@@ -200,7 +199,7 @@ const extraAmenities = v.amenities.filter((a) => !detAmen.has(a.toLowerCase()));
               <form id="review-form" class="review-form">
                 <label class="field">Your name(s)<input name="name" required maxlength="80" /></label>
                 <label class="field">Email (not shown)<input name="email" type="email" required /></label>
-                <label class="field">Wedding date<input name="date" type="date" max={today} /></label>
+                <label class="field">Wedding date<input name="date" type="date" data-today="max" /></label>
                 <label class="field">Rating<select name="rating" required><option value="5">5 – Excellent</option><option value="4">4 – Great</option><option value="3">3 – Good</option><option value="2">2 – Fair</option><option value="1">1 – Poor</option></select></label>
                 <label class="field">Your review<textarea name="body" rows="4" required minlength="20" maxlength="4000"></textarea></label>
                 <p class="form-error" role="alert"></p>
@@ -252,7 +251,7 @@ const extraAmenities = v.amenities.filter((a) => !detAmen.has(a.toLowerCase()));
             <span style="font-size:14px;color:var(--green);font-weight:600">Free{reply && ` · usually replies within ${reply}`}</span>
           </div>
           <div class="two">
-            <label class="field">Wedding date<input type="date" name="wedding_date" min={today} /></label>
+            <label class="field">Wedding date<input type="date" name="wedding_date" data-today="min" /></label>
             <label class="field">Guests<input type="number" name="guests" min="1" max="3000" inputmode="numeric" placeholder="150" /></label>
           </div>
           <label class="check"><input type="checkbox" name="date_flexible" /> Our date is flexible</label>

@@ -7,7 +7,6 @@ const d = await getData();
 const bands = d.budgetBands;
 const fmt = (n: number) => `$${new Intl.NumberFormat('en-US').format(n)}`;
 const bandLabels = bands.map((b, i) => (i === 0 ? `Under ${fmt(b)}` : i === bands.length - 1 ? `${fmt(bands[i - 1])}+` : `${fmt(bands[i - 1])} – ${fmt(b)}`));
-const today = new Date().toISOString().slice(0, 10);
 ---
 <Base title="Get matched with wedding vendors for free" description="Tell us your date, city, guest count and budget. We'll send your request to available vendors who fit, so you can compare quotes." bare>
   <div class="page">
@@ -25,7 +24,7 @@ const today = new Date().toISOString().slice(0, 10);
         <fieldset data-step="2" hidden>
           <legend class="serif">When and where is the wedding?</legend>
           <div class="two">
-            <label class="field">Wedding date<input type="date" name="wedding_date" min={today} /></label>
+            <label class="field">Wedding date<input type="date" name="wedding_date" data-today="min" /></label>
             <label class="field">Estimated guests<input type="number" name="guests" min="1" max="3000" inputmode="numeric" placeholder="120" /></label>
             <label class="field" style="grid-column:1/-1">City<input type="text" name="city_name" id="city-name" list="cities" placeholder="Start typing, e.g. Austin" autocomplete="off" required /><datalist id="cities"></datalist></label>
           </div>
