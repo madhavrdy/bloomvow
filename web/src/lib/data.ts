@@ -2,7 +2,8 @@
 // Supabase REST API (public views only, using the public anon key).
 import { cleanTracking } from './tracking';
 import { cleanAds } from './ads';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, CONTACT_EMAIL } from '../config';
+import { businessFrom } from './business';
 import { VENUE_STYLES, STYLE_CATEGORIES } from './styles';
 
 export type Country = { code: string; name: string; currency: string; active: boolean };
@@ -265,6 +266,7 @@ function build(d: Awaited<ReturnType<typeof load>>) {
     styleListings, contentByPath, nearbyFor, teamFor, kmFrom,
     posts, postsByAuthor, blogCategories, blogCategoryById, postsByCategory, commentsByPost, guidesFor, relatedPosts, news: d.news as NewsItem[],
     costGuides: setting('cost_guide') ?? {},
+    business: businessFrom(setting('business'), CONTACT_EMAIL),
   };
 }
 

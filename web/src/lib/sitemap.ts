@@ -4,7 +4,7 @@ import { getData } from './data';
 // (fewer than min_vendors_to_index vendors) are left out and marked noindex.
 export async function allUrls() {
   const d = await getData();
-  const urls: { loc: string; lastmod?: string }[] = [{ loc: '/' }, { loc: '/categories/' }, { loc: '/get-matched/' }, { loc: '/for-vendors/' }];
+  const urls: { loc: string; lastmod?: string }[] = [{ loc: '/' }, { loc: '/categories/' }, { loc: '/get-matched/' }, { loc: '/for-vendors/' }, { loc: '/about/' }, { loc: '/contact/' }];
   for (const c of d.countries) urls.push({ loc: d.urls.country(c) });
   for (const r of d.regions) if (d.activeCities.some((c) => c.region_id === r.id)) urls.push({ loc: d.urls.region(r) });
   for (const c of d.categories) urls.push({ loc: `/categories/${c.slug}/` });

@@ -410,3 +410,15 @@ test('tracking: tags from Admin > Tracking on public pages only; lead and contac
   const g = await p.evaluate(() => window.dataLayer.filter((a) => a[0] === 'event' && !/^lead_form_/.test(a[1])).map((a) => [a[1], a[2]?.send_to ?? a[2]?.method ?? a[2]?.lead_source]));
   assert.deepEqual(g, [['contact', 'phone'], ['generate_lead', 'vendor_profile'], ['conversion', 'AW-111222333/LeadLabel1']]);
 });
+
+test('contact page and footer show the contact email; Organization data includes it', async () => {
+  const p = await browser.newPage();
+  await p.goto(`${SITE}/contact/`);
+  assert.match(await p.locator('h1').innerText(), /Contact us/);
+  const email = await p.locator('.contact-card a[href^="mailto:"]').first().innerText();
+  assert.match(email, /@/);
+  assert.match(await p.locator('footer .foot-contact').innerText(), new RegExp(email.replace('.', '\\.')));
+  const ld = await p.locator('script[type="application/ld+json"]').allInnerTexts();
+  assert.ok(ld.some((t) => t.includes('"ContactPage"') && t.includes(email)));
+  await p.close();
+});

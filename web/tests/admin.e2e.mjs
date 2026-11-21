@@ -662,3 +662,24 @@ test('news settings: approval and sources are saved; bad source refused', async 
   await form.locator('button:has-text("Save settings")').click();
   await admin.waitForSelector('.toast:has-text("Settings saved")');
 });
+
+test('business details: admin saves email and mailing address; bad ZIP is rejected', async () => {
+  await go(admin, 'business');
+  await admin.waitForSelector('h1:has-text("Business details")');
+  const set = (label, v) => admin.locator(`label:has-text("${label}") input`).fill(v);
+  await set('Contact email', 'hello@celebrateio.com');
+  await set('Street address', '641 Southern Oaks Pl');
+  await set('Apartment, suite or unit', 'Apt 15');
+  await set('City', 'Memphis');
+  await set('State', 'tn');
+  await set('ZIP code', '3811');
+  await admin.click('form[aria-label="Business details"] button:has-text("Save")');
+  await toast(admin, /ZIP code/);
+  await set('ZIP code', '38111');
+  await admin.click('form[aria-label="Business details"] button:text-is("Save")');
+  await toast(admin, /Saved/);
+  const [{ value }] = await q(`select value from settings where key = 'business'`);
+  assert.deepEqual(value, { email: 'hello@celebrateio.com', street: '641 Southern Oaks Pl', unit: 'Apt 15', city: 'Memphis', region: 'TN', postal: '38111', country: 'US' });
+  assert.match(await admin.locator('section[aria-label="Preview"]').innerText(), /641 Southern Oaks Pl, Apt 15\s+Memphis, TN 38111/);
+  await q(`delete from settings where key = 'business'`);
+});

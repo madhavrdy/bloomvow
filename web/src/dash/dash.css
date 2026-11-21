@@ -258,3 +258,9 @@
 }
 .cm-del { color: #b42318; border-color: #f2c9c4; }
 .cm-del:hover { background: #fdf1ef; border-color: #b42318; }
+
+/* Admin > Business details */
+.biz-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+.biz-grid .field { grid-column: 1 / -1; }
+.biz-grid .field.biz-half { grid-column: auto; }
+@media (max-width: 600px) { .biz-grid { grid-template-columns: 1fr; } .biz-grid .field.biz-half { grid-column: 1 / -1; } }

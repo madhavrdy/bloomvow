@@ -1,6 +1,7 @@
 ---
 import { logoHtml } from '../lib/brand';
 import { SITE_NAME, TAGLINE } from '../config';
+import ContactDetails from './ContactDetails.astro';
 const year = new Date().getFullYear();
 ---
 <footer class="site-footer">
@@ -12,7 +13,8 @@ const year = new Date().getFullYear();
     </div>
     <div class="foot-col"><b>Planning</b><a href="/categories/">Browse vendors</a><a href="/get-matched/">Get free quotes</a><a href="/account/">My {SITE_NAME} (your inbox)</a><a href="/shortlist/">My shortlist</a><a href="/blog/">Planning blog</a></div>
     <div class="foot-col"><b>Vendors</b><a href="/for-vendors/">List your business</a><a href="/vendor-dashboard/">Vendor login</a></div>
-    <div class="foot-col"><b>Company</b><a href="/about/">About</a><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a></div>
+    <div class="foot-col"><b>Company</b><a href="/about/">About</a><a href="/contact/">Contact</a><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a></div>
+    <div class="foot-col foot-contact"><b>Get in touch</b><ContactDetails compact /></div>
   </div>
   <div class="wrap" style="display:block;padding-top:0;padding-bottom:32px;font-size:13px;color:#b7b0c4">© {year} {SITE_NAME} · Business listings include <a href="https://overturemaps.org" rel="nofollow noopener" style="color:inherit;text-decoration:underline">Overture Maps Foundation</a> open data.</div>
 </footer>

@@ -15,6 +15,7 @@ import { Posts } from './Posts';
 import { BlogCategories } from './BlogCategories';
 import { Comments } from './Comments';
 import { Team } from './Team';
+import { Business } from './Business';
 import { PageContent } from './PageContent';
 import { Tracking } from './Tracking';
 import { Ads } from './Ads';
@@ -40,6 +41,7 @@ const NAV: { r: string; label: string; roles: Role[]; group: string }[] = [
   { r: 'seo', label: 'SEO files', roles: ['admin'], group: 'Marketing & SEO' },
   { r: 'tracking', label: 'Tracking codes', roles: ['admin'], group: 'Marketing & SEO' },
   { r: 'ads', label: 'Ads', roles: ['admin'], group: 'Marketing & SEO' },
+  { r: 'business', label: 'Business details', roles: ['admin'], group: 'Settings' },
   { r: 'team', label: 'Team', roles: ['admin'], group: 'Settings' },
 ];
 
@@ -124,6 +126,7 @@ function Gate({ session, siteName }: { session: Session; siteName: string }) {
         {current === 'tracking' && <Tracking />}
         {current === 'seo' && <SeoFiles />}
         {current === 'team' && <Team selfEmail={session.user.email ?? ''} />}
+        {current === 'business' && <Business />}
       </main>
     </div>
   );

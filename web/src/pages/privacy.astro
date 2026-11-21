@@ -1,6 +1,11 @@
 ---
 import Base from '../layouts/Base.astro';
-import { SITE_NAME, CONTACT_EMAIL } from '../config';
+import { SITE_NAME } from '../config';
+import { getData } from '../lib/data';
+import { addressLines } from '../lib/business';
+const biz = (await getData()).business;
+const CONTACT_EMAIL = biz.email;
+const mail = addressLines(biz);
 const updated = 'November 14, 2026';
 const site = SITE_NAME;
 ---
@@ -89,7 +94,8 @@ const site = SITE_NAME;
       <p>We'll update this page when our practices change and adjust the date at the top. If a change is significant, we'll let you know on the site or by email.</p>
 
       <h2>Contact</h2>
-      <p>{site} · <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a></p>
+      <p>{biz.name ?? site} · <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a></p>
+      {mail.length > 0 && <p>By post: {biz.name ?? site}, {mail.join(', ')}</p>}
     </article>
   </main>
 </Base>

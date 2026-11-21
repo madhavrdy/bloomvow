@@ -1,0 +1,44 @@
+---
+// Business email and mailing address (Admin > Business details).
+import { getData } from '../lib/data';
+import { addressLines } from '../lib/business';
+import { SITE_NAME } from '../config';
+interface Props { compact?: boolean }
+const { compact = false } = Astro.props;
+const b = (await getData()).business;
+const lines = addressLines(b);
+---
+{compact ? (
+  <span class="contact-mini">
+    <a href={`mailto:${b.email}`}>{b.email}</a>
+    {lines.slice(0, 2).map((l) => <span>{l}</span>)}
+  </span>
+) : (
+  <div class="contact-card" itemscope itemtype="https://schema.org/Organization">
+    <meta itemprop="name" content={b.name ?? SITE_NAME} />
+    <div>
+      <b>Email</b>
+      <a href={`mailto:${b.email}`} itemprop="email">{b.email}</a>
+      <span class="contact-note">We usually reply within one business day.</span>
+    </div>
+    {b.phone && <div><b>Phone</b><a href={`tel:${b.phone.replace(/[^\d+]/g, '')}`} itemprop="telephone">{b.phone}</a></div>}
+    {lines.length > 0 && (
+      <div itemprop="address" itemscope itemtype="https://schema.org/PostalAddress">
+        <b>Mailing address</b>
+        <address>{b.name ?? SITE_NAME}<br />{lines.map((l, i) => <>{i > 0 && <br />}{l}</>)}</address>
+        <span class="contact-note">For letters only. We don't have a showroom; please email us to get in touch.</span>
+      </div>
+    )}
+  </div>
+)}
+<style>
+  .contact-card { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 20px 0; }
+  .contact-card > div { border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 4px; background: #fff; }
+  .contact-card b { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); }
+  .contact-card a { color: var(--rose-dark); font-weight: 600; font-size: 17px; text-decoration: none; overflow-wrap: anywhere; }
+  .contact-card a:hover { text-decoration: underline; }
+  .contact-card address { font-style: normal; line-height: 1.55; color: var(--ink); }
+  .contact-note { font-size: 13px; color: var(--ink-3); margin-top: 4px; }
+  .contact-mini { display: flex; flex-direction: column; gap: 2px; }
+  .contact-mini a { color: inherit; }
+</style>

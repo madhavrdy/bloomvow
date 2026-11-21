@@ -4,7 +4,8 @@ import Base from '../layouts/Base.astro';
 import VendorRow from '../components/VendorRow.astro';
 import PostCard from '../components/PostCard.astro';
 import { getData, rankVendors, categoryImage } from '../lib/data';
-import { SITE_NAME, CONTACT_EMAIL, SOCIAL_LINKS } from '../config';
+import { SITE_NAME, SOCIAL_LINKS } from '../config';
+import { postalAddressJsonLd } from '../lib/business';
 
 const d = await getData();
 const total = d.vendors.length;
@@ -20,7 +21,10 @@ const art = ['wedding-venues', 'photographers', 'florists'].map((slug) => d.cate
 const org = new URL('/#organization', Astro.site).href;
 const jsonld = [
   { '@context': 'https://schema.org', '@type': 'Organization', '@id': org, name: SITE_NAME, url: Astro.site?.href,
-    logo: new URL('/logo.png', Astro.site).href, email: CONTACT_EMAIL, ...(SOCIAL_LINKS.length ? { sameAs: SOCIAL_LINKS } : {}) },
+    logo: new URL('/logo.png', Astro.site).href, email: d.business.email,
+    ...(postalAddressJsonLd(d.business) ? { address: postalAddressJsonLd(d.business) } : {}),
+    contactPoint: { '@type': 'ContactPoint', contactType: 'customer support', email: d.business.email, ...(d.business.phone ? { telephone: d.business.phone } : {}), areaServed: 'US', availableLanguage: 'en' },
+    url_contact: undefined, ...(SOCIAL_LINKS.length ? { sameAs: SOCIAL_LINKS } : {}) },
   { '@context': 'https://schema.org', '@type': 'WebSite', name: SITE_NAME, url: Astro.site?.href, publisher: { '@id': org }, inLanguage: 'en-US' },
 ];
 ---

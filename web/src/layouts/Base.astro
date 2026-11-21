@@ -10,7 +10,7 @@ import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import Tracking from '../components/Tracking.astro';
 import TrackingBody from '../components/TrackingBody.astro';
-import { SITE_NAME, SUPABASE_URL, SUPABASE_ANON_KEY, CONTACT_EMAIL, PREVIEW } from '../config';
+import { SITE_NAME, SUPABASE_URL, SUPABASE_ANON_KEY, PREVIEW } from '../config';
 import { getData } from '../lib/data';
 
 interface Props {
@@ -70,7 +70,7 @@ const adClient = d.ads.client;
   <link rel="manifest" href="/site.webmanifest?v=3" />
   <meta name="theme-color" content="#ffffff" />
   <link rel="preconnect" href={SUPABASE_URL} crossorigin />
-  <meta name="bv-api" content={SUPABASE_URL} data-key={SUPABASE_ANON_KEY} data-contact={CONTACT_EMAIL} />
+  <meta name="bv-api" content={SUPABASE_URL} data-key={SUPABASE_ANON_KEY} data-contact={d.business.email} />
   {tags && <Tracking t={d.tracking} />}
   {tags && adClient && <meta name="google-adsense-account" content={adClient} />}
   {jsonld.map((j) => <script type="application/ld+json" set:html={JSON.stringify(j)} />)}

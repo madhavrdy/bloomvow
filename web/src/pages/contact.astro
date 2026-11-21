@@ -1,0 +1,31 @@
+---
+import Base from '../layouts/Base.astro';
+import ContactDetails from '../components/ContactDetails.astro';
+import { breadcrumbJsonLd } from '../lib/seo';
+import { getData } from '../lib/data';
+import { postalAddressJsonLd } from '../lib/business';
+import { SITE_NAME } from '../config';
+const b = (await getData()).business;
+const crumbs = [{ name: 'Home', url: '/' }, { name: 'Contact' }];
+const org = new URL('/#organization', Astro.site).href;
+const jsonld = [breadcrumbJsonLd(Astro.site, crumbs), {
+  '@context': 'https://schema.org', '@type': 'ContactPage', name: `Contact ${SITE_NAME}`, url: new URL('/contact/', Astro.site).href,
+  about: { '@id': org },
+  mainEntity: { '@type': 'Organization', '@id': org, name: b.name ?? SITE_NAME, email: b.email, ...(b.phone ? { telephone: b.phone } : {}),
+    ...(postalAddressJsonLd(b) ? { address: postalAddressJsonLd(b) } : {}) },
+}];
+---
+<Base title={`Contact ${SITE_NAME}`} description={`How to reach ${SITE_NAME}: email, mailing address, and help for couples and wedding vendors.`} jsonld={jsonld}>
+  <main class="wrap" style="padding-top:32px;padding-bottom:56px;max-width:860px">
+    <h1 class="serif" style="font-size:48px;margin:0 0 12px;line-height:1.1">Contact us</h1>
+    <p style="font-size:17px;line-height:1.65;margin:0;color:var(--ink-2)">Questions about a vendor, your quote requests, a listing or something on our site? We're happy to help.</p>
+    <ContactDetails />
+    <h2 style="font-size:24px;margin:36px 0 10px">Quick answers</h2>
+    <ul style="line-height:1.8;padding-left:20px;margin:0">
+      <li><b>Planning your event?</b> Your quote requests and vendor replies are in <a href="/account/">My {SITE_NAME}</a>.</li>
+      <li><b>Run a wedding business?</b> <a href="/for-vendors/">List or claim your business</a>, or <a href="/vendor-dashboard/">log in to your dashboard</a>.</li>
+      <li><b>Something wrong on a listing?</b> Email us the page link and what needs fixing.</li>
+      <li><b>Your data:</b> see our <a href="/privacy/">privacy policy</a> to see, correct or delete your information.</li>
+    </ul>
+  </main>
+</Base>
